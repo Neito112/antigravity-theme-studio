@@ -14,13 +14,13 @@ If a user gives you this repository URL or clones it into their Antigravity work
    - **Windows (PowerShell):**
      ```powershell
      $Dest = "$HOME\.gemini\config\skills\antigravity-custom-theme"
-     if (Test-Path "$Dest\.git") { git -C $Dest pull --ff-only } else { git clone https://github.com/Neito112/antigravity-custom-theme-skill.git $Dest }
+     if (Test-Path "$Dest\.git") { git -C $Dest pull --ff-only } else { git clone https://github.com/Neito112/antigravity-theme-studio.git $Dest }
      cd $Dest
      ```
    - **macOS / Linux (Bash):**
      ```bash
      DEST="$HOME/.gemini/config/skills/antigravity-custom-theme"
-     if [ -d "$DEST/.git" ]; then git -C "$DEST" pull --ff-only; else git clone https://github.com/Neito112/antigravity-custom-theme-skill.git "$DEST"; fi
+     if [ -d "$DEST/.git" ]; then git -C "$DEST" pull --ff-only; else git clone https://github.com/Neito112/antigravity-theme-studio.git "$DEST"; fi
      cd "$DEST"
      ```
 2. **Compile the payload with Node.js >= 22 (zero Python required):**
