@@ -19,6 +19,7 @@
   const STORAGE_GLASS_BLUR = 'agy_glass_blur_v3';
   const STORAGE_AVATAR_SIZE = 'agy_avatar_size_v3';
   const STORAGE_AVATAR_RADIUS = 'agy_avatar_radius_v3';
+  const STORAGE_THEME_MODE = 'agy_theme_mode_v1';
 
   const CHECK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 
@@ -66,7 +67,9 @@
     const avatarSize = rawAvSize !== undefined && rawAvSize !== null && rawAvSize !== '' ? parseInt(rawAvSize, 10) : 32;
     const rawAvRad = localStorage.getItem(STORAGE_AVATAR_RADIUS) ?? init.avatarRadius;
     const avatarRadius = rawAvRad !== undefined && rawAvRad !== null && rawAvRad !== '' ? parseInt(rawAvRad, 10) : 50;
-    return { themeName, bubbleName, inputStyle, dimming, wpEnabled, customWp, userAvatar, agentAvatar, glassBlur, avatarSize, avatarRadius };
+    const rawMode = localStorage.getItem(STORAGE_THEME_MODE) || init.themeMode || 'dynamic';
+    const themeMode = rawMode === 'static' ? 'static' : 'dynamic';
+    return { themeName, bubbleName, inputStyle, dimming, wpEnabled, customWp, userAvatar, agentAvatar, glassBlur, avatarSize, avatarRadius, themeMode };
   }
 
   // Downscale user/agent avatar uploads to 192x192 WebP once so theme_config.json stays tiny
@@ -143,14 +146,34 @@
     img.src = wpUrl;
   }
 
+  function syncDynamicAuraElement(isDynamic, wpEnabled) {
+    const existing = document.getElementById('agy-dynamic-ambient-aura');
+    if (!isDynamic || !wpEnabled) {
+      if (existing) existing.remove();
+      return;
+    }
+    const shell = document.querySelector('.agy-shell');
+    if (!shell) return;
+    if (!existing) {
+      const aura = document.createElement('span');
+      aura.id = 'agy-dynamic-ambient-aura';
+      aura.setAttribute('aria-hidden', 'true');
+      shell.appendChild(aura);
+    } else if (existing.parentElement !== shell) {
+      shell.appendChild(existing);
+    }
+  }
+
   function applyTheme(overrides = {}) {
     const st = { ...getState(), ...overrides };
+    st.themeMode = st.themeMode === 'static' ? 'static' : 'dynamic';
     try {
       localStorage.setItem(STORAGE_THEME, st.themeName);
       localStorage.setItem(STORAGE_BUBBLE, st.bubbleName);
       localStorage.setItem(STORAGE_INPUT, st.inputStyle);
       localStorage.setItem(STORAGE_DIMMING, String(st.dimming));
       localStorage.setItem(STORAGE_WP_ENABLED, String(st.wpEnabled));
+      localStorage.setItem(STORAGE_THEME_MODE, st.themeMode);
       if (overrides.customWp !== undefined) {
         localStorage.setItem(STORAGE_CUSTOM_WP, overrides.customWp);
       }
@@ -292,7 +315,7 @@
         background-repeat: no-repeat;
         z-index: 25;
         pointer-events: none;
-        transition: transform 0.2s ease;
+        ${st.themeMode === 'dynamic' ? 'transition: transform 0.2s ease;' : 'transition: none;'}
       }
     ` : `
       .group\\/user-input-step {
@@ -311,7 +334,7 @@
         background-repeat: no-repeat;
         z-index: 25;
         pointer-events: none;
-        transition: transform 0.2s ease;
+        ${st.themeMode === 'dynamic' ? 'transition: transform 0.2s ease;' : 'transition: none;'}
       }
     `) : `
       .agy-user-bubble-frame::before { display: none !important; }
@@ -928,8 +951,107 @@
       #agy-custom-theme-sidebar-btn svg {
         color: ${mainTheme.primary} !important;
       }
+      ${st.themeMode === 'dynamic' ? `
+      @keyframes agyAmbientAura {
+        0%, 100% {
+          opacity: 0.42;
+          transform: translate3d(0, 0, 0) scale(1);
+        }
+        50% {
+          opacity: 0.72;
+          transform: translate3d(-1.5%, 1%, 0) scale(1.04);
+        }
+      }
+      @keyframes agyBorderFlow {
+        0%, 100% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+      }
+      @keyframes agyOrnamentFloat {
+        0%, 100% {
+          transform: translate3d(0, 0, 0);
+        }
+        50% {
+          transform: translate3d(0, -3px, 0);
+        }
+      }
+      @keyframes agyFiligreeShimmer {
+        0%, 100% {
+          opacity: 0.58;
+        }
+        50% {
+          opacity: 0.96;
+        }
+      }
+      @keyframes agyStudioBreath {
+        0%, 100% {
+          opacity: 0.32;
+          transform: scale(0.95);
+        }
+        50% {
+          opacity: 0.88;
+          transform: scale(1.06);
+        }
+      }
+      #agy-dynamic-ambient-aura {
+        display: block;
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background-image: radial-gradient(circle at 76% 32%, ${mainTheme.glow} 0%, transparent 56%), radial-gradient(circle at 22% 76%, ${mainTheme.secondaryGlow || mainTheme.glow} 0%, transparent 52%);
+        will-change: opacity, transform;
+        animation: agyAmbientAura 10s ease-in-out infinite;
+      }
+      .agy-user-bubble-frame,
+      .surface-composer {
+        background-size: 220% 220% !important;
+        animation: agyBorderFlow 7s ease-in-out infinite !important;
+      }
+      .agy-user-bubble-frame::before,
+      .surface-composer::before {
+        will-change: transform;
+        animation: agyOrnamentFloat 4.5s ease-in-out infinite;
+      }
+      .agy-user-bubble-frame::after,
+      .surface-composer::after {
+        animation: agyFiligreeShimmer 3.8s ease-in-out infinite;
+      }
+      #agy-custom-theme-topbar-btn {
+        position: relative;
+      }
+      #agy-custom-theme-topbar-btn::after {
+        content: "";
+        position: absolute;
+        inset: -3px;
+        border-radius: inherit;
+        pointer-events: none;
+        background: radial-gradient(circle, ${mainTheme.glow} 0%, transparent 72%);
+        will-change: opacity, transform;
+        animation: agyStudioBreath 3.2s ease-in-out infinite;
+      }
+      ` : `
+      #agy-dynamic-ambient-aura {
+        display: none !important;
+      }
+      .agy-user-bubble-frame,
+      .surface-composer,
+      .agy-user-bubble-frame::before,
+      .surface-composer::before,
+      .agy-user-bubble-frame::after,
+      .surface-composer::after,
+      #agy-custom-theme-topbar-btn,
+      #agy-custom-theme-topbar-btn::after {
+        animation: none !important;
+        transition: none !important;
+      }
+      `}
     `;
 
+    syncDynamicAuraElement(st.themeMode === 'dynamic', st.wpEnabled);
     syncTitleBarOverlay(st);
     scheduleTitleBarSync(st);
   }
@@ -982,6 +1104,8 @@
     if (settingsBtn) settingsBtn.remove();
     const modal = document.getElementById('agy-custom-theme-modal-backdrop');
     if (modal) modal.remove();
+    const aura = document.getElementById('agy-dynamic-ambient-aura');
+    if (aura) aura.remove();
     const shell = document.querySelector('.agy-shell');
     if (shell) {
       delete shell.dataset.agyHoleActive;
@@ -1000,6 +1124,27 @@
   window.__ANTIGRAVITY_OPEN_THEME_MODAL__ = openCustomThemeModal;
 
   applyTheme();
+
+  function syncThemeModeToggleBtn(mode, primaryColor) {
+    const btn = document.getElementById('agy-theme-mode-toggle');
+    if (!btn) return;
+    const isDyn = mode !== 'static';
+    const accent = primaryColor || '#38bdf8';
+    btn.dataset.themeMode = isDyn ? 'dynamic' : 'static';
+    btn.setAttribute('aria-pressed', isDyn ? 'true' : 'false');
+    const dynPill = btn.querySelector('[data-mode-pill="dynamic"]');
+    const statPill = btn.querySelector('[data-mode-pill="static"]');
+    if (dynPill) {
+      dynPill.style.background = isDyn ? accent : 'transparent';
+      dynPill.style.color = isDyn ? '#090d16' : '#a1a1aa';
+      dynPill.style.fontWeight = isDyn ? '700' : '500';
+    }
+    if (statPill) {
+      statPill.style.background = !isDyn ? 'rgba(255, 255, 255, 0.16)' : 'transparent';
+      statPill.style.color = !isDyn ? '#f4f4f5' : '#a1a1aa';
+      statPill.style.fontWeight = !isDyn ? '700' : '500';
+    }
+  }
 
   function openCustomThemeModal(initialFile) {
     let backdrop = document.getElementById('agy-custom-theme-modal-backdrop');
@@ -1025,7 +1170,13 @@
               <span style="font-size: 17px; font-weight: 600; color: #f4f4f5; letter-spacing: -0.2px;">Custom Theme Studio</span>
               <span id="agy-custom-theme-badge" style="font-size: 11.5px; padding: 2.5px 9px; border-radius: 9999px; background: rgba(224, 142, 85, 0.2); color: #e08e55; font-weight: 500; border: 1px solid rgba(224, 142, 85, 0.3);">${THEME_KEYS.length} Preset${THEME_KEYS.length > 1 ? 's' : ''}</span>
             </div>
-            <button id="agy-theme-modal-close-btn" type="button" style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); color: #d4d4d8; cursor: pointer; width: 30px; height: 30px; border-radius: 8px; font-size: 15px; display: flex; align-items: center; justify-content: center; transition: all 0.15s ease;">✕</button>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <button id="agy-theme-mode-toggle" type="button" title="Chuyển chế độ Động / Tĩnh (Dynamic / Static)" style="display: inline-flex; align-items: center; gap: 2px; padding: 3px; border-radius: 9999px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); cursor: pointer; font-size: 12px; line-height: 1; user-select: none;">
+                <span data-mode-pill="dynamic" style="padding: 5px 10px; border-radius: 9999px; transition: background-color 0.15s ease, color 0.15s ease;">⚡ Động</span>
+                <span data-mode-pill="static" style="padding: 5px 10px; border-radius: 9999px; transition: background-color 0.15s ease, color 0.15s ease;">🧊 Tĩnh</span>
+              </button>
+              <button id="agy-theme-modal-close-btn" type="button" style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); color: #d4d4d8; cursor: pointer; width: 30px; height: 30px; border-radius: 8px; font-size: 15px; display: flex; align-items: center; justify-content: center; transition: all 0.15s ease;">✕</button>
+            </div>
           </div>
           <div id="agy-theme-modal-body" style="flex: 1; overflow-y: auto; height: 100%;"></div>
         </div>
@@ -1038,6 +1189,13 @@
       });
       backdrop.querySelector('#agy-theme-modal-close-btn').addEventListener('click', () => {
         backdrop.style.display = 'none';
+      });
+      backdrop.querySelector('#agy-theme-mode-toggle').addEventListener('click', () => {
+        const cur = getState();
+        const nextMode = cur.themeMode === 'static' ? 'dynamic' : 'static';
+        applyTheme({ themeMode: nextMode });
+        const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
+        syncThemeModeToggleBtn(nextMode, th.primary);
       });
       const sig = window.__AGY_SCROLL_AC__ ? window.__AGY_SCROLL_AC__.signal : undefined;
       window.addEventListener('keydown', (e) => {
@@ -1080,6 +1238,7 @@
     const customCount = THEME_KEYS.filter((k) => !BUILTIN_KEYS.has(k)).length;
     const badge = document.getElementById('agy-custom-theme-badge');
     if (badge) badge.textContent = `${THEME_KEYS.length} Preset${THEME_KEYS.length > 1 ? 's' : ''}`;
+    syncThemeModeToggleBtn(st.themeMode, mainTheme.primary);
 
     container.innerHTML = `
       <div id="agy-theme-scroll-container" style="padding: 24px 32px 48px 32px; max-width: 860px; margin: 0 auto; overflow-y: auto; height: 100%; color: #f4f4f5;">
@@ -1529,7 +1688,7 @@
             throw new Error('Config must be a JSON object');
           }
           const allowed = {};
-          const keys = ['themeName', 'bubbleName', 'inputStyle', 'dimming', 'wpEnabled', 'customWp', 'userAvatar', 'agentAvatar', 'glassBlur', 'avatarSize', 'avatarRadius'];
+          const keys = ['themeName', 'bubbleName', 'inputStyle', 'dimming', 'wpEnabled', 'customWp', 'userAvatar', 'agentAvatar', 'glassBlur', 'avatarSize', 'avatarRadius', 'themeMode'];
           keys.forEach((k) => {
             if (parsed[k] !== undefined) allowed[k] = parsed[k];
           });
@@ -1554,6 +1713,7 @@
       localStorage.removeItem(STORAGE_INPUT);
       localStorage.removeItem(STORAGE_DIMMING);
       localStorage.removeItem(STORAGE_WP_ENABLED);
+      localStorage.removeItem(STORAGE_THEME_MODE);
       const resetDefKey = getDefaultThemeKey();
       applyTheme({
         themeName: resetDefKey,
@@ -1566,9 +1726,11 @@
         agentAvatar: '',
         glassBlur: 3,
         avatarSize: 32,
-        avatarRadius: 50
+        avatarRadius: 50,
+        themeMode: 'dynamic'
       });
       const defTh = THEMES[resetDefKey] || {};
+      syncThemeModeToggleBtn('dynamic', defTh.primary);
       syncAvPreview(userAvPreview, defTh.userAvatar || '', 'U');
       syncAvPreview(agentAvPreview, defTh.agentAvatar || '', 'AI');
       if (userAvPreview) userAvPreview.style.borderRadius = '50%';
