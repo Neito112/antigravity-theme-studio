@@ -22,20 +22,10 @@ const STR = { type: 'string' };
 const BOOL = { type: 'boolean' };
 const NUM = { type: 'number' };
 
-const ARCHETYPES = [
-    'rpg-fantasy',
-    'anime-celestial',
-    'cyberpunk-sci-fi',
-    'kaiju-mecha',
-    'minimal-office',
-    'nature-zen',
-    'retro-arcade',
-    'cosmic-arcane'
-];
-
-const PARTICLE_STYLES = ['crystals', 'embers', 'petals', 'sparks', 'grid-dots', 'stars', 'leaves', 'none'];
-const HUD_RING_STYLES = ['magic-circle', 'cyber-radar', 'orbital-halo', 'minimal-arc', 'pixel-frame', 'none'];
-const SOUND_PROFILES = ['crystalline', 'synth-chime', 'warm-bell', 'power-chord', 'retro-blip'];
+const FONT_VIBES = ['sans', 'mono', 'serif', 'display'];
+const BORDER_STYLES = ['solid', 'double', 'dashed', 'glow-frame', 'chamfered'];
+const PARTICLE_MOTIONS = ['fall', 'rise', 'float', 'orbit', 'pulse', 'drift'];
+const SOUND_WAVEFORMS = ['sine', 'triangle', 'sawtooth', 'square'];
 
 const ARCHETYPE_DEFAULTS = {
     'rpg-fantasy': {
@@ -47,7 +37,14 @@ const ARCHETYPE_DEFAULTS = {
         introSubtitle: 'AETHERIC SYNC 100%',
         introChecks: ['VISUAL', 'AUDIO', 'AETHER', 'SYNC'],
         voiceWelcome: 'Link start. Welcome back, adventurer.',
-        voiceSwitch: 'Realm synchronized.'
+        voiceSwitch: 'Realm synchronized.',
+        uiDesign: { fontVibe: 'serif', cardRadiusPx: 12, borderStyle: 'double', accentGlowIntensity: 0.75 },
+        particleShape: 'crystal-shard',
+        particleMotion: 'float',
+        particleCount: 12,
+        soundSynth: { waveform: 'triangle', notes: [523.25, 659.25, 783.99, 1046.5], noteStepMs: 80, decayMs: 280 },
+        voicePitch: 1.0,
+        voiceRate: 0.98
     },
     'anime-celestial': {
         archetypeLabel: 'Anime Celestial',
@@ -58,7 +55,14 @@ const ARCHETYPE_DEFAULTS = {
         introSubtitle: 'CELESTIAL RESONANCE ACTIVE',
         introChecks: ['STARLIGHT', 'RESONANCE', 'AURA', 'READY'],
         voiceWelcome: 'Celestial nexus online. Welcome back.',
-        voiceSwitch: 'Starlight aligned.'
+        voiceSwitch: 'Starlight aligned.',
+        uiDesign: { fontVibe: 'display', cardRadiusPx: 16, borderStyle: 'glow-frame', accentGlowIntensity: 0.8 },
+        particleShape: 'sakura-petal',
+        particleMotion: 'fall',
+        particleCount: 14,
+        soundSynth: { waveform: 'sine', notes: [587.33, 739.99, 880, 1174.66], noteStepMs: 75, decayMs: 320 },
+        voicePitch: 1.08,
+        voiceRate: 1.0
     },
     'cyberpunk-sci-fi': {
         archetypeLabel: 'Cyberpunk HUD',
@@ -69,7 +73,14 @@ const ARCHETYPE_DEFAULTS = {
         introSubtitle: 'BIOMETRIC SYNC 100%',
         introChecks: ['UPLINK', 'OPTICS', 'CIPHER', 'SYNC'],
         voiceWelcome: 'Neural interface online. Welcome back.',
-        voiceSwitch: 'Uplink synchronized.'
+        voiceSwitch: 'Uplink synchronized.',
+        uiDesign: { fontVibe: 'mono', cardRadiusPx: 6, borderStyle: 'chamfered', accentGlowIntensity: 0.9 },
+        particleShape: 'data-spark',
+        particleMotion: 'rise',
+        particleCount: 14,
+        soundSynth: { waveform: 'sawtooth', notes: [329.63, 440, 659.25, 880], noteStepMs: 55, decayMs: 180 },
+        voicePitch: 0.95,
+        voiceRate: 1.06
     },
     'kaiju-mecha': {
         archetypeLabel: 'Kaiju Mecha',
@@ -80,7 +91,14 @@ const ARCHETYPE_DEFAULTS = {
         introSubtitle: 'REACTOR OUTPUT NOMINAL',
         introChecks: ['REACTOR', 'ARMOR', 'THRUST', 'LOCKED'],
         voiceWelcome: 'Reactor online. All systems nominal.',
-        voiceSwitch: 'Core engaged.'
+        voiceSwitch: 'Core engaged.',
+        uiDesign: { fontVibe: 'mono', cardRadiusPx: 4, borderStyle: 'chamfered', accentGlowIntensity: 0.95 },
+        particleShape: 'reactor-ember',
+        particleMotion: 'rise',
+        particleCount: 15,
+        soundSynth: { waveform: 'sawtooth', notes: [196, 293.66, 392, 587.33], noteStepMs: 65, decayMs: 260 },
+        voicePitch: 0.85,
+        voiceRate: 0.95
     },
     'minimal-office': {
         archetypeLabel: 'Minimal Office',
@@ -91,7 +109,14 @@ const ARCHETYPE_DEFAULTS = {
         introSubtitle: 'AMBIENT DESK READY',
         introChecks: ['LAYOUT', 'FOCUS', 'AUDIO', 'READY'],
         voiceWelcome: 'Workspace ready. Have a focused session.',
-        voiceSwitch: 'Workspace updated.'
+        voiceSwitch: 'Workspace updated.',
+        uiDesign: { fontVibe: 'sans', cardRadiusPx: 12, borderStyle: 'solid', accentGlowIntensity: 0.35 },
+        particleShape: 'soft-dot',
+        particleMotion: 'drift',
+        particleCount: 8,
+        soundSynth: { waveform: 'sine', notes: [392, 493.88, 587.33], noteStepMs: 110, decayMs: 360 },
+        voicePitch: 1.0,
+        voiceRate: 0.96
     },
     'nature-zen': {
         archetypeLabel: 'Nature Zen',
@@ -102,7 +127,14 @@ const ARCHETYPE_DEFAULTS = {
         introSubtitle: 'SERENE AMBIENCE ACTIVE',
         introChecks: ['FLORA', 'BREEZE', 'CHIME', 'CALM'],
         voiceWelcome: 'Sanctuary open. Breathe and begin.',
-        voiceSwitch: 'Ambience shifted.'
+        voiceSwitch: 'Ambience shifted.',
+        uiDesign: { fontVibe: 'serif', cardRadiusPx: 18, borderStyle: 'solid', accentGlowIntensity: 0.45 },
+        particleShape: 'leaf',
+        particleMotion: 'drift',
+        particleCount: 10,
+        soundSynth: { waveform: 'triangle', notes: [349.23, 440, 523.25, 698.46], noteStepMs: 120, decayMs: 420 },
+        voicePitch: 0.96,
+        voiceRate: 0.9
     },
     'retro-arcade': {
         archetypeLabel: 'Retro Arcade',
@@ -113,7 +145,14 @@ const ARCHETYPE_DEFAULTS = {
         introSubtitle: 'PLAYER 1 READY',
         introChecks: ['VRAM', 'CHIPTUNE', 'STAGE', 'START'],
         voiceWelcome: 'Player one ready. Let us begin.',
-        voiceSwitch: 'Stage selected.'
+        voiceSwitch: 'Stage selected.',
+        uiDesign: { fontVibe: 'mono', cardRadiusPx: 4, borderStyle: 'dashed', accentGlowIntensity: 0.85 },
+        particleShape: 'pixel-block',
+        particleMotion: 'pulse',
+        particleCount: 12,
+        soundSynth: { waveform: 'square', notes: [440, 554.37, 659.25, 880], noteStepMs: 50, decayMs: 140 },
+        voicePitch: 1.1,
+        voiceRate: 1.08
     },
     'cosmic-arcane': {
         archetypeLabel: 'Cosmic Arcane',
@@ -124,27 +163,67 @@ const ARCHETYPE_DEFAULTS = {
         introSubtitle: 'ORBITAL TELEMETRY LOCKED',
         introChecks: ['ORBIT', 'AETHER', 'TELEMETRY', 'SYNC'],
         voiceWelcome: 'Astral observatory online. Welcome back.',
-        voiceSwitch: 'Orbit locked.'
+        voiceSwitch: 'Orbit locked.',
+        uiDesign: { fontVibe: 'display', cardRadiusPx: 14, borderStyle: 'glow-frame', accentGlowIntensity: 0.78 },
+        particleShape: 'starlight',
+        particleMotion: 'orbit',
+        particleCount: 12,
+        soundSynth: { waveform: 'sine', notes: [440, 523.25, 659.25, 987.77], noteStepMs: 90, decayMs: 340 },
+        voicePitch: 1.0,
+        voiceRate: 0.96
     }
+};
+
+const UI_DESIGN_SCHEMA = {
+    type: 'object',
+    properties: {
+        fontVibe: { type: 'string', enum: FONT_VIBES },
+        cardRadiusPx: NUM,
+        borderStyle: { type: 'string', enum: BORDER_STYLES },
+        accentGlowIntensity: NUM
+    },
+    required: ['fontVibe', 'cardRadiusPx', 'borderStyle', 'accentGlowIntensity']
+};
+
+const SOUND_SYNTH_SCHEMA = {
+    type: 'object',
+    properties: {
+        waveform: { type: 'string', enum: SOUND_WAVEFORMS },
+        notes: { type: 'array', items: NUM },
+        noteStepMs: NUM,
+        decayMs: NUM
+    },
+    required: ['waveform', 'notes', 'noteStepMs', 'decayMs']
 };
 
 const DYNAMIC_PACK_SCHEMA = {
     type: 'object',
     properties: {
-        archetype: { type: 'string', enum: ARCHETYPES },
+        archetype: STR,
         archetypeLabel: STR,
-        particleStyle: { type: 'string', enum: PARTICLE_STYLES },
-        hudRingStyle: { type: 'string', enum: HUD_RING_STYLES },
-        soundProfile: { type: 'string', enum: SOUND_PROFILES },
+        particleStyle: STR,
+        hudRingStyle: STR,
+        soundProfile: STR,
         introTitle: STR,
         introSubtitle: STR,
         introChecks: { type: 'array', items: STR },
         voiceWelcome: STR,
-        voiceSwitch: STR
+        voiceSwitch: STR,
+        uiDesign: UI_DESIGN_SCHEMA,
+        particleShape: STR,
+        particleSvgInner: STR,
+        particleMotion: { type: 'string', enum: PARTICLE_MOTIONS },
+        particleCount: NUM,
+        hudSvgInner: STR,
+        soundSynth: SOUND_SYNTH_SCHEMA,
+        voicePitch: NUM,
+        voiceRate: NUM
     },
     required: [
         'archetype', 'archetypeLabel', 'particleStyle', 'hudRingStyle', 'soundProfile',
-        'introTitle', 'introSubtitle', 'introChecks', 'voiceWelcome', 'voiceSwitch'
+        'introTitle', 'introSubtitle', 'introChecks', 'voiceWelcome', 'voiceSwitch',
+        'uiDesign', 'particleShape', 'particleMotion', 'particleCount',
+        'soundSynth', 'voicePitch', 'voiceRate'
     ]
 };
 
@@ -261,17 +340,26 @@ function buildPrompt(absImagePath, { srcW, srcH, needsAiPaint }) {
         '- stickerW 96, stickerH 30, stickerTop -15, stickerRight 14 unless the design needs otherwise.',
         '- name: a short evocative 2-3 word title for the preset (max 24 chars).',
         '- Colors must be valid CSS (hex or rgba()). overlayRgb is "R, G, B".',
-        '- Classify the image into one archetype and populate `dynamicPack` tailored to the image\'s exact subject, mood, and genre (game, RPG, anime, office, sci-fi, nature, retro, cosmic, etc.):',
-        `  * \`archetype\`: one of ${ARCHETYPES.map((a) => `"${a}"`).join(', ')}.`,
-        '  * `archetypeLabel`: short display label (e.g. "RPG Fantasy", "Anime Celestial", "Cyberpunk HUD", "Kaiju Mecha", "Minimal Office", "Nature Zen", "Retro Arcade", "Cosmic Arcane").',
-        `  * \`particleStyle\`: one of ${PARTICLE_STYLES.map((p) => `"${p}"`).join(', ')}.`,
-        `  * \`hudRingStyle\`: one of ${HUD_RING_STYLES.map((r) => `"${r}"`).join(', ')}.`,
-        `  * \`soundProfile\`: one of ${SOUND_PROFILES.map((s) => `"${s}"`).join(', ')}.`,
-        '  * `introTitle`: short uppercase boot title matching the image (e.g. "CARDINAL SYSTEM // LINK START", "FOCUS WORKSPACE // ONLINE").',
-        '  * `introSubtitle`: short uppercase status line (e.g. "BIOMETRIC SYNC 100%", "AMBIENT DESK READY").',
-        '  * `introChecks`: array of 3-4 short uppercase check labels (e.g. ["VISUAL", "AUDIO", "AETHER", "SYNC"]).',
-        '  * `voiceWelcome`: short 4-8 word English spoken greeting matching the theme (e.g. "System online. Welcome back.").',
-        '  * `voiceSwitch`: short 2-5 word English spoken confirmation (e.g. "Theme synchronized.").',
+        '- Design an open-ended, image-specific `dynamicPack` tailored to THIS image\'s exact subject, mood, atmosphere, and genre (DO NOT force it into a generic preset if it has a more fitting vibe like "lofi-rainy-cafe", "abyssal-submarine", "gothic-library", "cyberpunk-netrunner", "minimal-desk", etc.):',
+        '  * `archetype`: open kebab-case genre/vibe slug (e.g. "lofi-rainy-cafe", "abyssal-submarine", "gothic-library", "cyberpunk-netrunner", "rpg-fantasy", "minimal-desk").',
+        '  * `archetypeLabel`: short evocative display label (e.g. "Lofi Rainy Cafe", "Abyssal Submarine", "Gothic Library").',
+        '  * `particleStyle`: open descriptive particle motif name (e.g. "raindrops", "bubbles", "dust-motes", "crystals", "petals", "embers", "sparks", "none").',
+        '  * `hudRingStyle`: open descriptive HUD/ring motif name (e.g. "sonar-rings", "clockwork-gears", "coffee-steam", "magic-circle", "cyber-radar", "none").',
+        '  * `soundProfile`: open descriptive audio profile name (e.g. "lofi-rhodes", "sonar-ping", "crystalline", "warm-bell", "synth-chime").',
+        '  * `uiDesign`: `{ fontVibe: "sans"|"mono"|"serif"|"display", cardRadiusPx: number (4..22), borderStyle: "solid"|"double"|"dashed"|"glow-frame"|"chamfered", accentGlowIntensity: number (0.2..1.0) }` — pick typography, corner radius, border geometry, and glow intensity that match the image.',
+        '  * `particleShape`: open shape name (e.g. "raindrop", "bubble", "maple-leaf", "rune-shard").',
+        '  * `particleSvgInner`: optional custom inline SVG primitives (`<path>`, `<circle>`, `<ellipse>`, `<rect>`, `<polygon>`, `<polyline>`, `<line>`, `<g>`) designed for a `0 0 24 24` viewBox using `currentColor` (NO `<svg>` wrapper, NO `<script>`, NO `<foreignObject>`, NO `<style>`, NO `on*` attributes, NO `javascript:` URLs).',
+        '  * `particleMotion`: one of `"fall"`, `"rise"`, `"float"`, `"orbit"`, `"pulse"`, `"drift"`.',
+        '  * `particleCount`: integer between `6` and `18`.',
+        '  * `hudSvgInner`: optional custom inline SVG primitives designed for a `0 0 200 200` viewBox tailored to the image (e.g. sonar rings, clockwork gears, coffee steam curves, rune circle, circuit traces; same strict SVG safety rules: primitives only, no `<svg>` wrapper, no `<script>`, no `<foreignObject>`, no `on*` attrs).',
+        '  * `soundSynth`: `{ waveform: "sine"|"triangle"|"sawtooth"|"square", notes: [3 to 5 Hz numbers between 150 and 1600], noteStepMs: number (45..160), decayMs: number (120..500) }` — compose a 3–5 note motif fitting the image\'s mood.',
+        '  * `voicePitch`: number (`0.8..1.25`).',
+        '  * `voiceRate`: number (`0.85..1.15`).',
+        '  * `introTitle`: short uppercase boot title matching the image (e.g. "RAINY CAFE // BREWING", "ABYSSAL SUB // SONAR LOCK").',
+        '  * `introSubtitle`: short uppercase status line (e.g. "LOFI AMBIENCE 100%", "DEPTH 4200M NOMINAL").',
+        '  * `introChecks`: array of 3-4 short uppercase check labels (e.g. ["ESPRESSO", "RAIN", "VINYL", "WARMTH"]).',
+        '  * `voiceWelcome`: short 4-8 word English spoken greeting matching the theme (e.g. "Rain on the glass. Welcome back.").',
+        '  * `voiceSwitch`: short 2-5 word English spoken confirmation (e.g. "Ambience tuned.").',
         '',
         'Theme schema reference:',
         schemaDoc,
@@ -409,11 +497,47 @@ const ARCHETYPE_KEYWORDS = [
     ['cosmic-arcane', /\b(cosmic|eclipse|orbit|astral|nebula|galaxy|black\s*sun|starlight|arcane|void|space)\b/i]
 ];
 
+function sanitizeSvgFragment(raw, maxLen = 2400) {
+    if (typeof raw !== 'string') return '';
+    let s = raw.trim();
+    if (!s) return '';
+    s = s.replace(/<\s*(script|foreignObject|style|iframe|object|embed)\b[\s\S]*?<\s*\/\s*\1\s*>/gi, '');
+    s = s.replace(/<\s*(script|foreignObject|style|iframe|object|embed)\b[^>]*\/?\s*>/gi, '');
+    const ALLOWED_TAGS = new Set(['path', 'circle', 'ellipse', 'rect', 'polygon', 'polyline', 'line', 'g']);
+    s = s.replace(/<\s*(\/?)\s*([a-zA-Z0-9:-]+)([^>]*)>/g, (_match, slash, tag, attrs) => {
+        const lower = tag.toLowerCase();
+        if (!ALLOWED_TAGS.has(lower)) return '';
+        if (slash) return `</${lower}>`;
+        const cleanAttrs = attrs
+            .replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+            .replace(/(href|xlink:href|src)\s*=\s*(?:"\s*(?:javascript|data):[^"]*"|'\s*(?:javascript|data):[^']*')/gi, '')
+            .replace(/javascript\s*:/gi, '');
+        return `<${lower}${cleanAttrs}>`;
+    });
+    return s.trim().slice(0, maxLen);
+}
+
+function clampNum(val, min, max, fallback, round = false) {
+    const n = Number(val);
+    if (!Number.isFinite(n)) return fallback;
+    const clamped = Math.min(max, Math.max(min, n));
+    return round ? Math.round(clamped) : Number(clamped.toFixed(3));
+}
+
+function titleCaseSlug(slug) {
+    return String(slug || '')
+        .split(/[-_\s]+/)
+        .filter(Boolean)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ')
+        .slice(0, 36);
+}
+
 function inferArchetype(theme) {
     const raw = theme && theme.dynamicPack && typeof theme.dynamicPack.archetype === 'string'
-        ? theme.dynamicPack.archetype.trim().toLowerCase()
+        ? theme.dynamicPack.archetype.trim().toLowerCase().replace(/[^a-z0-9-_]+/g, '-').replace(/^-+|-+$/g, '')
         : '';
-    if (ARCHETYPES.includes(raw)) return raw;
+    if (raw) return raw.slice(0, 48);
     const text = `${(theme && theme.name) || ''} ${(theme && theme.concept) || ''}`;
     for (const [arch, re] of ARCHETYPE_KEYWORDS) {
         if (re.test(text)) return arch;
@@ -425,11 +549,21 @@ function inferArchetype(theme) {
     return 'cosmic-arcane';
 }
 
+function inferMotion(particleStyle, fallbackMotion) {
+    const s = String(particleStyle || '').toLowerCase();
+    if (/rain|snow|petal|drop|fall/.test(s)) return 'fall';
+    if (/ember|spark|bubble|steam|rise/.test(s)) return 'rise';
+    if (/star|orbit|planet|ring/.test(s)) return 'orbit';
+    if (/pixel|pulse|beat|glow/.test(s)) return 'pulse';
+    if (/leaf|leaves|dust|dot|mist|drift/.test(s)) return 'drift';
+    return fallbackMotion || 'float';
+}
+
 function normalizeDynamicPack(theme) {
     const raw = (theme && theme.dynamicPack && typeof theme.dynamicPack === 'object') ? theme.dynamicPack : {};
     const archetype = inferArchetype(theme);
     const def = ARCHETYPE_DEFAULTS[archetype] || ARCHETYPE_DEFAULTS['cosmic-arcane'];
-    const pick = (val, allowed, fallback) => (typeof val === 'string' && allowed.includes(val) ? val : fallback);
+    const pick = (val, allowed, fallback) => (typeof val === 'string' && allowed.includes(val.trim().toLowerCase()) ? val.trim().toLowerCase() : fallback);
     const str = (val, fallback, maxLen) => {
         const s = typeof val === 'string' ? val.trim() : '';
         return s ? s.slice(0, maxLen) : fallback;
@@ -437,17 +571,48 @@ function normalizeDynamicPack(theme) {
     const checks = Array.isArray(raw.introChecks)
         ? raw.introChecks.map((c) => String(c || '').trim().toUpperCase()).filter(Boolean).slice(0, 4)
         : [];
+    const defaultLabel = ARCHETYPE_DEFAULTS[archetype] ? def.archetypeLabel : titleCaseSlug(archetype);
+    const particleStyle = str(raw.particleStyle, def.particleStyle, 36);
+    const rawUi = (raw.uiDesign && typeof raw.uiDesign === 'object') ? raw.uiDesign : {};
+    const uiDesign = {
+        fontVibe: pick(rawUi.fontVibe, FONT_VIBES, def.uiDesign.fontVibe),
+        cardRadiusPx: clampNum(rawUi.cardRadiusPx, 4, 22, def.uiDesign.cardRadiusPx, true),
+        borderStyle: pick(rawUi.borderStyle, BORDER_STYLES, def.uiDesign.borderStyle),
+        accentGlowIntensity: clampNum(rawUi.accentGlowIntensity, 0.2, 1.0, def.uiDesign.accentGlowIntensity)
+    };
+    const rawSynth = (raw.soundSynth && typeof raw.soundSynth === 'object') ? raw.soundSynth : {};
+    const rawNotes = Array.isArray(rawSynth.notes)
+        ? rawSynth.notes.map((n) => clampNum(n, 150, 1600, NaN)).filter((n) => Number.isFinite(n)).slice(0, 5)
+        : [];
+    const soundSynth = {
+        waveform: pick(rawSynth.waveform, SOUND_WAVEFORMS, def.soundSynth.waveform),
+        notes: rawNotes.length >= 3 ? rawNotes : def.soundSynth.notes.slice(),
+        noteStepMs: clampNum(rawSynth.noteStepMs, 45, 160, def.soundSynth.noteStepMs, true),
+        decayMs: clampNum(rawSynth.decayMs, 120, 500, def.soundSynth.decayMs, true)
+    };
+    const particleSvgInner = sanitizeSvgFragment(raw.particleSvgInner, 2400);
+    const hudSvgInner = sanitizeSvgFragment(raw.hudSvgInner, 4000);
+
     return {
         archetype,
-        archetypeLabel: str(raw.archetypeLabel, def.archetypeLabel, 28),
-        particleStyle: pick(raw.particleStyle, PARTICLE_STYLES, def.particleStyle),
-        hudRingStyle: pick(raw.hudRingStyle, HUD_RING_STYLES, def.hudRingStyle),
-        soundProfile: pick(raw.soundProfile, SOUND_PROFILES, def.soundProfile),
+        archetypeLabel: str(raw.archetypeLabel, defaultLabel || def.archetypeLabel, 36),
+        particleStyle,
+        hudRingStyle: str(raw.hudRingStyle, def.hudRingStyle, 36),
+        soundProfile: str(raw.soundProfile, def.soundProfile, 36),
         introTitle: str(raw.introTitle, def.introTitle, 48).toUpperCase(),
         introSubtitle: str(raw.introSubtitle, def.introSubtitle, 48).toUpperCase(),
         introChecks: checks.length >= 3 ? checks : def.introChecks.slice(),
         voiceWelcome: str(raw.voiceWelcome, def.voiceWelcome, 96),
-        voiceSwitch: str(raw.voiceSwitch, def.voiceSwitch, 64)
+        voiceSwitch: str(raw.voiceSwitch, def.voiceSwitch, 64),
+        uiDesign,
+        particleShape: str(raw.particleShape, particleStyle || def.particleShape, 36),
+        particleSvgInner,
+        particleMotion: pick(raw.particleMotion, PARTICLE_MOTIONS, inferMotion(particleStyle, def.particleMotion)),
+        particleCount: clampNum(raw.particleCount, 6, 18, def.particleCount, true),
+        hudSvgInner,
+        soundSynth,
+        voicePitch: clampNum(raw.voicePitch, 0.8, 1.25, def.voicePitch),
+        voiceRate: clampNum(raw.voiceRate, 0.85, 1.15, def.voiceRate)
     };
 }
 

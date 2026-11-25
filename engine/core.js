@@ -6,7 +6,6 @@
   const DEFAULT_THEME_KEY = THEME_KEYS[0] || 'Default';
   const STORAGE_CUSTOM_THEMES = 'agy_custom_themes_v1';
   const STORAGE_HIDDEN_BUILTINS = 'agy_hidden_builtins_v1';
-  registerCustomThemes();
 
   const STORAGE_THEME = 'agy_theme_v3';
   const STORAGE_BUBBLE = 'agy_bubble_v3';
@@ -140,20 +139,111 @@
     return 'cosmic-arcane';
   }
 
+  const ALLOWED_SVG_TAGS = new Set(['path', 'circle', 'ellipse', 'rect', 'polygon', 'polyline', 'line', 'g']);
+  registerCustomThemes();
+
+  function sanitizeSvgFragment(raw) {
+    if (!raw || typeof raw !== 'string') return '';
+    let s = raw
+      .replace(/<(script|foreignObject|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+      .replace(/<(script|foreignObject|style)\b[^>]*\/?>/gi, '');
+    s = s.replace(/<(\/?)([a-zA-Z0-9:_-]+)([^>]*)>/g, (full, slash, tagName, attrs) => {
+      const tag = String(tagName).toLowerCase();
+      if (!ALLOWED_SVG_TAGS.has(tag)) return '';
+      if (slash === '/') return `</${tag}>`;
+      const isSelfClosing = /\/\s*$/.test(attrs);
+      let cleanAttrs = isSelfClosing ? attrs.replace(/\/\s*$/, '') : attrs;
+      cleanAttrs = cleanAttrs
+        .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+        .replace(/\s(?:href|xlink:href|src)\s*=\s*(?:"[^"]*(?:javascript:|vbscript:|data:text\/html)[^"]*"|'[^']*(?:javascript:|vbscript:|data:text\/html)[^']*'|[^\s>]*javascript:[^\s>]*)/gi, '')
+        .replace(/javascript\s*:/gi, '');
+      return `<${tag}${cleanAttrs}${isSelfClosing ? ' /' : ''}>`;
+    });
+    return s.trim();
+  }
+
+  function getFontVibeStack(fontVibe) {
+    if (fontVibe === 'mono') return 'ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace';
+    if (fontVibe === 'serif') return 'Georgia, "Palatino Linotype", "Book Antiqua", Palatino, serif';
+    if (fontVibe === 'display') return '"Orbitron", "Rajdhani", "Segoe UI", system-ui, sans-serif';
+    return 'system-ui, -apple-system, "Segoe UI", sans-serif';
+  }
+
   function resolveDynamicPack(theme) {
     const t = theme || {};
     const raw = (t.dynamicPack && typeof t.dynamicPack === 'object') ? t.dynamicPack : {};
-    const archKey = DYNAMIC_ARCHETYPES[raw.archetype] ? raw.archetype : inferArchetypeFromTheme(t);
-    const base = DYNAMIC_ARCHETYPES[archKey] || DYNAMIC_ARCHETYPES['cosmic-arcane'];
+    const rawArch = typeof raw.archetype === 'string' ? raw.archetype.trim() : '';
+    const fallbackArch = inferArchetypeFromTheme(t);
+    const archKey = rawArch || fallbackArch;
+    const base = DYNAMIC_ARCHETYPES[archKey] || DYNAMIC_ARCHETYPES[fallbackArch] || DYNAMIC_ARCHETYPES['cosmic-arcane'];
     const checks = Array.isArray(raw.introChecks) && raw.introChecks.length
       ? raw.introChecks.slice(0, 4).map(c => String(c).toUpperCase())
       : base.introChecks;
+
+    const rawUi = (raw.uiDesign && typeof raw.uiDesign === 'object') ? raw.uiDesign : {};
+    const cardRadiusPx = Number.isFinite(Number(rawUi.cardRadiusPx))
+      ? Math.min(28, Math.max(0, Math.round(Number(rawUi.cardRadiusPx))))
+      : 14;
+    const borderStyle = ['double', 'dashed', 'glow-frame', 'chamfered', 'solid'].includes(rawUi.borderStyle)
+      ? rawUi.borderStyle
+      : 'solid';
+    const fontVibe = ['mono', 'serif', 'display', 'sans'].includes(rawUi.fontVibe)
+      ? rawUi.fontVibe
+      : 'sans';
+    const accentGlowIntensity = Number.isFinite(Number(rawUi.accentGlowIntensity))
+      ? Math.min(2, Math.max(0, Number(rawUi.accentGlowIntensity)))
+      : 1;
+
+    const rawSynth = (raw.soundSynth && typeof raw.soundSynth === 'object') ? raw.soundSynth : null;
+    const synthNotes = rawSynth && Array.isArray(rawSynth.notes)
+      ? rawSynth.notes.map(Number).filter(n => Number.isFinite(n) && n >= 20 && n <= 8000).slice(0, 12)
+      : [];
+    const soundSynth = synthNotes.length > 0 ? {
+      waveform: ['sine', 'triangle', 'square', 'sawtooth'].includes(rawSynth.waveform) ? rawSynth.waveform : 'sine',
+      notes: synthNotes,
+      noteStepMs: Number.isFinite(Number(rawSynth.noteStepMs)) ? Math.min(600, Math.max(15, Number(rawSynth.noteStepMs))) : 65,
+      decayMs: Number.isFinite(Number(rawSynth.decayMs)) ? Math.min(2000, Math.max(20, Number(rawSynth.decayMs))) : 180
+    } : null;
+
+    const particleShape = typeof raw.particleShape === 'string' ? raw.particleShape.trim() : '';
+    const particleSvgInner = sanitizeSvgFragment(raw.particleSvgInner || '');
+    const particleMotion = typeof raw.particleMotion === 'string' ? raw.particleMotion.trim().toLowerCase() : '';
+    const particleCount = Number.isFinite(Number(raw.particleCount))
+      ? Math.min(36, Math.max(0, Math.round(Number(raw.particleCount))))
+      : 11;
+    const hudSvgInner = sanitizeSvgFragment(raw.hudSvgInner || '');
+
+    const voicePitch = Number.isFinite(Number(raw.voicePitch))
+      ? Math.min(2, Math.max(0.5, Number(raw.voicePitch)))
+      : 1;
+    const voiceRate = Number.isFinite(Number(raw.voiceRate))
+      ? Math.min(2, Math.max(0.5, Number(raw.voiceRate)))
+      : 1.03;
+
+    const defaultLabel = rawArch
+      ? rawArch.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+      : base.archetypeLabel;
+
     return {
       archetype: archKey,
-      archetypeLabel: raw.archetypeLabel || base.archetypeLabel,
+      archetypeLabel: raw.archetypeLabel || (DYNAMIC_ARCHETYPES[archKey] ? DYNAMIC_ARCHETYPES[archKey].archetypeLabel : defaultLabel),
       particleStyle: raw.particleStyle || base.particleStyle,
+      particleShape,
+      particleSvgInner,
+      particleMotion,
+      particleCount,
       hudRingStyle: raw.hudRingStyle || base.hudRingStyle,
+      hudSvgInner,
       soundProfile: raw.soundProfile || base.soundProfile,
+      soundSynth,
+      voicePitch,
+      voiceRate,
+      uiDesign: {
+        fontVibe,
+        cardRadiusPx,
+        borderStyle,
+        accentGlowIntensity
+      },
       introTitle: raw.introTitle || base.introTitle,
       introSubtitle: raw.introSubtitle || base.introSubtitle,
       introChecks: checks,
@@ -215,15 +305,37 @@
     } catch (_) {}
   }
 
+  function resolvePackFromArg(themeOrPack) {
+    if (themeOrPack && typeof themeOrPack === 'object' && ('soundSynth' in themeOrPack || 'voicePitch' in themeOrPack || 'uiDesign' in themeOrPack)) {
+      return themeOrPack;
+    }
+    const th = (themeOrPack && typeof themeOrPack === 'object')
+      ? themeOrPack
+      : (THEMES[getStateSafe().themeName] || THEMES[getDefaultThemeKey()] || {});
+    return resolveDynamicPack(th);
+  }
+
   function getActiveSoundProfile(themeOrPack) {
     if (themeOrPack && themeOrPack.soundProfile) return themeOrPack.soundProfile;
-    const th = themeOrPack || THEMES[getStateSafe().themeName] || THEMES[getDefaultThemeKey()] || {};
-    return resolveDynamicPack(th).soundProfile;
+    return resolvePackFromArg(themeOrPack).soundProfile;
   }
 
   // Genre-tuned theme selection chime
   function playThemeSelectSound(primaryColor, themeOrPack) {
     if (!isSoundEnabled()) return;
+    const pack = resolvePackFromArg(themeOrPack);
+    if (pack.soundSynth && Array.isArray(pack.soundSynth.notes) && pack.soundSynth.notes.length > 0) {
+      const synth = pack.soundSynth;
+      const wave = synth.waveform || 'sine';
+      const stepMs = synth.noteStepMs || 65;
+      const decaySec = (synth.decayMs || 180) / 1000;
+      const durSec = Math.max(0.06, decaySec + 0.04);
+      const volScale = wave === 'square' ? 0.28 : (wave === 'sawtooth' ? 0.25 : 0.45);
+      synth.notes.forEach((freq, idx) => {
+        setTimeout(() => playTone(freq, wave, durSec, volScale, 0.008, decaySec), idx * stepMs);
+      });
+      return;
+    }
     let baseFreq = 440;
     try {
       const hex = (primaryColor || '#38bdf8').replace('#', '');
@@ -231,7 +343,7 @@
       const g = parseInt(hex.substring(2, 4), 16) || 0;
       baseFreq = 300 + (r * 0.4 + g * 0.3) % 220;
     } catch (_) {}
-    const profile = getActiveSoundProfile(themeOrPack);
+    const profile = getActiveSoundProfile(pack);
     if (profile === 'retro-blip') {
       [1, 1.25, 1.5, 2.0].forEach((mult, idx) => {
         setTimeout(() => playTone(baseFreq * mult, 'square', 0.09, 0.28, 0.004, 0.07), idx * 45);
@@ -259,7 +371,19 @@
   // Soft click: played on UI toggle interactions (mute, voice, intro)
   function playClickSound(themeOrPack) {
     if (!isSoundEnabled()) return;
-    const profile = getActiveSoundProfile(themeOrPack);
+    const pack = resolvePackFromArg(themeOrPack);
+    if (pack.soundSynth && Array.isArray(pack.soundSynth.notes) && pack.soundSynth.notes.length > 0) {
+      const synth = pack.soundSynth;
+      const wave = synth.waveform || 'sine';
+      const notes = synth.notes;
+      const f1 = notes[0];
+      const f2 = notes.length > 1 ? notes[notes.length - 1] : Math.min(2400, f1 * 1.25);
+      const gain = wave === 'square' ? 0.18 : 0.28;
+      playTone(f1, wave, 0.07, gain, 0.004, 0.055);
+      setTimeout(() => playTone(f2, wave, 0.06, gain * 0.75, 0.004, 0.045), 34);
+      return;
+    }
+    const profile = getActiveSoundProfile(pack);
     if (profile === 'retro-blip') {
       playTone(960, 'square', 0.06, 0.18, 0.003, 0.05);
       setTimeout(() => playTone(1280, 'square', 0.06, 0.14, 0.003, 0.045), 32);
@@ -278,7 +402,24 @@
   function playModeToggleSound(isDynamic, themeOrPack) {
     const vol = getSoundVolume();
     if (vol <= 0) return;
-    const profile = getActiveSoundProfile(themeOrPack);
+    const pack = resolvePackFromArg(themeOrPack);
+    if (pack.soundSynth && Array.isArray(pack.soundSynth.notes) && pack.soundSynth.notes.length > 0) {
+      const synth = pack.soundSynth;
+      const wave = synth.waveform || 'sine';
+      const gainScale = wave === 'square' ? 0.3 : 0.58;
+      const notes = synth.notes;
+      const low = notes[0];
+      const high = notes[notes.length - 1] !== low ? notes[notes.length - 1] : Math.min(2400, low * 1.25);
+      if (isDynamic) {
+        playTone(low, wave, 0.14, vol * gainScale, 0.01, 0.11);
+        setTimeout(() => playTone(high, wave, 0.18, vol * (gainScale + 0.08), 0.01, 0.14), 75);
+      } else {
+        playTone(high, wave, 0.1, vol * (gainScale * 0.85), 0.01, 0.08);
+        setTimeout(() => playTone(low, wave, 0.15, vol * (gainScale * 0.75), 0.01, 0.12), 70);
+      }
+      return;
+    }
+    const profile = getActiveSoundProfile(pack);
     const wave = profile === 'retro-blip' ? 'square' : (profile === 'synth-chime' || profile === 'power-chord' ? 'triangle' : 'sine');
     const gainScale = wave === 'square' ? 0.3 : 0.6;
     if (isDynamic) {
@@ -291,18 +432,20 @@
   }
 
   // Optional Web Speech API voice feedback (Dynamic mode + voiceEnabled + unmuted)
-  function speakThemeVoice(text) {
+  function speakThemeVoice(text, themeOrPack) {
     if (!text) return;
     const st = getStateSafe();
     if (st.themeMode === 'static' || st.soundMuted || !st.voiceEnabled) return;
     const vol = getSoundVolume();
     if (vol <= 0) return;
+    const pack = resolvePackFromArg(themeOrPack);
     try {
       if (!window.speechSynthesis || typeof window.SpeechSynthesisUtterance !== 'function') return;
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(String(text));
       utter.volume = Math.min(1, Math.max(0, vol));
-      utter.rate = 1.03;
+      utter.pitch = Number.isFinite(pack.voicePitch) ? pack.voicePitch : 1;
+      utter.rate = Number.isFinite(pack.voiceRate) ? pack.voiceRate : 1.03;
       utter.lang = 'en-US';
       window.speechSynthesis.speak(utter);
     } catch (_) {}
@@ -443,9 +586,16 @@
     img.src = wpUrl;
   }
 
-  function buildHudRingSvg(hudRingStyle, primary, secondary, size = 340) {
+  function buildHudRingSvg(packOrStyle, primary, secondary, size = 340) {
     const c1 = primary || '#38bdf8';
     const c2 = secondary || c1;
+    const isPack = packOrStyle && typeof packOrStyle === 'object';
+    const hudSvgInner = isPack ? (packOrStyle.hudSvgInner || '') : '';
+    const hudRingStyle = isPack ? (packOrStyle.hudRingStyle || 'magic-circle') : packOrStyle;
+
+    if (hudSvgInner) {
+      return `<svg width="${size}" height="${size}" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" style="color:${c1};--agy-c1:${c1};--agy-c2:${c2};">${hudSvgInner}</svg>`;
+    }
     if (hudRingStyle === 'none') return '';
     if (hudRingStyle === 'cyber-radar') {
       return `<svg width="${size}" height="${size}" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -490,44 +640,73 @@
     </svg>`;
   }
 
+  function resolveParticleMotionAnim(motion, fallbackStyle) {
+    if (motion === 'fall') return 'agyParticleFall';
+    if (motion === 'rise') return 'agyParticleRise';
+    if (motion === 'float') return 'agyParticleFloat';
+    if (motion === 'orbit') return 'agyParticleOrbit';
+    if (motion === 'pulse') return 'agyParticlePulse';
+    if (motion === 'drift') return 'agyParticleDrift';
+    if (fallbackStyle === 'embers' || fallbackStyle === 'sparks') return 'agyParticleRise';
+    if (fallbackStyle === 'petals' || fallbackStyle === 'leaves') return 'agyParticleDrift';
+    if (fallbackStyle === 'stars' || fallbackStyle === 'grid-dots') return 'agyParticleTwinkle';
+    return 'agyParticleFloat';
+  }
+
+  function getBuiltinParticleSvgInner(shapeKey) {
+    const s = String(shapeKey || '').toLowerCase();
+    if (s === 'diamond' || s === 'crystal' || s === 'crystals') {
+      return '<polygon points="12,2 21,12 12,22 3,12"/>';
+    }
+    if (s === 'petal' || s === 'petals') {
+      return '<path d="M12 2 C17 6 19 13 12 22 C5 13 7 6 12 2 Z"/>';
+    }
+    if (s === 'leaf' || s === 'leaves') {
+      return '<path d="M4 20 C4 10 10 4 20 4 C20 14 14 20 4 20 Z"/>';
+    }
+    if (s === 'spark' || s === 'sparks') {
+      return '<polygon points="12,1 14.2,9.8 23,12 14.2,14.2 12,23 9.8,14.2 1,12 9.8,9.8"/>';
+    }
+    if (s === 'hex' || s === 'hexagon') {
+      return '<polygon points="12,2 20.6,7 20.6,17 12,22 3.4,17 3.4,7"/>';
+    }
+    if (s === 'ring' || s === 'rings') {
+      return '<circle cx="12" cy="12" r="7" fill="none" stroke-width="2.2"/>';
+    }
+    if (s === 'grid-dots' || s === 'square' || s === 'pixel') {
+      return '<rect x="6" y="6" width="12" height="12" rx="1"/>';
+    }
+    if (s === 'feather') {
+      return '<path d="M19 3 C12 4 7 9 5 19 C9 17 14 14 19 3 Z"/>';
+    }
+    if (s === 'snowflake') {
+      return '<path d="M12 2 V22 M2 12 H22 M5 5 L19 19 M19 5 L5 19" fill="none" stroke-width="1.8" stroke-linecap="round"/>';
+    }
+    if (s === 'ember' || s === 'embers' || s === 'orb' || s === 'orbs') {
+      return '<circle cx="12" cy="12" r="5"/>';
+    }
+    // stars / default
+    return '<polygon points="12,2 14.6,8.8 22,9.3 16.3,14 18,21 12,17.3 6,21 7.7,14 2,9.3 9.4,8.8"/>';
+  }
+
   function buildParticlesHtml(pack, primary, secondary) {
     const pStyle = pack.particleStyle || 'stars';
-    if (pStyle === 'none') return '';
+    const pShape = pack.particleShape || pStyle;
+    const count = pack.particleCount !== undefined ? pack.particleCount : 11;
+    if (pStyle === 'none' || pShape === 'none' || count <= 0) return '';
     const c1 = primary || '#38bdf8';
     const c2 = secondary || c1;
-    const count = 11;
+    const animName = resolveParticleMotionAnim(pack.particleMotion, pStyle);
+    const svgInner = pack.particleSvgInner || getBuiltinParticleSvgInner(pShape);
     let out = '';
     for (let i = 0; i < count; i++) {
       const left = ((i * 17 + 7) % 92) + 4;
       const top = ((i * 23 + 11) % 86) + 6;
-      const dur = 9 + (i % 5) * 2.4;
+      const dur = 8.5 + (i % 5) * 2.2;
       const delay = -((i * 1.3) % 8).toFixed(1);
       const color = i % 2 === 0 ? c1 : c2;
-      const sz = 5 + (i % 4) * 2;
-      let shapeCss = `width:${sz}px;height:${sz}px;border-radius:50%;background:${color};box-shadow:0 0 8px ${color};`;
-      let animName = 'agyParticleFloat';
-      if (pStyle === 'crystals') {
-        shapeCss = `width:${sz + 2}px;height:${sz + 2}px;background:${color};clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%);opacity:0.55;`;
-      } else if (pStyle === 'embers') {
-        shapeCss = `width:${sz - 1}px;height:${sz - 1}px;border-radius:50%;background:${color};box-shadow:0 0 10px ${color};`;
-        animName = 'agyParticleRise';
-      } else if (pStyle === 'petals') {
-        shapeCss = `width:${sz + 3}px;height:${Math.max(4, sz - 1)}px;border-radius:70% 10% 70% 10%;background:${color};opacity:0.45;`;
-        animName = 'agyParticleDrift';
-      } else if (pStyle === 'leaves') {
-        shapeCss = `width:${sz + 4}px;height:${Math.max(5, sz)}px;border-radius:0 75% 0 75%;background:${color};opacity:0.45;`;
-        animName = 'agyParticleDrift';
-      } else if (pStyle === 'sparks') {
-        shapeCss = `width:2px;height:${sz + 5}px;border-radius:2px;background:${color};box-shadow:0 0 8px ${color};`;
-        animName = 'agyParticleRise';
-      } else if (pStyle === 'grid-dots') {
-        shapeCss = `width:${Math.max(3, sz - 2)}px;height:${Math.max(3, sz - 2)}px;border-radius:1px;background:${color};opacity:0.45;`;
-        animName = 'agyParticleTwinkle';
-      } else {
-        // stars
-        animName = 'agyParticleTwinkle';
-      }
-      out += `<span class="agy-fx-particle" style="position:absolute;left:${left}%;top:${top}%;${shapeCss}will-change:transform,opacity;animation:${animName} ${dur}s ease-in-out ${delay}s infinite;"></span>`;
+      const sz = 8 + (i % 4) * 3;
+      out += `<span class="agy-fx-particle" style="position:absolute;left:${left}%;top:${top}%;width:${sz}px;height:${sz}px;color:${color};will-change:transform,opacity;animation:${animName} ${dur}s ease-in-out ${delay}s infinite;"><svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="currentColor" stroke="currentColor" stroke-width="1.2" style="display:block;overflow:visible;">${svgInner}</svg></span>`;
     }
     return out;
   }
@@ -541,7 +720,7 @@
     const pack = resolveDynamicPack(theme);
     const primary = (theme && theme.primary) || '#38bdf8';
     const secondary = (theme && theme.secondary) || primary;
-    const packKey = `${pack.archetype}|${pack.particleStyle}|${pack.hudRingStyle}|${primary}|${secondary}`;
+    const packKey = `${pack.archetype}|${pack.particleStyle}|${pack.particleShape}|${pack.particleMotion}|${pack.particleCount}|${pack.hudRingStyle}|${pack.particleSvgInner.length}|${pack.hudSvgInner.length}|${primary}|${secondary}`;
     let layer = existing;
     if (!layer) {
       layer = document.createElement('div');
@@ -552,7 +731,7 @@
     }
     if (layer.dataset.packKey !== packKey) {
       layer.dataset.packKey = packKey;
-      const ringSvg = buildHudRingSvg(pack.hudRingStyle, primary, secondary, 380);
+      const ringSvg = buildHudRingSvg(pack, primary, secondary, 380);
       const ringHtml = ringSvg
         ? `<div class="agy-fx-hud-ring" style="position:absolute;right:-70px;bottom:-70px;width:380px;height:380px;opacity:0.18;pointer-events:none;will-change:transform,opacity;animation:agyHudSpin 38s linear infinite;">${ringSvg}</div>`
         : '';
@@ -583,11 +762,13 @@
     const pack = resolveDynamicPack(th);
     const primary = th.primary || '#38bdf8';
     const secondary = th.secondary || primary;
-    const ringSvg = buildHudRingSvg(pack.hudRingStyle === 'none' ? 'orbital-halo' : pack.hudRingStyle, primary, secondary, 210);
+    const ringArg = pack.hudSvgInner ? pack : (pack.hudRingStyle === 'none' ? 'orbital-halo' : pack.hudRingStyle);
+    const ringSvg = buildHudRingSvg(ringArg, primary, secondary, 210);
+    const introFont = getFontVibeStack(pack.uiDesign && pack.uiDesign.fontVibe);
 
     const overlay = document.createElement('div');
     overlay.id = 'agy-intro-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:100001;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(7,9,15,0.82);cursor:pointer;opacity:1;transition:opacity 0.35s ease;font-family:system-ui,-apple-system,sans-serif;';
+    overlay.style.cssText = `position:fixed;inset:0;z-index:100001;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(7,9,15,0.82);cursor:pointer;opacity:1;transition:opacity 0.35s ease;font-family:${introFont};`;
     overlay.innerHTML = `
       <div style="position:relative;display:flex;align-items:center;justify-content:center;width:220px;height:220px;margin-bottom:18px;">
         <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;will-change:transform;animation:agyHudSpin 14s linear infinite;">${ringSvg}</div>
@@ -607,7 +788,7 @@
     `;
 
     document.body.appendChild(overlay);
-    speakThemeVoice(pack.voiceWelcome);
+    speakThemeVoice(pack.voiceWelcome, pack);
 
     const onEsc = (e) => {
       if (e.key === 'Escape') {
@@ -911,6 +1092,73 @@
       ? '2px solid #78350f'
       : (bubbleTheme.innerBorder || '1px solid rgba(255, 255, 255, 0.06)');
 
+    const mainPack = resolveDynamicPack(mainTheme);
+    const uiDesign = mainPack.uiDesign || { fontVibe: 'sans', cardRadiusPx: 14, borderStyle: 'solid', accentGlowIntensity: 1 };
+    const cardRadiusPx = Number.isFinite(uiDesign.cardRadiusPx) ? uiDesign.cardRadiusPx : 14;
+    const borderStyle = uiDesign.borderStyle || 'solid';
+    const fontVibeStack = getFontVibeStack(uiDesign.fontVibe);
+    const glowIntensity = Number.isFinite(uiDesign.accentGlowIntensity) ? uiDesign.accentGlowIntensity : 1;
+    const borderAccent = mainTheme.aiCardBorder || mainTheme.borderColor || 'rgba(255, 255, 255, 0.16)';
+    const chamferClip = 'polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px)';
+    let uiBorderCss = '';
+    if (borderStyle === 'double') {
+      uiBorderCss = `
+      .agy-shell [data-testid="agent-response"],
+      .agy-shell .agy-user-bubble,
+      .agy-shell .surface-composer-card,
+      .agy-card-radius {
+        border: 3px double ${borderAccent} !important;
+      }`;
+    } else if (borderStyle === 'dashed') {
+      uiBorderCss = `
+      .agy-shell [data-testid="agent-response"],
+      .agy-shell .agy-user-bubble,
+      .agy-shell .surface-composer-card,
+      .agy-card-radius {
+        border: 1.5px dashed ${borderAccent} !important;
+      }`;
+    } else if (borderStyle === 'glow-frame') {
+      const gSpread = Math.round(14 * glowIntensity);
+      const gInner = Math.round(9 * glowIntensity);
+      uiBorderCss = `
+      .agy-shell [data-testid="agent-response"],
+      .agy-shell .agy-user-bubble,
+      .agy-shell .surface-composer-card,
+      .agy-card-radius {
+        border: 1.5px solid ${mainTheme.primary || borderAccent} !important;
+        box-shadow: 0 0 ${gSpread}px ${mainTheme.glow || 'rgba(56,189,248,0.28)'}, inset 0 0 ${gInner}px ${mainTheme.glow || 'rgba(56,189,248,0.16)'} !important;
+      }`;
+    } else if (borderStyle === 'chamfered') {
+      uiBorderCss = `
+      .agy-shell [data-testid="agent-response"],
+      .agy-shell .agy-user-bubble,
+      .agy-shell .surface-composer-card,
+      .agy-card-radius {
+        clip-path: ${chamferClip} !important;
+        border-radius: 0 !important;
+      }`;
+    }
+
+    const uiDesignVarsCss = `
+      .agy-shell,
+      #agy-custom-theme-modal-dialog {
+        --agy-card-radius: ${cardRadiusPx}px;
+        --agy-font-vibe: ${fontVibeStack};
+        --agy-glow-intensity: ${glowIntensity};
+      }
+      .agy-card-radius {
+        border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
+      }
+      #agy-custom-theme-badge,
+      #agy-custom-theme-modal-header,
+      #agy-live-preview-strip,
+      .agy-shell [class*="@container/titlebar"] [data-testid="breadcrumb-segment"],
+      .agy-shell [data-testid="agent-response"] :is(h1, h2, h3) {
+        font-family: var(--agy-font-vibe, ${fontVibeStack}) !important;
+      }
+      ${uiBorderCss}
+    `;
+
     const isLight = Boolean(mainTheme.isLight);
     const uiInk = mainTheme.uiTextColor || (isLight ? '#0f172a' : 'rgba(248, 250, 252, 0.98)');
     const uiMutedInk = mainTheme.uiMutedColor || (isLight ? '#334155' : 'rgba(226, 232, 240, 0.94)');
@@ -1002,7 +1250,7 @@
         color: ${uiInk} !important;
         backdrop-filter: none !important;
         border: 1px solid ${mainTheme.aiCardBorder || (isLight ? 'rgba(15, 23, 42, 0.12)' : 'rgba(255, 255, 255, 0.1)')} !important;
-        border-radius: 14px !important;
+        border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
         padding: 12px 16px !important;
         box-shadow: ${isLight ? '0 4px 14px rgba(15, 23, 42, 0.08)' : '0 4px 14px rgba(0, 0, 0, 0.28)'} !important;
         box-sizing: border-box !important;
@@ -1308,7 +1556,7 @@
       /* User Chat Bubble Double-Border Frame & Ornament */
       .agy-user-bubble-frame {
         background: ${bubbleTheme.frameBg} !important;
-        border-radius: ${bubbleTheme.isScroll ? '6px' : '14px'} !important;
+        border-radius: ${bubbleTheme.isScroll ? '6px' : `var(--agy-card-radius, ${cardRadiusPx}px)`} !important;
         box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), 0 0 12px ${bubbleTheme.glow} !important;
         position: relative !important;
         overflow: visible !important;
@@ -1331,7 +1579,7 @@
 
       .agy-user-bubble {
         background: ${bubbleTheme.bg} !important;
-        border-radius: ${bubbleTheme.isScroll ? '5px' : '13px'} !important;
+        border-radius: ${bubbleTheme.isScroll ? '5px' : `calc(var(--agy-card-radius, ${cardRadiusPx}px) - 1px)`} !important;
         padding: 8px 16px !important;
         color: ${bubbleTheme.textColor} !important;
         border: ${innerBubbleBorder} !important;
@@ -1346,7 +1594,7 @@
       /* Double-Border Input Composer */
       .surface-composer {
         background: ${inputOuterBorder} !important;
-        border-radius: 16px !important;
+        border-radius: calc(var(--agy-card-radius, ${cardRadiusPx}px) + 2px) !important;
         padding: 1.5px !important;
         box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5), 0 0 14px ${bubbleTheme.glow} !important;
         position: relative !important;
@@ -1355,9 +1603,10 @@
       .surface-composer-card {
         background: ${inputCardBg} !important;
         backdrop-filter: none !important;
-        border-radius: 14.5px !important;
+        border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
         border: ${bubbleTheme.innerBorder || '1px solid rgba(255, 255, 255, 0.07)'} !important;
       }
+      ${uiDesignVarsCss}
       .surface-composer-card :is(textarea, [contenteditable="true"], [contenteditable="true"] p, [contenteditable="true"] span) {
         color: #f8fafc !important;
       }
@@ -1523,10 +1772,24 @@
         0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.25; }
         50% { transform: translate3d(14px, -28px, 0) scale(1.15); opacity: 0.65; }
       }
+      @keyframes agyParticleFall {
+        0% { transform: translate3d(0, -32px, 0) rotate(0deg); opacity: 0.15; }
+        50% { transform: translate3d(12px, 14px, 0) rotate(90deg); opacity: 0.7; }
+        100% { transform: translate3d(-8px, 56px, 0) rotate(180deg); opacity: 0.12; }
+      }
       @keyframes agyParticleRise {
         0% { transform: translate3d(0, 18px, 0) scale(0.9); opacity: 0.15; }
         50% { transform: translate3d(-10px, -24px, 0) scale(1.1); opacity: 0.7; }
         100% { transform: translate3d(8px, -54px, 0) scale(0.85); opacity: 0.12; }
+      }
+      @keyframes agyParticleOrbit {
+        0% { transform: rotate(0deg) translate3d(18px, 0, 0) rotate(0deg); opacity: 0.28; }
+        50% { transform: rotate(180deg) translate3d(18px, 0, 0) rotate(-180deg) scale(1.12); opacity: 0.72; }
+        100% { transform: rotate(360deg) translate3d(18px, 0, 0) rotate(-360deg); opacity: 0.28; }
+      }
+      @keyframes agyParticlePulse {
+        0%, 100% { transform: scale(0.78); opacity: 0.2; }
+        50% { transform: scale(1.32); opacity: 0.78; }
       }
       @keyframes agyParticleDrift {
         0%, 100% { transform: translate3d(0, -10px, 0) rotate(0deg); opacity: 0.3; }
@@ -1804,7 +2067,7 @@
           applyTheme({ voiceEnabled: next });
           syncExtraToggleBtns(th.primary);
           playClickSound(th);
-          if (next) speakThemeVoice('Voice feedback enabled.');
+          if (next) speakThemeVoice('Voice feedback enabled.', th);
         });
       }
       const introToggleBtn = backdrop.querySelector('#agy-intro-toggle-btn');
@@ -2102,7 +2365,7 @@
           <div id="agy-live-preview-strip" style="position: relative; overflow: hidden; border-radius: 10px; height: 36px; margin-bottom: 14px; background: linear-gradient(90deg, ${mainTheme.glow}, ${mainTheme.secondaryGlow || mainTheme.primary}, ${mainTheme.glow}); background-size: 300% 100%; animation: agyPreviewStripFlow 4s ease-in-out infinite; display: flex; align-items: center; padding: 0 16px; gap: 10px; border: 1px solid ${mainTheme.borderColor};">
             <span style="position: absolute; left: 0; top: 0; bottom: 0; width: 25%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent); animation: agyLiveStripScan 2.4s ease-in-out infinite; pointer-events: none;"></span>
             <span style="font-size: 12px; font-weight: 700; color: #090d16; letter-spacing: 0.5px; text-shadow: 0 1px 3px rgba(0,0,0,0.3);">⚡ ${escHtml(activePack.archetypeLabel)}</span>
-            <span style="font-size: 11px; color: rgba(0,0,0,0.7); margin-left: 4px;">${escHtml(activePack.particleStyle)} · ${escHtml(activePack.hudRingStyle)} · ${escHtml(activePack.soundProfile)}</span>
+            <span style="font-size: 11px; color: rgba(0,0,0,0.7); margin-left: 4px;">${escHtml(activePack.particleShape || activePack.particleStyle)} · ${escHtml(activePack.uiDesign.borderStyle)} · ${escHtml(activePack.soundProfile)}</span>
             <span style="margin-left: auto; font-size: 11px; font-weight: 600; color: rgba(0,0,0,0.65); background: rgba(255,255,255,0.32); border-radius: 999px; padding: 2px 8px;">ANIMATE ON</span>
           </div>
           ` : `
@@ -2138,10 +2401,19 @@
                 ? `<span style="position: absolute; bottom: 8px; left: 10px; z-index: 2; font-size: 10px; font-weight: 700; color: ${th.primary || '#38bdf8'}; background: rgba(0,0,0,0.65); border-radius: 999px; padding: 1px 7px; border: 1px solid ${th.glow || 'rgba(56,189,248,0.4)'}; letter-spacing: 0.3px;">⚡ ${escHtml(cardPack.archetypeLabel)}</span>`
                 : `<span style="position: absolute; bottom: 8px; left: 10px; z-index: 2; font-size: 10px; font-weight: 700; color: #94a3b8; background: rgba(0,0,0,0.65); border-radius: 999px; padding: 1px 7px; border: 1px solid rgba(148,163,184,0.3); letter-spacing: 0.3px;">🧊 Static</span>`;
               const packTags = st.themeMode === 'dynamic'
-                ? `<div style="font-size: 10.5px; color: #71717a; margin-top: 2px;">${escHtml(cardPack.particleStyle)} · ${escHtml(cardPack.soundProfile)}</div>`
+                ? `<div style="font-size: 10.5px; color: #71717a; margin-top: 2px;">${escHtml(cardPack.particleShape || cardPack.particleStyle)} · ${escHtml(cardPack.uiDesign.borderStyle)} · ${escHtml(cardPack.soundProfile)}</div>`
                 : '';
+              const cardUi = cardPack.uiDesign || { cardRadiusPx: 12, borderStyle: 'solid', fontVibe: 'sans' };
+              const cardRadius = Number.isFinite(cardUi.cardRadiusPx) ? cardUi.cardRadiusPx : 12;
+              const cardBorderStyle = cardUi.borderStyle === 'double' ? 'double' : (cardUi.borderStyle === 'dashed' ? 'dashed' : 'solid');
+              const cardBorderWidth = cardUi.borderStyle === 'double' ? '3px' : (isSelected ? '1.5px' : '1px');
+              const cardBorderColor = isSelected ? '#f4f4f5' : (cardUi.borderStyle === 'glow-frame' ? (th.primary || 'rgba(255,255,255,0.28)') : 'rgba(255, 255, 255, 0.14)');
+              const cardClip = cardUi.borderStyle === 'chamfered'
+                ? 'clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px); border-radius: 0;'
+                : `border-radius: ${cardRadius}px;`;
+              const cardFont = getFontVibeStack(cardUi.fontVibe);
               return `
-                <div class="agy-preset-card" data-name="${escHtml(name)}" style="position: relative; border-radius: 12px; border: ${isSelected ? '1.5px solid #f4f4f5' : '1px solid rgba(255, 255, 255, 0.12)'}; background: rgba(14, 12, 12, 0.82); overflow: hidden; cursor: pointer; display: flex; flex-direction: column; transition: border-color 0.15s ease; ${dynCardStyle}">
+                <div class="agy-preset-card" data-name="${escHtml(name)}" style="position: relative; ${cardClip} border: ${cardBorderWidth} ${cardBorderStyle} ${cardBorderColor}; background: rgba(14, 12, 12, 0.82); overflow: hidden; cursor: pointer; display: flex; flex-direction: column; transition: border-color 0.15s ease; font-family: ${cardFont}; ${dynCardStyle}">
                   ${canDelete ? `<button class="agy-delete-preset-btn" data-del-preset="${escHtml(name)}" type="button" title="${isBuiltin ? 'Ẩn preset gốc' : 'Xóa preset'}" style="position: absolute; top: 8px; right: 8px; z-index: 3; width: 26px; height: 26px; border-radius: 7px; border: 1px solid rgba(255, 255, 255, 0.22); background: rgba(10, 12, 18, 0.72); color: #fca5a5; font-size: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease;">🗑️</button>` : ''}
                   <div style="height: 68px; width: 100%; background-image: ${thumbBg}; background-size: cover; background-position: ${th.bgPosition || 'center'}; position: relative; display: flex; align-items: flex-end; padding: 8px 14px;">
                     ${dynThumbExtra}
@@ -2539,13 +2811,13 @@
           if (curSt.introEnabled) {
             showThemeIntro(th, false);
           } else {
-            speakThemeVoice(pack.voiceSwitch);
+            speakThemeVoice(pack.voiceSwitch, pack);
           }
         }
 
         container.querySelectorAll('.agy-preset-card').forEach(c => {
           const isSel = c.dataset.name === name;
-          c.style.border = isSel ? '1.5px solid #f4f4f5' : '1px solid rgba(255, 255, 255, 0.12)';
+          c.style.borderColor = isSel ? '#f4f4f5' : 'rgba(255, 255, 255, 0.14)';
           const slot = c.querySelector('.agy-card-check-slot');
           if (slot) slot.innerHTML = isSel ? CHECK_SVG : '';
         });
