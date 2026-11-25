@@ -10,6 +10,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
+const { generatePetSprite, buildFallbackResult, FALLBACK_SPRITE_URL } = require('./pet_generator');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const THEMES_JSON = path.join(ROOT_DIR, 'themes', 'themes.json');
@@ -31,6 +32,18 @@ const DOCK_POSITIONS = ['right-vertical', 'bottom-right', 'top-right'];
 const DOCK_SHAPES = ['circle', 'hex', 'pill', 'square'];
 const PARTICLE_MOTIONS = ['fall', 'rise', 'float', 'orbit', 'pulse', 'drift'];
 const SOUND_WAVEFORMS = ['sine', 'triangle', 'sawtooth', 'square'];
+
+const VFX_SURFACE_MODES = ['smoked-glass', 'matte-tint', 'rail-accent'];
+const VFX_DENSITIES = ['compact', 'balanced', 'spacious'];
+const VFX_BORDER_HAIRLINES = ['subtle', 'accent-left', 'none'];
+const VFX_CARD_STYLES = ['glass-card', 'editorial-sheet', 'hud-hairline'];
+const VFX_TYPOGRAPHY_VIBES = ['sans', 'mono', 'serif'];
+const VFX_CONTRAST_FLOORS = ['wcag-aa-dark', 'wcag-aa-light'];
+const VFX_PANEL_MODES = ['unified-glass', 'clean-slate', 'split-accent'];
+const VFX_SASH_GLOWS = ['subtle', 'crisp', 'none'];
+const VFX_TAB_INDICATORS = ['underline', 'pill', 'dot'];
+const VFX_MOTION_BUDGETS = ['calm', 'atmospheric', 'kinetic'];
+const PET_STYLES = ['pixel', 'plush', 'sticker', 'vector'];
 
 const ARCHETYPE_DEFAULTS = {
     'rpg-fantasy': {
@@ -303,6 +316,73 @@ const DYNAMIC_PACK_SCHEMA = {
     ]
 };
 
+const VFX_SPEC_SCHEMA = {
+    type: 'object',
+    properties: {
+        leftColumn: {
+            type: 'object',
+            properties: {
+                surfaceMode: { type: 'string', enum: VFX_SURFACE_MODES },
+                density: { type: 'string', enum: VFX_DENSITIES },
+                borderHairline: { type: 'string', enum: VFX_BORDER_HAIRLINES },
+                showOrnament: BOOL
+            },
+            required: ['surfaceMode', 'density', 'borderHairline', 'showOrnament']
+        },
+        centerStage: {
+            type: 'object',
+            properties: {
+                cardStyle: { type: 'string', enum: VFX_CARD_STYLES },
+                radiusPx: NUM,
+                typographyVibe: { type: 'string', enum: VFX_TYPOGRAPHY_VIBES },
+                contrastFloor: { type: 'string', enum: VFX_CONTRAST_FLOORS }
+            },
+            required: ['cardStyle', 'radiusPx', 'typographyVibe', 'contrastFloor']
+        },
+        rightColumn: {
+            type: 'object',
+            properties: {
+                panelMode: { type: 'string', enum: VFX_PANEL_MODES },
+                sashGlow: { type: 'string', enum: VFX_SASH_GLOWS },
+                tabIndicator: { type: 'string', enum: VFX_TAB_INDICATORS }
+            },
+            required: ['panelMode', 'sashGlow', 'tabIndicator']
+        },
+        motionRules: {
+            type: 'object',
+            properties: {
+                budget: { type: 'string', enum: VFX_MOTION_BUDGETS },
+                particleCount: NUM,
+                particleOpacity: { type: 'array', items: NUM }
+            },
+            required: ['budget', 'particleCount', 'particleOpacity']
+        }
+    },
+    required: ['leftColumn', 'centerStage', 'rightColumn', 'motionRules']
+};
+
+const PET_DIRECTIVE_SCHEMA = {
+    type: 'object',
+    properties: {
+        hasCharacter: BOOL,
+        sourceObject: STR,
+        petName: STR,
+        personifiedConcept: STR,
+        style: { type: 'string', enum: PET_STYLES },
+        palette: { type: 'array', items: STR },
+        idleMood: STR,
+        prop: STR,
+        signatureAction: STR,
+        spritePrompt: STR,
+        animationMood: STR
+    },
+    required: [
+        'hasCharacter', 'sourceObject', 'petName', 'personifiedConcept',
+        'style', 'palette', 'idleMood', 'prop', 'signatureAction',
+        'spritePrompt', 'animationMood'
+    ]
+};
+
 const BASE_PROPERTIES = {
     name: STR, concept: STR, primary: STR, secondary: STR, glow: STR, secondaryGlow: STR,
     bg: STR, frameBg: STR, textColor: STR, borderColor: STR, innerBorder: STR,
@@ -316,6 +396,8 @@ const BASE_PROPERTIES = {
     stickerW: NUM, stickerH: NUM, stickerTop: NUM, stickerRight: NUM,
     cornerSvgMarkup: STR, stickerSvgMarkup: STR,
     dynamicPack: DYNAMIC_PACK_SCHEMA,
+    vfxSpec: VFX_SPEC_SCHEMA,
+    petDirective: PET_DIRECTIVE_SCHEMA,
     generatedImagePath: STR
 };
 
@@ -324,7 +406,7 @@ const BASE_REQUIRED = [
     'borderColor', 'innerBorder', 'overlayRgb', 'bgPosition', 'sidebarBg', 'sidebarHoverBg',
     'aiCardBg', 'aiCardBorder', 'headerBg', 'headerBorder', 'btnBg', 'inputGlassBg', 'inputCardBg',
     'modalBg', 'modalHeaderBg', 'cardBg', 'cardSelectedBg', 'isLight',
-    'cornerSvgMarkup', 'stickerSvgMarkup', 'dynamicPack'
+    'cornerSvgMarkup', 'stickerSvgMarkup', 'dynamicPack', 'vfxSpec', 'petDirective'
 ];
 
 function buildSchema(needsAiPaint) {
@@ -435,6 +517,12 @@ function buildLocalTheme(pal) {
         isLight: false
     };
     theme.dynamicPack = normalizeDynamicPack(theme);
+    theme.vfxSpec = normalizeVfxSpec(theme);
+    theme.petDirective = normalizePetDirective(theme);
+    const petFb = buildFallbackResult(theme.petDirective, 'local-fallback');
+    theme.petSpriteUrl = petFb.petSpriteUrl;
+    theme.petId = petFb.petId;
+    theme.petMeta = petFb.petMeta;
     return theme;
 }
 
@@ -526,6 +614,15 @@ function buildPrompt(absImagePath, { srcW, srcH, needsAiPaint }) {
         '  * `introChecks`: array of 3-4 short uppercase check labels (e.g. ["ESPRESSO", "RAIN", "VINYL", "WARMTH"]).',
         '  * `voiceWelcome`: short 4-8 word English spoken greeting matching the theme (e.g. "Rain on the glass. Welcome back.").',
         '  * `voiceSwitch`: short 2-5 word English spoken confirmation (e.g. "Ambience tuned.").',
+        '- Design `vfxSpec` (matching `skills/ui-vfx-director/SKILL.md` — clean 1px hairline borders, NO thick double/dashed clutter, ZERO live backdrop-filter blur, ZERO `:has()`):',
+        '  * `leftColumn`: `{ surfaceMode: "smoked-glass"|"matte-tint"|"rail-accent", density: "compact"|"balanced"|"spacious", borderHairline: "subtle"|"accent-left"|"none", showOrnament: boolean }`',
+        '  * `centerStage`: `{ cardStyle: "glass-card"|"editorial-sheet"|"hud-hairline", radiusPx: number (8..16), typographyVibe: "sans"|"mono"|"serif", contrastFloor: "wcag-aa-dark"|"wcag-aa-light" }`',
+        '  * `rightColumn`: `{ panelMode: "unified-glass"|"clean-slate"|"split-accent", sashGlow: "subtle"|"crisp"|"none", tabIndicator: "underline"|"pill"|"dot" }`',
+        '  * `motionRules`: `{ budget: "calm"|"atmospheric"|"kinetic", particleCount: number (0 for calm, 6..8 for atmospheric/kinetic), particleOpacity: [min, max] within [0.22, 0.42] }`',
+        '- Design `petDirective` for the synchronized `Neito112/desktop-agent_pet` v2 8x11 companion:',
+        '  * If the input image depicts a character or creature: set `hasCharacter: true`, `sourceObject: ""`, and write `spritePrompt` describing that character adapted into a crisp 8x11 pixel/chibi mascot atlas (silhouette, hair/ears/horns, outfit colors, signature prop).',
+        '  * If the input image has NO character (scenery, cafe, mecha, architecture, abstract): set `hasCharacter: false`, identify 1 iconic main object (`sourceObject`, e.g. "steaming ceramic espresso cup"), personify it (`personifiedConcept`, e.g. "Tiny Cozy Latte Spirit with a whipped-cream beret and warm amber eyes"), and write `spritePrompt` describing that mascot in a crisp 8x11 pixel/chibi atlas.',
+        '  * Include `petName` (1-2 words), `style` ("pixel"|"plush"|"sticker"|"vector"), `palette` (3-4 hex colors), `idleMood`, `prop` (consistent across all 11 rows), `signatureAction`, and `animationMood`.',
         '',
         'Theme schema reference:',
         schemaDoc,
@@ -803,6 +900,95 @@ function normalizeDynamicPack(theme) {
     };
 }
 
+function normalizeVfxSpec(theme) {
+    const raw = (theme && theme.vfxSpec && typeof theme.vfxSpec === 'object') ? theme.vfxSpec : {};
+    const pick = (val, allowed, fallback) => (typeof val === 'string' && allowed.includes(val.trim().toLowerCase()) ? val.trim().toLowerCase() : fallback);
+    const lc = (raw.leftColumn && typeof raw.leftColumn === 'object') ? raw.leftColumn : {};
+    const cs = (raw.centerStage && typeof raw.centerStage === 'object') ? raw.centerStage : {};
+    const rc = (raw.rightColumn && typeof raw.rightColumn === 'object') ? raw.rightColumn : {};
+    const mr = (raw.motionRules && typeof raw.motionRules === 'object') ? raw.motionRules : {};
+
+    const budget = pick(mr.budget, VFX_MOTION_BUDGETS, 'atmospheric');
+    const defaultCount = budget === 'calm' ? 0 : (budget === 'kinetic' ? 8 : 7);
+    const particleCount = budget === 'calm' ? 0 : clampNum(mr.particleCount, 6, 8, defaultCount, true);
+    const rawOp = Array.isArray(mr.particleOpacity) && mr.particleOpacity.length >= 2 ? mr.particleOpacity : [0.22, 0.38];
+    const opMin = clampNum(rawOp[0], 0.15, 0.35, 0.22);
+    const opMax = clampNum(rawOp[1], opMin, 0.45, 0.38);
+
+    const dpUi = theme && theme.dynamicPack && theme.dynamicPack.uiDesign;
+    const rawTypo = dpUi && VFX_TYPOGRAPHY_VIBES.includes(dpUi.fontVibe) ? dpUi.fontVibe : 'sans';
+
+    return {
+        leftColumn: {
+            surfaceMode: pick(lc.surfaceMode, VFX_SURFACE_MODES, 'smoked-glass'),
+            density: pick(lc.density, VFX_DENSITIES, 'balanced'),
+            borderHairline: pick(lc.borderHairline, VFX_BORDER_HAIRLINES, 'subtle'),
+            showOrnament: typeof lc.showOrnament === 'boolean' ? lc.showOrnament : true
+        },
+        centerStage: {
+            cardStyle: pick(cs.cardStyle, VFX_CARD_STYLES, 'glass-card'),
+            radiusPx: clampNum(cs.radiusPx, 8, 16, dpUi ? clampNum(dpUi.cardRadiusPx, 8, 16, 12, true) : 12, true),
+            typographyVibe: pick(cs.typographyVibe, VFX_TYPOGRAPHY_VIBES, rawTypo),
+            contrastFloor: pick(cs.contrastFloor, VFX_CONTRAST_FLOORS, theme && theme.isLight ? 'wcag-aa-light' : 'wcag-aa-dark')
+        },
+        rightColumn: {
+            panelMode: pick(rc.panelMode, VFX_PANEL_MODES, 'unified-glass'),
+            sashGlow: pick(rc.sashGlow, VFX_SASH_GLOWS, 'subtle'),
+            tabIndicator: pick(rc.tabIndicator, VFX_TAB_INDICATORS, 'underline')
+        },
+        motionRules: {
+            budget,
+            particleCount,
+            particleOpacity: [opMin, opMax]
+        }
+    };
+}
+
+function normalizePetDirective(theme) {
+    const raw = (theme && theme.petDirective && typeof theme.petDirective === 'object') ? theme.petDirective : {};
+    const str = (val, fallback, maxLen) => {
+        const s = typeof val === 'string' ? val.trim() : '';
+        return s ? s.slice(0, maxLen) : fallback;
+    };
+    const pick = (val, allowed, fallback) => (typeof val === 'string' && allowed.includes(val.trim().toLowerCase()) ? val.trim().toLowerCase() : fallback);
+    const hasCharacter = Boolean(raw.hasCharacter);
+    const sourceObject = hasCharacter ? '' : str(raw.sourceObject, 'glowing spirit crystal', 64);
+    const petName = str(raw.petName, 'Rocky', 24);
+    const personifiedConcept = str(
+        raw.personifiedConcept,
+        hasCharacter
+            ? `${petName} chibi companion adapted from the wallpaper character`
+            : `Tiny personified ${sourceObject} mascot with expressive eyes`,
+        160
+    );
+    const palette = Array.isArray(raw.palette) && raw.palette.length
+        ? raw.palette.filter((c) => typeof c === 'string' && c.trim()).slice(0, 4)
+        : [theme && theme.primary ? theme.primary : '#7dd3fc', theme && theme.secondary ? theme.secondary : '#f472b6', '#0f172a'];
+    const idleMood = str(raw.idleMood, 'calm-focus', 36);
+    const prop = str(raw.prop, hasCharacter ? 'signature charm' : 'tiny halo', 48);
+    const signatureAction = str(raw.signatureAction, 'cheerful wave', 64);
+    const animationMood = str(raw.animationMood, idleMood, 36);
+    const spritePrompt = str(
+        raw.spritePrompt,
+        `8x11 pixel chibi mascot sprite atlas of ${petName}: ${personifiedConcept}, holding ${prop}, ${animationMood} mood`,
+        320
+    );
+
+    return {
+        hasCharacter,
+        sourceObject,
+        petName,
+        personifiedConcept,
+        style: pick(raw.style, PET_STYLES, 'pixel'),
+        palette,
+        idleMood,
+        prop,
+        signatureAction,
+        spritePrompt,
+        animationMood
+    };
+}
+
 function designTheme(dataUrl, opts = {}) {
     const timeoutMs = opts.timeoutMs || 420000;
     const log = opts.log || (() => {});
@@ -846,7 +1032,14 @@ function designTheme(dataUrl, opts = {}) {
                 // Pillow is present; without Pillow it returns the original
                 // image, so report the source size in that case.
                 const is4k = fs.existsSync(outWebpPath);
-                resolve({ theme, wallpaperDataUrl, wpMeta: { width: is4k ? TARGET_W : (srcW || TARGET_W), height: is4k ? TARGET_H : (srcH || TARGET_H), aiOutpainted: false } });
+                resolve({
+                    theme,
+                    wallpaperDataUrl,
+                    wpMeta: { width: is4k ? TARGET_W : (srcW || TARGET_W), height: is4k ? TARGET_H : (srcH || TARGET_H), aiOutpainted: false },
+                    petSpriteUrl: theme.petSpriteUrl || FALLBACK_SPRITE_URL,
+                    petId: theme.petId || 'rocky',
+                    petMeta: theme.petMeta || null
+                });
                 return true;
             } catch (fbErr) {
                 reject(new Error(`AI design failed (${reason}) and local fallback failed: ${fbErr.message || fbErr}`));
@@ -861,7 +1054,7 @@ function designTheme(dataUrl, opts = {}) {
         child.stderr.on('data', (d) => { err += d; });
         const timer = setTimeout(() => { try { child.kill(); } catch (_) {} }, timeoutMs);
         child.on('error', (e) => { localFallback(`Cannot run agy: ${e.message}`); });
-        child.on('close', (code) => {
+        child.on('close', async (code) => {
             clearTimeout(timer);
             try {
                 let env;
@@ -882,13 +1075,32 @@ function designTheme(dataUrl, opts = {}) {
                 const wallpaperDataUrl = normalizeTo4k16x9Webp(chosenImagePath, outWebpPath, needsAiPaint);
                 delete theme.generatedImagePath;
                 theme.dynamicPack = normalizeDynamicPack(theme);
+                theme.vfxSpec = normalizeVfxSpec(theme);
+                theme.petDirective = normalizePetDirective(theme);
 
-                log(`Theme designed in ${env.duration_seconds}s (4K 16:9, aiOutpainted=${needsAiPaint})`);
+                let petRes;
+                try {
+                    petRes = await generatePetSprite(theme.petDirective, {
+                        log,
+                        timeoutMs: opts.petTimeoutMs || 180000,
+                        slugHint: theme.petDirective.petName || theme.name
+                    });
+                } catch (petErr) {
+                    petRes = buildFallbackResult(theme.petDirective, petErr.message || 'pet-error');
+                }
+                theme.petSpriteUrl = petRes.petSpriteUrl;
+                theme.petId = petRes.petId;
+                theme.petMeta = petRes.petMeta;
+
+                log(`Theme designed in ${env.duration_seconds}s (4K 16:9, aiOutpainted=${needsAiPaint}, pet=${theme.petSpriteUrl})`);
                 settled = true;
                 resolve({
                     theme,
                     wallpaperDataUrl,
-                    wpMeta: { width: TARGET_W, height: TARGET_H, aiOutpainted: needsAiPaint }
+                    wpMeta: { width: TARGET_W, height: TARGET_H, aiOutpainted: needsAiPaint },
+                    petSpriteUrl: theme.petSpriteUrl,
+                    petId: theme.petId,
+                    petMeta: theme.petMeta
                 });
             } catch (procErr) {
                 localFallback(procErr.message || String(procErr));
@@ -899,7 +1111,7 @@ function designTheme(dataUrl, opts = {}) {
     });
 }
 
-module.exports = { designTheme, normalizeDynamicPack, SCHEMA, buildSchema, ARCHETYPE_DEFAULTS, buildLocalTheme, extractPaletteViaPillow };
+module.exports = { designTheme, normalizeDynamicPack, normalizeVfxSpec, normalizePetDirective, SCHEMA, buildSchema, ARCHETYPE_DEFAULTS, buildLocalTheme, extractPaletteViaPillow };
 
 if (require.main === module) {
     const argv = process.argv.slice(2);

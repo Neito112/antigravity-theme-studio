@@ -1221,24 +1221,33 @@
     return '<polygon points="12,2 14.6,8.8 22,9.3 16.3,14 18,21 12,17.3 6,21 7.7,14 2,9.3 9.4,8.8"/>';
   }
 
-  function buildParticlesHtml(pack, primary, secondary) {
+  function resolveVfxMotionRule(theme, pack) {
+    const vfx = (theme && theme.vfxSpec && typeof theme.vfxSpec === 'object') ? theme.vfxSpec : {};
+    const raw = String(vfx.motionRules || vfx.motion || '').toLowerCase().trim();
+    if (raw === 'calm' || raw === 'atmospheric' || raw === 'kinetic') return raw;
+    if (pack && pack.particleCount === 0) return 'calm';
+    return 'atmospheric';
+  }
+
+  function buildParticlesHtml(pack, primary, secondary, motionRule) {
+    if (motionRule === 'calm') return '';
     const pStyle = pack.particleStyle || 'stars';
     const pShape = pack.particleShape || pStyle;
-    const count = pack.particleCount !== undefined ? pack.particleCount : 11;
-    if (pStyle === 'none' || pShape === 'none' || count <= 0) return '';
+    if (pStyle === 'none' || pShape === 'none') return '';
+    const count = motionRule === 'kinetic' ? 8 : 6;
     const c1 = primary || '#38bdf8';
     const c2 = secondary || c1;
     const animName = resolveParticleMotionAnim(pack.particleMotion, pStyle);
     const svgInner = pack.particleSvgInner || getBuiltinParticleSvgInner(pShape);
     let out = '';
     for (let i = 0; i < count; i++) {
-      const left = ((i * 17 + 7) % 92) + 4;
-      const top = ((i * 23 + 11) % 86) + 6;
-      const dur = 8.5 + (i % 5) * 2.2;
-      const delay = -((i * 1.3) % 8).toFixed(1);
+      const left = ((i * 19 + 9) % 88) + 6;
+      const top = ((i * 29 + 13) % 82) + 8;
+      const dur = 10.5 + (i % 4) * 2.4;
+      const delay = -((i * 1.7) % 9).toFixed(1);
       const color = i % 2 === 0 ? c1 : c2;
-      const sz = 10 + (i % 4) * 3;
-      out += `<span class="agy-fx-particle" style="position:absolute;left:${left}%;top:${top}%;width:${sz}px;height:${sz}px;color:${color};filter:drop-shadow(0 0 6px ${color});will-change:transform,opacity;animation:${animName} ${dur}s ease-in-out ${delay}s infinite;"><svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="currentColor" stroke="currentColor" stroke-width="1.2" style="display:block;overflow:visible;">${svgInner}</svg></span>`;
+      const sz = 6 + (i % 5);
+      out += `<span class="agy-fx-particle" style="position:absolute;left:${left}%;top:${top}%;width:${sz}px;height:${sz}px;color:${color};opacity:0.28;will-change:transform,opacity;animation:${animName} ${dur}s ease-in-out ${delay}s infinite;"><svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="currentColor" stroke="currentColor" stroke-width="1" style="display:block;overflow:visible;">${svgInner}</svg></span>`;
     }
     return out;
   }
@@ -1250,9 +1259,14 @@
       return;
     }
     const pack = resolveDynamicPack(theme);
+    const motionRule = resolveVfxMotionRule(theme, pack);
+    if (motionRule === 'calm') {
+      if (existing) existing.remove();
+      return;
+    }
     const primary = (theme && theme.primary) || '#38bdf8';
     const secondary = (theme && theme.secondary) || primary;
-    const packKey = `${pack.archetype}|${pack.particleStyle}|${pack.particleShape}|${pack.particleMotion}|${pack.particleCount}|${pack.hudRingStyle}|${pack.particleSvgInner.length}|${pack.hudSvgInner.length}|${primary}|${secondary}`;
+    const packKey = `${pack.archetype}|${motionRule}|${pack.particleStyle}|${pack.particleShape}|${pack.particleMotion}|${pack.particleSvgInner.length}|${primary}|${secondary}`;
     let layer = existing;
     if (!layer) {
       layer = document.createElement('div');
@@ -1260,456 +1274,408 @@
       layer.setAttribute('aria-hidden', 'true');
       document.body.appendChild(layer);
     }
-    // Paint above .agy-shell's wallpaper (z-index:auto/0) and below .agy-inset-shell (z-index:2) so particles & HUD ring are visible without obscuring text or blocking clicks.
     layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:1;overflow:hidden;';
     if (layer.dataset.packKey !== packKey) {
       layer.dataset.packKey = packKey;
-      const ringSvg = buildHudRingSvg(pack, primary, secondary, 400);
-      const ringHtml = ringSvg
-        ? `<div class="agy-fx-hud-ring" style="position:absolute;right:-64px;bottom:-64px;width:400px;height:400px;opacity:0.32;pointer-events:none;filter:drop-shadow(0 0 12px ${primary});will-change:transform,opacity;animation:agyHudSpin 38s linear infinite;">${ringSvg}</div>`
-        : '';
-      layer.innerHTML = buildParticlesHtml(pack, primary, secondary) + ringHtml;
+      layer.innerHTML = buildParticlesHtml(pack, primary, secondary, motionRule);
     }
+  }
+
+  function detectAntigravityPetState() {
+    const shell = findActiveShell();
+    const root = shell || document;
+    if (root.querySelector('[data-testid="status-task-running"], [data-testid="input-cancel-button"], [data-testid="status-loading-spinner"]')) {
+      return 'running';
+    }
+    if (root.querySelector('[data-testid="approve-button"], [data-testid="confirm-button"], button[aria-label*="Approve" i], button[aria-label*="Allow" i]')) {
+      return 'waiting';
+    }
+    if (root.querySelector('[data-testid="error-message"], [data-status="error"], .text-destructive[role="alert"]')) {
+      return 'failed';
+    }
+    return 'idle';
   }
 
   function isAiTaskRunning() {
-    const shell = findActiveShell();
-    const root = shell || document;
-    return Boolean(
-      root.querySelector('[data-testid="status-task-running"], [data-agent-state-dot], [data-testid="input-cancel-button"], [data-testid="status-loading-spinner"]')
-    );
+    return detectAntigravityPetState() === 'running';
   }
 
-  function buildTelemetryIndicatorHtml(isRunning, primary, secondary, compact = false) {
-    if (isRunning) {
-      const sz = compact ? 10 : 12;
-      const dot = compact ? 3 : 3.5;
-      return `<span class="agy-telemetry-orbit" style="position:relative;display:inline-block;width:${sz}px;height:${sz}px;flex:none;animation:agOrbitSpin 0.9s linear infinite;"><span style="position:absolute;top:0;left:50%;width:${dot}px;height:${dot}px;margin-left:-${dot / 2}px;border-radius:50%;background:#22d3ee;box-shadow:0 0 6px #22d3ee;"></span><span style="position:absolute;bottom:0;left:50%;width:${dot}px;height:${dot}px;margin-left:-${dot / 2}px;border-radius:50%;background:#34d399;box-shadow:0 0 6px #34d399;"></span></span><span class="agy-telemetry-led" style="width:6px;height:6px;border-radius:50%;flex:none;background:#22d3ee;box-shadow:0 0 8px #22d3ee, 0 0 12px #34d399;animation:agyTelemetryPulse 1.1s ease-in-out infinite;"></span>`;
-    }
-    return `<span class="agy-telemetry-led" style="width:6px;height:6px;border-radius:50%;flex:none;background:${primary};box-shadow:0 0 8px ${primary};animation:agyStudioBreath 2.4s ease-in-out infinite;"></span>`;
+  // ── Authentic desktop-agent_pet Renderer (#agy-better-pet) ────────────────────
+  const PET_SHEET = { columns: 8, rows: 11, cellWidth: 192, cellHeight: 208 };
+  const petRowFrames = (rowIndex, count, ms, lastMs) =>
+    Array.from({ length: count }, (_u, columnIndex) => ({
+      rowIndex,
+      columnIndex,
+      frameDurationMs: columnIndex === count - 1 ? lastMs : ms
+    }));
+  const PET_IDLE_FRAMES = [
+    { rowIndex: 0, columnIndex: 0, frameDurationMs: 280 },
+    { rowIndex: 0, columnIndex: 1, frameDurationMs: 110 },
+    { rowIndex: 0, columnIndex: 2, frameDurationMs: 110 },
+    { rowIndex: 0, columnIndex: 3, frameDurationMs: 140 },
+    { rowIndex: 0, columnIndex: 4, frameDurationMs: 140 },
+    { rowIndex: 0, columnIndex: 5, frameDurationMs: 320 }
+  ];
+  const PET_IDLE_MULTIPLIER = 6;
+  const PET_IDLE_SLOW = PET_IDLE_FRAMES.map((f) => ({
+    ...f,
+    frameDurationMs: f.frameDurationMs * PET_IDLE_MULTIPLIER
+  }));
+  const PET_STATES = {
+    idle: PET_IDLE_FRAMES,
+    'running-right': petRowFrames(1, 8, 120, 220),
+    'running-left': petRowFrames(2, 8, 120, 220),
+    waving: petRowFrames(3, 4, 140, 280),
+    jumping: petRowFrames(4, 5, 140, 280),
+    failed: petRowFrames(5, 8, 140, 240),
+    waiting: petRowFrames(6, 6, 150, 260),
+    running: petRowFrames(7, 6, 120, 220),
+    review: petRowFrames(8, 6, 150, 280)
+  };
+  const PET_LOOKING_STATES = new Set(['idle', 'running', 'waving']);
+  const PET_LOOK_SECTOR_DEGREES = 22.5;
+  const PET_LOOK_DIRECTIONS = 16;
+  const PET_LOOK_FIRST_ROW = 9;
+  const PET_LOOK_DEAD_ZONE_PX = 1;
+  const PET_WIDTH_PX = 96;
+  const PET_HEIGHT_PX = Math.round((PET_WIDTH_PX * PET_SHEET.cellHeight) / PET_SHEET.cellWidth);
+
+  function buildPetSequence(state, reducedMotion) {
+    const frames = PET_STATES[state] || PET_STATES.idle;
+    if (reducedMotion) return { frames: [frames[0]], loopStartIndex: null };
+    if (state === 'idle') return { frames: PET_IDLE_SLOW, loopStartIndex: 0 };
+    if (state === 'running') return { frames, loopStartIndex: 0 };
+    const burst = [...frames, ...frames, ...frames];
+    return { frames: [...burst, ...PET_IDLE_SLOW], loopStartIndex: burst.length };
   }
 
-  function resolvePetArchetype(theme, pack) {
-    const t = theme || {};
-    const p = pack || {};
-    const wi = p.workIdentity || t.workIdentity || {};
-    const hay = `${p.petArchetype || t.petArchetype || ''} ${wi.franchise || ''} ${wi.archetype || ''} ${p.archetype || ''} ${t.name || ''} ${t.concept || ''}`.toLowerCase();
-    if (/miku|vocaloid|hatsune|cyber-spirit/.test(hay)) return 'miku-spirit';
-    if (/pok[eé]|pikachu|electric|volt|phantom/.test(hay)) return 'poke-spark';
-    if (/sao|sword art|fairy|pixie|aether|rpg|fantasy|celestial|sakura|anime/.test(hay)) return 'fairy-pixie';
-    if (/claude|office|minimal|cozy|cat|neko|warm|charcoal/.test(hay)) return 'cozy-cat';
-    if (/kaiju|mecha|dragon|crimson|ember|lava/.test(hay)) return 'mini-kaiju';
-    if (/codex|orb|cyber|sci-fi|tech|radar|hud|obsidian/.test(hay)) return 'codex-orb';
-    return 'codex-orb';
+  function petBgPosFor(frame) {
+    return `${(frame.columnIndex / (PET_SHEET.columns - 1)) * 100}% ${(frame.rowIndex / (PET_SHEET.rows - 1)) * 100}%`;
   }
 
-  function buildPetSvg(petType, primary, secondary) {
-    const p = primary || '#38bdf8';
-    const s = secondary || '#a855f7';
-    if (petType === 'miku-spirit') {
-      return `<svg width="42" height="42" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
-        <rect x="2" y="4" width="2" height="7" fill="${p}"/><rect x="12" y="4" width="2" height="7" fill="${p}"/>
-        <rect x="1" y="9" width="2" height="4" fill="${s}"/><rect x="13" y="9" width="2" height="4" fill="${s}"/>
-        <rect x="4" y="3" width="8" height="7" fill="#f8fafc"/><rect x="4" y="2" width="8" height="3" fill="${p}"/>
-        <rect x="3" y="4" width="1" height="3" fill="#0f172a"/><rect x="12" y="4" width="1" height="3" fill="#0f172a"/>
-        <g class="agy-pet-eyes"><rect class="agy-pet-pupil" x="5" y="6" width="2" height="2" fill="${p}"/><rect class="agy-pet-pupil" x="9" y="6" width="2" height="2" fill="${p}"/></g>
-        <rect x="7" y="8" width="2" height="1" fill="#fb7185"/>
-        <rect x="5" y="10" width="6" height="4" fill="#1e293b"/><rect x="6" y="11" width="4" height="2" fill="${p}"/>
-      </svg>`;
-    }
-    if (petType === 'poke-spark') {
-      return `<svg width="42" height="42" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
-        <rect x="3" y="1" width="2" height="3" fill="#facc15"/><rect x="3" y="1" width="2" height="1" fill="#0f172a"/>
-        <rect x="11" y="1" width="2" height="3" fill="#facc15"/><rect x="11" y="1" width="2" height="1" fill="#0f172a"/>
-        <rect x="4" y="4" width="8" height="6" fill="#fde047"/>
-        <g class="agy-pet-eyes"><rect class="agy-pet-pupil" x="5" y="6" width="2" height="2" fill="#0f172a"/><rect class="agy-pet-pupil" x="9" y="6" width="2" height="2" fill="#0f172a"/></g>
-        <rect x="4" y="8" width="1" height="1" fill="#ef4444"/><rect x="11" y="8" width="1" height="1" fill="#ef4444"/>
-        <rect x="5" y="10" width="6" height="4" fill="#facc15"/><rect x="12" y="9" width="3" height="2" fill="${p}"/>
-      </svg>`;
-    }
-    if (petType === 'fairy-pixie') {
-      return `<svg width="42" height="42" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
-        <rect x="1" y="5" width="3" height="4" fill="${s}" opacity="0.8"/><rect x="12" y="5" width="3" height="4" fill="${s}" opacity="0.8"/>
-        <rect x="5" y="1" width="6" height="1" fill="#fde047"/>
-        <rect x="4" y="3" width="8" height="7" fill="#fdf2f8"/><rect x="4" y="3" width="8" height="2" fill="${p}"/>
-        <g class="agy-pet-eyes"><rect class="agy-pet-pupil" x="5" y="6" width="2" height="2" fill="#1e293b"/><rect class="agy-pet-pupil" x="9" y="6" width="2" height="2" fill="#1e293b"/></g>
-        <rect x="5" y="10" width="6" height="4" fill="${p}"/>
-      </svg>`;
-    }
-    if (petType === 'cozy-cat') {
-      return `<svg width="42" height="42" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
-        <rect x="3" y="2" width="2" height="2" fill="#e2e8f0"/><rect x="11" y="2" width="2" height="2" fill="#e2e8f0"/>
-        <rect x="4" y="4" width="8" height="6" fill="#f1f5f9"/>
-        <g class="agy-pet-eyes"><rect class="agy-pet-pupil" x="5" y="6" width="2" height="2" fill="#0f172a"/><rect class="agy-pet-pupil" x="9" y="6" width="2" height="2" fill="#0f172a"/></g>
-        <rect x="7" y="8" width="2" height="1" fill="#fb7185"/>
-        <rect x="5" y="10" width="6" height="1" fill="${p}"/><rect x="4" y="11" width="8" height="3" fill="#cbd5e1"/>
-      </svg>`;
-    }
-    if (petType === 'mini-kaiju') {
-      return `<svg width="42" height="42" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
-        <rect x="6" y="1" width="2" height="2" fill="${p}"/><rect x="8" y="2" width="2" height="2" fill="${s}"/>
-        <rect x="4" y="4" width="8" height="6" fill="#1e293b"/>
-        <g class="agy-pet-eyes"><rect class="agy-pet-pupil" x="5" y="6" width="2" height="2" fill="#f97316"/><rect class="agy-pet-pupil" x="9" y="6" width="2" height="2" fill="#f97316"/></g>
-        <rect x="4" y="10" width="8" height="4" fill="#334155"/><rect x="6" y="11" width="4" height="2" fill="${p}"/>
-      </svg>`;
-    }
-    return `<svg width="42" height="42" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
-      <rect x="7" y="1" width="2" height="2" fill="${p}"/>
-      <rect x="4" y="3" width="8" height="8" fill="#0f172a"/>
-      <rect x="3" y="5" width="1" height="4" fill="${p}"/><rect x="12" y="5" width="1" height="4" fill="${p}"/>
-      <rect x="5" y="5" width="6" height="4" fill="#1e293b"/>
-      <g class="agy-pet-eyes"><rect class="agy-pet-pupil" x="5" y="6" width="2" height="2" fill="#22d3ee"/><rect class="agy-pet-pupil" x="9" y="6" width="2" height="2" fill="#22d3ee"/></g>
-      <rect x="5" y="12" width="6" height="2" fill="${s}"/>
-    </svg>`;
-  }
-
-  function removeIdePet() {
-    const pet = document.getElementById('agy-ide-pet');
-    if (pet) pet.remove();
-    if (window.__AGY_PET_BLINK_TIMER__) {
-      clearTimeout(window.__AGY_PET_BLINK_TIMER__);
-      window.__AGY_PET_BLINK_TIMER__ = null;
-    }
-  }
-
-  function touchPetActivity() {
-    window.__AGY_PET_LAST_ACTIVE__ = Date.now();
-    const pet = document.getElementById('agy-ide-pet');
-    if (pet && pet.dataset.petState === 'sleepy') {
-      syncIdePetState();
-    }
-  }
-
-  function syncIdePetState() {
-    const pet = document.getElementById('agy-ide-pet');
-    if (!pet) return;
-    const running = isAiTaskRunning();
-    const lastActive = window.__AGY_PET_LAST_ACTIVE__ || Date.now();
-    const sleepy = !running && (Date.now() - lastActive > 45000);
-    const nextState = running ? 'running' : (sleepy ? 'sleepy' : 'idle');
-    if (pet.dataset.petState !== nextState) {
-      pet.dataset.petState = nextState;
-      const halo = pet.querySelector('.agy-pet-halo');
-      const zzz = pet.querySelector('.agy-pet-zzz');
-      if (halo) halo.style.display = nextState === 'running' ? 'block' : 'none';
-      if (zzz) zzz.style.display = nextState === 'sleepy' ? 'block' : 'none';
-    }
-  }
-
-  function ensurePetListeners() {
-    if (window.__AGY_PET_LISTENERS_BOUND__) return;
-    window.__AGY_PET_LISTENERS_BOUND__ = true;
-    const sig = window.__AGY_SCROLL_AC__ ? window.__AGY_SCROLL_AC__.signal : undefined;
-    window.__AGY_PET_LAST_ACTIVE__ = Date.now();
-    let eyeRaf = 0;
-    window.addEventListener('mousemove', (e) => {
-      window.__AGY_PET_LAST_ACTIVE__ = Date.now();
-      if (eyeRaf) return;
-      eyeRaf = requestAnimationFrame(() => {
-        eyeRaf = 0;
-        const pet = document.getElementById('agy-ide-pet');
-        if (!pet) return;
-        if (pet.dataset.petState === 'sleepy') syncIdePetState();
-        const rect = pet.getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        const dx = Math.max(-1.1, Math.min(1.1, (e.clientX - cx) / 140));
-        const dy = Math.max(-0.9, Math.min(0.9, (e.clientY - cy) / 140));
-        pet.querySelectorAll('.agy-pet-pupil').forEach((pupil) => {
-          pupil.style.transform = `translate(${dx.toFixed(2)}px, ${dy.toFixed(2)}px)`;
-        });
-      });
-    }, { passive: true, signal: sig });
-    window.addEventListener('keydown', touchPetActivity, { passive: true, signal: sig });
-    const scheduleBlink = () => {
-      if (window.__AGY_PET_BLINK_TIMER__) clearTimeout(window.__AGY_PET_BLINK_TIMER__);
-      window.__AGY_PET_BLINK_TIMER__ = setTimeout(() => {
-        const pet = document.getElementById('agy-ide-pet');
-        if (pet && pet.dataset.petState === 'idle') {
-          pet.classList.add('agy-pet-blink');
-          setTimeout(() => { if (pet) pet.classList.remove('agy-pet-blink'); }, 150);
-        }
-        scheduleBlink();
-      }, 3600 + Math.floor(Math.random() * 2600));
+  function petLookFrameFor(rect, pointer) {
+    const dx = pointer.x - (rect.left + rect.width / 2);
+    const dy = pointer.y - (rect.top + rect.height / 2);
+    if (Math.hypot(dx, dy) <= PET_LOOK_DEAD_ZONE_PX) return null;
+    const degrees = (Math.atan2(dx, -dy) * (180 / Math.PI) + 360) % 360;
+    const sector = Math.round(degrees / PET_LOOK_SECTOR_DEGREES) % PET_LOOK_DIRECTIONS;
+    return {
+      rowIndex: PET_LOOK_FIRST_ROW + Math.floor(sector / PET_SHEET.columns),
+      columnIndex: sector % PET_SHEET.columns,
+      frameDurationMs: 0
     };
-    scheduleBlink();
   }
 
-  function syncIdePet(isDynamic, theme, petEnabled) {
-    if (!isDynamic || !petEnabled) {
-      removeIdePet();
-      return;
+  function petCaretPointOf(el) {
+    if (!el) return null;
+    if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) return null;
+      return {
+        x: rect.left + Math.min(rect.width * 0.5, 160),
+        y: rect.top + rect.height / 2
+      };
     }
+    if (el.isContentEditable) {
+      try {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) {
+          const r = sel.getRangeAt(0).getBoundingClientRect();
+          if (r && (r.left !== 0 || r.top !== 0)) {
+            return { x: r.left, y: r.top + (r.height || 14) / 2 };
+          }
+        }
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  function removeBetterPet() {
+    const ctrl = window.__AGY_BETTER_PET_CTRL__;
+    if (ctrl && typeof ctrl.destroy === 'function') {
+      ctrl.destroy();
+    }
+    window.__AGY_BETTER_PET_CTRL__ = null;
+    const el = document.getElementById('agy-better-pet');
+    if (el) el.remove();
+    const legacy = document.getElementById('agy-ide-pet');
+    if (legacy) legacy.remove();
+  }
+
+  function mountBetterPet(theme) {
     const th = theme || {};
-    const pack = resolveDynamicPack(th);
-    const primary = th.primary || '#38bdf8';
-    const secondary = th.secondary || primary;
-    const petType = resolvePetArchetype(th, pack);
-    let pet = document.getElementById('agy-ide-pet');
-    if (!pet) {
-      pet = document.createElement('div');
-      pet.id = 'agy-ide-pet';
-      pet.title = 'Click to cheer! (Shift+Click to hide)';
-      pet.addEventListener('click', (e) => {
+    const existingCtrl = window.__AGY_BETTER_PET_CTRL__;
+    if (existingCtrl && document.getElementById('agy-better-pet')) {
+      existingCtrl.updateTheme(th);
+      return existingCtrl;
+    }
+    removeBetterPet();
+
+    const pet = document.createElement('div');
+    pet.id = 'agy-better-pet';
+    pet.setAttribute('role', 'group');
+    pet.setAttribute('aria-label', 'Companion Pet');
+    pet.dataset.petState = 'idle';
+    pet.dataset.petDragging = 'false';
+
+    const body = document.createElement('div');
+    body.className = 'agy-better-pet__body';
+    body.setAttribute('aria-hidden', 'true');
+    pet.appendChild(body);
+
+    const badge = document.createElement('span');
+    badge.className = 'agy-better-pet__badge';
+    badge.setAttribute('aria-hidden', 'true');
+    pet.appendChild(badge);
+
+    const tooltip = document.createElement('div');
+    tooltip.className = 'agy-better-pet__tooltip';
+    pet.appendChild(tooltip);
+
+    let x = Math.max(8, window.innerWidth - PET_WIDTH_PX - 20);
+    let y = Math.max(8, window.innerHeight - PET_HEIGHT_PX - 18);
+    let statusState = detectAntigravityPetState();
+    let transient = null;
+    let reactionState = null;
+    let reactionTimer = null;
+    let pointerAt = null;
+    let caretAt = null;
+    let caretAtTime = 0;
+    let playing = 'idle';
+    let reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let sequence = buildPetSequence('idle', reducedMotion);
+    let frameIndex = 0;
+    let frameTimer = null;
+    let looking = false;
+    let drag = null;
+    let disposed = false;
+
+    const ac = new AbortController();
+    const sig = ac.signal;
+
+    const clampPos = (nx, ny) => {
+      const mx = Math.max(0, window.innerWidth - PET_WIDTH_PX);
+      const my = Math.max(0, window.innerHeight - PET_HEIGHT_PX - 8);
+      return [
+        Math.min(Math.max(Math.round(nx), 0), mx),
+        Math.min(Math.max(Math.round(ny), 0), my)
+      ];
+    };
+
+    const place = (nx, ny) => {
+      [x, y] = clampPos(nx, ny);
+      pet.style.left = `${x}px`;
+      pet.style.top = `${y}px`;
+    };
+
+    const effectiveState = () => {
+      if (transient) return transient;
+      if (reactionState) return reactionState;
+      return statusState;
+    };
+
+    const currentLookFrame = () => {
+      if (drag) return null;
+      if (!PET_LOOKING_STATES.has(playing)) return null;
+      const target = (caretAt && (Date.now() - caretAtTime < 4500)) ? caretAt : pointerAt;
+      if (!target) return null;
+      return petLookFrameFor({ left: x, top: y, width: PET_WIDTH_PX, height: PET_HEIGHT_PX }, target);
+    };
+
+    const paint = () => {
+      if (disposed) return;
+      const look = currentLookFrame();
+      if (look !== null) {
+        looking = true;
+        clearTimeout(frameTimer);
+        frameTimer = null;
+        body.style.backgroundPosition = petBgPosFor(look);
+        return;
+      }
+      if (looking) {
+        looking = false;
+        rebuild();
+        return;
+      }
+      const frame = sequence.frames[frameIndex];
+      if (frame) body.style.backgroundPosition = petBgPosFor(frame);
+    };
+
+    const scheduleFrame = () => {
+      clearTimeout(frameTimer);
+      frameTimer = null;
+      if (disposed || looking) return;
+      const frame = sequence.frames[frameIndex];
+      if (!frame || sequence.frames.length < 2) return;
+      frameTimer = setTimeout(() => {
+        if (disposed) return;
+        const next = frameIndex + 1;
+        if (next < sequence.frames.length) frameIndex = next;
+        else if (sequence.loopStartIndex !== null) frameIndex = sequence.loopStartIndex;
+        else return;
+        paint();
+        scheduleFrame();
+      }, frame.frameDurationMs);
+    };
+
+    const rebuild = () => {
+      sequence = buildPetSequence(playing, reducedMotion);
+      frameIndex = 0;
+      paint();
+      scheduleFrame();
+    };
+
+    const refresh = () => {
+      const next = effectiveState();
+      if (next !== playing) {
+        playing = next;
+        pet.dataset.petState = next;
+        rebuild();
+      } else {
+        paint();
+      }
+    };
+
+    const updateTheme = (nextTheme) => {
+      const t = nextTheme || {};
+      const sheetRaw = t.petSpriteUrl || 'assets/pets/rocky.webp';
+      const sheetUrl = resolveMediaUrl(sheetRaw);
+      pet.style.setProperty('--pet-sheet', `url(${JSON.stringify(sheetUrl)})`);
+      pet.style.setProperty('--pet-accent', t.primary || '#38bdf8');
+      pet.style.setProperty('--pet-glow', t.glow || 'rgba(56, 189, 248, 0.28)');
+      const meta = (t.petMeta && typeof t.petMeta === 'object') ? t.petMeta : {};
+      const petName = meta.petName || t.name || 'Companion';
+      const petConcept = meta.personifiedConcept || t.concept || '';
+      tooltip.textContent = petConcept ? `${petName} · ${petConcept}` : petName;
+    };
+
+    pet.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      if (e.shiftKey) {
         e.preventDefault();
         e.stopPropagation();
-        touchPetActivity();
-        if (e.shiftKey) {
-          applyTheme({ petEnabled: false });
-          return;
-        }
+        applyTheme({ petEnabled: false });
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      try { pet.setPointerCapture(e.pointerId); } catch (_) {}
+      drag = {
+        pointerId: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        lastX: e.clientX,
+        lastY: e.clientY,
+        moved: false
+      };
+      pet.dataset.petDragging = 'true';
+    }, { signal: sig });
+
+    pet.addEventListener('pointermove', (e) => {
+      if (!drag || drag.pointerId !== e.pointerId) return;
+      const totalDx = e.clientX - drag.startX;
+      const totalDy = e.clientY - drag.startY;
+      if (!drag.moved && Math.hypot(totalDx, totalDy) < 4) return;
+      drag.moved = true;
+      const stepDx = e.clientX - drag.lastX;
+      const stepDy = e.clientY - drag.lastY;
+      if (Math.abs(stepDx) >= 4) {
+        transient = stepDx > 0 ? 'running-right' : 'running-left';
+      }
+      drag.lastX = e.clientX;
+      drag.lastY = e.clientY;
+      place(x + stepDx, y + stepDy);
+      refresh();
+    }, { signal: sig });
+
+    const endDrag = (e) => {
+      if (!drag || drag.pointerId !== e.pointerId) return;
+      const wasMoved = drag.moved;
+      drag = null;
+      pet.dataset.petDragging = 'false';
+      transient = null;
+      if (!wasMoved) {
         const curTh = THEMES[getStateSafe().themeName] || th;
         playClickSound(curTh);
-        const cheers = ['⚡ Let\'s build!', '✨ Synced!', '🐾 Purr~', '🚀 Full speed!'];
-        const bubble = pet.querySelector('.agy-pet-speech');
-        if (bubble) {
-          bubble.textContent = cheers[Math.floor(Math.random() * cheers.length)];
-          bubble.style.opacity = '1';
-          bubble.style.transform = 'translateY(0)';
-          clearTimeout(pet.__cheerTimer);
-          pet.__cheerTimer = setTimeout(() => {
-            bubble.style.opacity = '0';
-            bubble.style.transform = 'translateY(4px)';
-          }, 1600);
-        }
-        pet.classList.remove('agy-pet-cheer');
-        void pet.offsetWidth;
-        pet.classList.add('agy-pet-cheer');
-      });
-      document.body.appendChild(pet);
+        reactionState = reactionState === 'waving' ? 'jumping' : 'waving';
+        clearTimeout(reactionTimer);
+        reactionTimer = setTimeout(() => {
+          reactionState = null;
+          refresh();
+        }, 1600);
+      }
+      refresh();
+    };
+    pet.addEventListener('pointerup', endDrag, { signal: sig });
+    pet.addEventListener('pointercancel', endDrag, { signal: sig });
+
+    window.addEventListener('mousemove', (e) => {
+      pointerAt = { x: e.clientX, y: e.clientY };
+      if (!drag) paint();
+    }, { passive: true, signal: sig });
+
+    const onCaret = (e) => {
+      const target = e.target && e.target.nodeType === 1 ? e.target : document.activeElement;
+      const pt = petCaretPointOf(target);
+      if (pt) {
+        caretAt = pt;
+        caretAtTime = Date.now();
+        if (!drag) paint();
+      }
+    };
+    document.addEventListener('input', onCaret, { passive: true, signal: sig });
+    document.addEventListener('keyup', onCaret, { passive: true, signal: sig });
+    window.addEventListener('resize', () => place(x, y), { passive: true, signal: sig });
+
+    place(x, y);
+    updateTheme(th);
+    document.body.appendChild(pet);
+    rebuild();
+
+    const ctrl = {
+      updateTheme,
+      syncState: () => {
+        statusState = detectAntigravityPetState();
+        refresh();
+      },
+      destroy: () => {
+        disposed = true;
+        clearTimeout(frameTimer);
+        clearTimeout(reactionTimer);
+        ac.abort();
+        pet.remove();
+      }
+    };
+    window.__AGY_BETTER_PET_CTRL__ = ctrl;
+    return ctrl;
+  }
+
+  function syncBetterPet(isDynamic, theme, petEnabled) {
+    if (!isDynamic || !petEnabled) {
+      removeBetterPet();
+      return;
     }
-    pet.dataset.petArchetype = petType;
-    pet.style.cssText = [
-      'position:fixed',
-      'right:22px',
-      'bottom:22px',
-      'z-index:9510',
-      'width:54px',
-      'height:54px',
-      'display:flex',
-      'align-items:center',
-      'justify-content:center',
-      'cursor:pointer',
-      'pointer-events:auto',
-      'user-select:none',
-      `filter:drop-shadow(0 4px 12px ${th.glow || 'rgba(56,189,248,0.4)'})`
-    ].join(';');
-    pet.innerHTML = `
-      <div class="agy-pet-speech" style="position:absolute;bottom:58px;right:0;padding:3px 8px;border-radius:8px;background:${th.modalBg || 'rgba(8,12,22,0.92)'};border:1px solid ${primary};color:${th.isLight ? '#0f172a' : '#f8fafc'};font-size:10px;font-weight:700;white-space:nowrap;opacity:0;transform:translateY(4px);transition:opacity 0.18s ease, transform 0.18s ease;pointer-events:none;">⚡ Ready!</div>
-      <div class="agy-pet-zzz" style="display:none;position:absolute;top:-12px;right:2px;font-size:10px;font-weight:800;color:${primary};text-shadow:0 0 6px ${primary};animation:agyOrnamentFloat 2s ease-in-out infinite;pointer-events:none;">Zzz</div>
-      <div class="agy-pet-halo" style="display:none;position:absolute;inset:-4px;border-radius:50%;border:1.5px dashed ${primary};opacity:0.75;animation:agyHudSpin 4s linear infinite;pointer-events:none;"></div>
-      <div class="agy-pet-sprite">${buildPetSvg(petType, primary, secondary)}</div>
-    `;
-    ensurePetListeners();
-    syncIdePetState();
+    mountBetterPet(theme);
+  }
+
+  function syncBetterPetState() {
+    const ctrl = window.__AGY_BETTER_PET_CTRL__;
+    if (ctrl && typeof ctrl.syncState === 'function') {
+      ctrl.syncState();
+    }
   }
 
   function removeDynamicHudWidgets() {
-    ['agy-hud-top-pill', 'agy-hud-status-widget', 'agy-hud-quick-dock'].forEach(id => {
+    ['agy-hud-top-pill', 'agy-hud-status-widget', 'agy-hud-quick-dock', 'agy-ide-pet'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.remove();
     });
-    removeIdePet();
-  }
-
-  function syncDynamicHudWidgets(isDynamic, theme) {
-    if (!isDynamic) {
-      removeDynamicHudWidgets();
-      return;
-    }
-    const th = theme || {};
-    const pack = resolveDynamicPack(th);
-    const ui = pack.uiDesign || {};
-    const primary = th.primary || '#38bdf8';
-    const secondary = th.secondary || primary;
-    const isLight = Boolean(th.isLight);
-    const bgSurface = isLight ? 'rgba(255, 255, 255, 0.90)' : (th.modalBg || 'rgba(8, 12, 22, 0.88)');
-    const textInk = isLight ? '#0f172a' : '#f8fafc';
-    const mutedInk = isLight ? '#475569' : '#94a3b8';
-    const borderCol = th.borderColor || (isLight ? 'rgba(15, 23, 42, 0.18)' : 'rgba(56, 189, 248, 0.32)');
-    const glowCol = th.glow || 'rgba(56, 189, 248, 0.28)';
-    const fontStack = getFontVibeStack(ui.fontVibe);
-    const aiRunning = isAiTaskRunning();
-    window.__AGY_LAST_AI_RUNNING__ = aiRunning;
-
-    // 1. #agy-hud-top-pill
-    let topPill = document.getElementById('agy-hud-top-pill');
-    if (!topPill) {
-      topPill = document.createElement('button');
-      topPill.id = 'agy-hud-top-pill';
-      topPill.type = 'button';
-      topPill.title = 'Open Custom Theme Studio';
-      topPill.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        openCustomThemeModal();
-      });
-      document.body.appendChild(topPill);
-    }
-    topPill.dataset.telemetryState = aiRunning ? 'running' : 'idle';
-    topPill.style.cssText = [
-      'position:fixed',
-      'top:40px',
-      'left:50%',
-      'transform:translateX(-50%)',
-      'z-index:9500',
-      'opacity:1',
-      'visibility:visible',
-      'pointer-events:auto',
-      'cursor:pointer',
-      'display:inline-flex',
-      'align-items:center',
-      'gap:7px',
-      'padding:4px 14px',
-      'border-radius:9999px',
-      `background:${bgSurface}`,
-      `border:1.5px solid ${aiRunning ? '#22d3ee' : primary}`,
-      `color:${textInk}`,
-      `font-family:${fontStack}`,
-      'font-size:10.5px',
-      'font-weight:700',
-      'letter-spacing:0.8px',
-      'text-transform:uppercase',
-      `box-shadow:0 4px 16px rgba(0,0,0,0.45), 0 0 14px ${glowCol}`,
-      'backdrop-filter:none',
-      'white-space:nowrap',
-      'max-width:360px',
-      'overflow:hidden',
-      'text-overflow:ellipsis'
-    ].join(';');
-    const pillLabel = aiRunning ? `RUNNING // ${ui.topBarPillText || pack.archetypeLabel}` : (ui.topBarPillText || pack.archetypeLabel);
-    topPill.innerHTML = `${buildTelemetryIndicatorHtml(aiRunning, primary, secondary, false)}<span>${escHtml(pillLabel)}</span>`;
-
-    // 2. #agy-hud-status-widget
-    const hw = ui.hudWidget || {};
-    let statusWidget = document.getElementById('agy-hud-status-widget');
-    if (!statusWidget) {
-      statusWidget = document.createElement('div');
-      statusWidget.id = 'agy-hud-status-widget';
-      document.body.appendChild(statusWidget);
-    }
-    statusWidget.dataset.telemetryState = aiRunning ? 'running' : 'idle';
-    const isCollapsed = Boolean(window.__AGY_HUD_WIDGET_COLLAPSED__);
-    statusWidget.style.cssText = [
-      'position:fixed',
-      'top:52px',
-      'right:18px',
-      'z-index:9500',
-      'opacity:1',
-      'visibility:visible',
-      isCollapsed ? 'width:auto' : 'width:196px',
-      'pointer-events:none',
-      `font-family:${fontStack}`,
-      `color:${textInk}`
-    ].join(';');
-
-    const statusLine = aiRunning ? 'RUNNING // STREAMING' : (hw.statusText || 'IDLE // SYNC 100%');
-    if (isCollapsed) {
-      statusWidget.innerHTML = `<button type="button" data-hud-widget-toggle="1" title="Expand HUD Status" style="pointer-events:auto;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:9999px;background:${bgSurface};border:1px solid ${borderCol};color:${primary};font-size:10px;font-weight:700;letter-spacing:0.6px;box-shadow:0 4px 14px rgba(0,0,0,0.3);backdrop-filter:none;">${buildTelemetryIndicatorHtml(aiRunning, primary, secondary, true)}${escHtml(aiRunning ? 'RUN' : (hw.badge || 'HUD'))}</button>`;
-    } else {
-      const cardRadius = Math.min(14, Number.isFinite(ui.cardRadiusPx) ? ui.cardRadiusPx : 10);
-      statusWidget.innerHTML = `
-        <div style="pointer-events:auto;position:relative;padding:9px 11px;border-radius:${cardRadius}px;background:${bgSurface};border:1px solid ${borderCol};border-left:3px solid ${aiRunning ? '#22d3ee' : primary};box-shadow:0 8px 24px rgba(0,0,0,0.38), 0 0 12px ${glowCol};backdrop-filter:none;">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px;">
-            <span style="font-size:9.5px;font-weight:800;letter-spacing:0.8px;padding:1px 6px;border-radius:9999px;background:${glowCol};color:${primary};border:1px solid ${borderCol};">${escHtml(hw.badge || 'SYNC')}</span>
-            <button type="button" data-hud-widget-toggle="1" title="Collapse HUD Widget" style="pointer-events:auto;cursor:pointer;background:transparent;border:none;color:${mutedInk};font-size:13px;line-height:1;padding:0 2px;">×</button>
-          </div>
-          <div style="font-size:11.5px;font-weight:700;letter-spacing:0.4px;color:${textInk};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(hw.title || pack.introTitle)}</div>
-          <div style="font-size:9.5px;color:${mutedInk};letter-spacing:0.5px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(hw.subtitle || pack.archetypeLabel)}</div>
-          <div style="display:flex;align-items:center;gap:5px;margin-top:6px;padding-top:5px;border-top:1px solid ${isLight ? 'rgba(15,23,42,0.1)' : 'rgba(255,255,255,0.08)'};font-size:9.5px;font-weight:600;color:${aiRunning ? '#22d3ee' : secondary};">
-            ${buildTelemetryIndicatorHtml(aiRunning, primary, secondary, true)}
-            <span>${escHtml(statusLine)}</span>
-          </div>
-        </div>
-      `;
-    }
-    const toggleBtn = statusWidget.querySelector('[data-hud-widget-toggle="1"]');
-    if (toggleBtn) {
-      toggleBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        window.__AGY_HUD_WIDGET_COLLAPSED__ = !window.__AGY_HUD_WIDGET_COLLAPSED__;
-        syncDynamicHudWidgets(true, th);
-      });
-    }
-
-    // 3. #agy-hud-quick-dock
-    let quickDock = document.getElementById('agy-hud-quick-dock');
-    if (!quickDock) {
-      quickDock = document.createElement('div');
-      quickDock.id = 'agy-hud-quick-dock';
-      document.body.appendChild(quickDock);
-    }
-    const dockPos = ui.dockPosition || 'right-vertical';
-    const dockPosCss = dockPos === 'bottom-right'
-      ? 'right:18px;bottom:88px;flex-direction:row;'
-      : (dockPos === 'top-right'
-        ? 'right:18px;top:160px;flex-direction:row;'
-        : 'right:16px;top:50%;transform:translateY(-50%);flex-direction:column;');
-    quickDock.style.cssText = `position:fixed;${dockPosCss}z-index:9500;opacity:1;visibility:visible;display:flex;gap:7px;pointer-events:none;`;
-
-    const dockShape = ui.dockShape || 'circle';
-    const btnShapeCss = dockShape === 'hex'
-      ? 'width:34px;height:32px;clip-path:polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);border-radius:0;'
-      : (dockShape === 'pill'
-        ? 'width:38px;height:28px;border-radius:9999px;'
-        : (dockShape === 'square'
-          ? 'width:32px;height:32px;border-radius:6px;'
-          : 'width:32px;height:32px;border-radius:9999px;'));
-
-    const isMuted = localStorage.getItem(STORAGE_SOUND_MUTED) === 'true';
-    const petOn = getStateSafe().petEnabled !== false;
-    const dockBtnBase = `pointer-events:auto;cursor:pointer;display:flex;align-items:center;justify-content:center;${btnShapeCss}background:${bgSurface};border:1px solid ${borderCol};color:${textInk};font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,0.35), 0 0 8px ${glowCol};backdrop-filter:none;transition:transform 0.14s ease, border-color 0.14s ease;`;
-    quickDock.innerHTML = `
-      <button type="button" data-hud-action="studio" title="Open Custom Theme Studio" style="${dockBtnBase}">🎨</button>
-      <button type="button" data-hud-action="intro" title="Preview Intro" style="${dockBtnBase}">▶</button>
-      <button type="button" data-hud-action="mode" title="Toggle Dynamic / Static" style="${dockBtnBase}">⚡</button>
-      <button type="button" data-hud-action="pet" title="${petOn ? 'Hide Companion Pet' : 'Show Companion Pet'}" style="${dockBtnBase}${petOn ? '' : 'opacity:0.5;'}">🐾</button>
-      <button type="button" data-hud-action="sound" title="${isMuted ? 'Unmute Sound' : 'Mute Sound'}" style="${dockBtnBase}">${isMuted ? '🔇' : '🔊'}</button>
-    `;
-    quickDock.querySelectorAll('button[data-hud-action]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const act = btn.getAttribute('data-hud-action');
-        if (act === 'studio') {
-          openCustomThemeModal();
-        } else if (act === 'intro') {
-          showThemeIntro(th, true);
-        } else if (act === 'mode') {
-          const cur = getStateSafe();
-          const nextMode = cur.themeMode === 'static' ? 'dynamic' : 'static';
-          applyTheme({ themeMode: nextMode });
-        } else if (act === 'pet') {
-          const cur = getStateSafe();
-          const nextPet = cur.petEnabled === false;
-          applyTheme({ petEnabled: nextPet });
-          syncExtraToggleBtns(th.primary);
-        } else if (act === 'sound') {
-          const curMuted = localStorage.getItem(STORAGE_SOUND_MUTED) === 'true';
-          const nextMuted = !curMuted;
-          localStorage.setItem(STORAGE_SOUND_MUTED, String(nextMuted));
-          btn.textContent = nextMuted ? '🔇' : '🔊';
-          btn.title = nextMuted ? 'Unmute Sound' : 'Mute Sound';
-          if (!nextMuted) playClickSound(th);
-        }
-      });
-    });
-
-    // 4. #agy-ide-pet
-    syncIdePet(true, th, petOn);
   }
 
   function syncTelemetryState() {
     const st = getStateSafe();
     if (st.themeMode === 'static') return;
-    const running = isAiTaskRunning();
-    if (running !== window.__AGY_LAST_AI_RUNNING__) {
-      const th = THEMES[st.themeName] || THEMES[getDefaultThemeKey()] || {};
-      syncDynamicHudWidgets(true, th);
-    } else {
-      syncIdePetState();
-    }
+    syncBetterPetState();
   }
 
   function dismissThemeIntro() {
@@ -2118,8 +2084,8 @@
         showThemeIntro(mainTheme, forceReplay);
         scheduleRevealWhenReady(true);
         syncDynamicFxLayer(true, mainTheme);
-        syncDynamicHudWidgets(true, mainTheme);
-        syncIdePet(true, mainTheme, st.petEnabled !== false);
+        removeDynamicHudWidgets();
+        syncBetterPet(true, mainTheme, st.petEnabled !== false);
       });
   }
   window.__ANTIGRAVITY_REPLAY_BOOT__ = () => mountBootSequence(true);
@@ -2473,45 +2439,216 @@
     const borderStyle = uiDesign.borderStyle || 'solid';
     const fontVibeStack = getFontVibeStack(uiDesign.fontVibe);
     const glowIntensity = Number.isFinite(uiDesign.accentGlowIntensity) ? uiDesign.accentGlowIntensity : 1;
-    const borderAccent = mainTheme.aiCardBorder || mainTheme.borderColor || 'rgba(255, 255, 255, 0.16)';
-    const chamferClip = 'polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px)';
-    let uiBorderCss = '';
-    if (borderStyle === 'double') {
-      uiBorderCss = `
-      .agy-shell [data-testid="agent-response"],
-      .agy-shell .agy-user-bubble,
-      .agy-shell .surface-composer-card,
-      .agy-card-radius {
-        border: 3px double ${borderAccent} !important;
-      }`;
-    } else if (borderStyle === 'dashed') {
-      uiBorderCss = `
-      .agy-shell [data-testid="agent-response"],
-      .agy-shell .agy-user-bubble,
-      .agy-shell .surface-composer-card,
-      .agy-card-radius {
-        border: 1.5px dashed ${borderAccent} !important;
-      }`;
-    } else if (borderStyle === 'glow-frame') {
-      const gSpread = Math.round(14 * glowIntensity);
-      const gInner = Math.round(9 * glowIntensity);
-      uiBorderCss = `
-      .agy-shell [data-testid="agent-response"],
-      .agy-shell .agy-user-bubble,
-      .agy-shell .surface-composer-card,
-      .agy-card-radius {
-        border: 1.5px solid ${mainTheme.primary || borderAccent} !important;
-        box-shadow: 0 0 ${gSpread}px ${mainTheme.glow || 'rgba(56,189,248,0.28)'}, inset 0 0 ${gInner}px ${mainTheme.glow || 'rgba(56,189,248,0.16)'} !important;
-      }`;
-    } else if (borderStyle === 'chamfered') {
-      uiBorderCss = `
-      .agy-shell [data-testid="agent-response"],
-      .agy-shell .agy-user-bubble,
-      .agy-shell .surface-composer-card,
-      .agy-card-radius {
-        clip-path: ${chamferClip} !important;
-        border-radius: 0 !important;
-      }`;
+
+    function applyVfxBlueprint(themeObj, stateObj) {
+      const th = themeObj || {};
+      const stCur = stateObj || {};
+      const vfx = (th.vfxSpec && typeof th.vfxSpec === 'object') ? th.vfxSpec : {};
+      const isDyn = stCur.themeMode === 'dynamic';
+      const lightMode = Boolean(th.isLight);
+      const pColor = th.primary || '#38bdf8';
+      const sColor = th.secondary || pColor;
+      const gColor = th.glow || 'rgba(56, 189, 248, 0.22)';
+      const hairline = th.aiCardBorder || th.borderColor || (lightMode ? 'rgba(15, 23, 42, 0.14)' : 'rgba(255, 255, 255, 0.12)');
+      const subtleBg = th.aiCardBg || (lightMode ? 'rgba(255, 255, 255, 0.82)' : 'rgba(12, 14, 24, 0.68)');
+      const rightTint = th.aiCardBg || (lightMode ? 'rgba(255, 255, 255, 0.84)' : 'rgba(10, 12, 20, 0.72)');
+
+      // 1. Left Column (Sidebar)
+      const lc = (vfx.leftColumn && typeof vfx.leftColumn === 'object') ? vfx.leftColumn : {};
+      const surfaceMode = lc.surfaceMode || 'glass-rail';
+      const density = lc.density === 'compact' ? 'compact' : 'comfortable';
+      const sidebarNavSel = '.agy-shell [role="navigation"][aria-label="Sidebar"]';
+      const sidebarItemSel = '.agy-shell [role="navigation"][aria-label="Sidebar"] :is([data-testid="new-conversation-button"], [data-testid="automations-button"], [data-testid="conversation-row-sidebar"], .agy-sidebar-row, [data-testid="settings-button"], a, [class*="group/headerbtn"])';
+      const itemPad = density === 'compact' ? '4px 8px' : '6px 10px';
+      const itemMargin = density === 'compact' ? '1px 4px' : '2px 6px';
+      const lcRadius = Math.min(16, Math.max(4, Number(lc.radiusPx) || 10));
+
+      let leftColumnCss = `
+        ${sidebarNavSel} {
+          border-right: 1px solid ${hairline} !important;
+          backdrop-filter: none !important;
+        }
+        ${sidebarItemSel} {
+          border-radius: ${Math.max(4, lcRadius - 2)}px !important;
+          border: 1px solid transparent !important;
+          margin: ${itemMargin} !important;
+          padding: ${itemPad} !important;
+          ${isDyn ? 'transition: background-color 0.15s ease, border-color 0.15s ease !important;' : 'transition: none !important;'}
+        }
+        ${sidebarItemSel}:hover {
+          border-color: ${hairline} !important;
+        }
+      `;
+      if (surfaceMode === 'inset-panel') {
+        leftColumnCss += `
+          ${sidebarNavSel} {
+            margin: 6px 0 6px 6px !important;
+            border-radius: ${lcRadius}px !important;
+            border: 1px solid ${hairline} !important;
+            overflow: hidden !important;
+          }
+        `;
+      } else if (surfaceMode === 'clean-matte') {
+        leftColumnCss += `
+          ${sidebarNavSel} {
+            background: ${subtleBg} !important;
+          }
+        `;
+      }
+
+      // 2. Center Stage (Agent response, user bubble, composer, steps)
+      const cs = (vfx.centerStage && typeof vfx.centerStage === 'object') ? vfx.centerStage : {};
+      const surfaceStyle = cs.surfaceStyle || 'glass-card';
+      const csRadius = Math.min(20, Math.max(4, Number(cs.radiusPx) || cardRadiusPx || 12));
+      const transitionCss = isDyn
+        ? 'transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease !important;'
+        : 'transition: none !important;';
+
+      let centerStageCss = `
+        .agy-shell [data-testid="agent-response"] {
+          border: 1px solid ${hairline} !important;
+          border-radius: ${csRadius}px !important;
+          box-shadow: 0 2px 12px rgba(0, 0, 0, ${lightMode ? '0.07' : '0.24'}) !important;
+          backdrop-filter: none !important;
+          ${transitionCss}
+        }
+        .agy-shell .agy-user-bubble-frame {
+          padding: 1px !important;
+          border-radius: ${csRadius}px !important;
+          background: ${th.frameBg || hairline} !important;
+          box-shadow: 0 2px 12px rgba(0, 0, 0, ${lightMode ? '0.08' : '0.28'}) !important;
+          ${transitionCss}
+        }
+        .agy-shell .agy-user-bubble {
+          border-radius: ${Math.max(3, csRadius - 1)}px !important;
+        }
+        .agy-shell .surface-composer {
+          padding: 1px !important;
+          border-radius: ${csRadius + 1}px !important;
+          background: ${hairline} !important;
+          box-shadow: 0 4px 18px rgba(0, 0, 0, ${lightMode ? '0.10' : '0.32'}) !important;
+          backdrop-filter: none !important;
+          ${transitionCss}
+        }
+        .agy-shell .surface-composer-card {
+          border-radius: ${csRadius}px !important;
+          border: 1px solid transparent !important;
+          backdrop-filter: none !important;
+        }
+        .agy-shell [data-step-index] {
+          border-radius: ${Math.max(4, csRadius - 2)}px !important;
+        }
+      `;
+      if (isDyn) {
+        centerStageCss += `
+          .agy-shell [data-testid="agent-response"]:hover,
+          .agy-shell .agy-user-bubble-frame:hover {
+            transform: translateY(-1px) !important;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, ${lightMode ? '0.10' : '0.34'}), 0 0 12px ${gColor} !important;
+          }
+          .agy-shell .surface-composer:focus-within {
+            background: linear-gradient(135deg, ${pColor}, ${sColor}) !important;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, ${lightMode ? '0.12' : '0.38'}), 0 0 14px ${gColor} !important;
+          }
+        `;
+      }
+      if (surfaceStyle === 'editorial-sheet') {
+        centerStageCss += `
+          .agy-shell [data-testid="agent-response"] {
+            border-left: 2px solid ${pColor} !important;
+          }
+        `;
+      } else if (surfaceStyle === 'hud-hairline') {
+        centerStageCss += `
+          .agy-shell [data-testid="agent-response"],
+          .agy-shell .surface-composer-card {
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 12px rgba(0, 0, 0, 0.24) !important;
+          }
+        `;
+      }
+
+      // 3. Right Column (Side Panel)
+      const rc = (vfx.rightColumn && typeof vfx.rightColumn === 'object') ? vfx.rightColumn : {};
+      const tabIndicator = rc.tabIndicator || 'underline';
+      let tabIndicatorCss = `
+        .agy-shell [data-side-panel-strip] :is(button[aria-selected="true"], [role="tab"][aria-selected="true"]) {
+          border-bottom: 2px solid ${pColor} !important;
+          border-radius: 0 !important;
+        }
+      `;
+      if (tabIndicator === 'pill') {
+        tabIndicatorCss = `
+          .agy-shell [data-side-panel-strip] :is(button[aria-selected="true"], [role="tab"][aria-selected="true"]) {
+            background: ${gColor} !important;
+            border: 1px solid ${hairline} !important;
+            border-radius: 9999px !important;
+          }
+        `;
+      } else if (tabIndicator === 'dot') {
+        tabIndicatorCss = `
+          .agy-shell [data-side-panel-strip] :is(button[aria-selected="true"], [role="tab"][aria-selected="true"]) {
+            position: relative !important;
+          }
+          .agy-shell [data-side-panel-strip] :is(button[aria-selected="true"], [role="tab"][aria-selected="true"])::after {
+            content: "";
+            position: absolute;
+            bottom: 2px;
+            left: 50%;
+            width: 4px;
+            height: 4px;
+            margin-left: -2px;
+            border-radius: 50%;
+            background: ${pColor};
+          }
+        `;
+      }
+      const rightColumnCss = `
+        body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-docked],
+        body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-strip] {
+          background: ${rightTint} !important;
+          backdrop-filter: none !important;
+          border-color: ${hairline} !important;
+        }
+        .agy-shell [data-side-panel-sash] {
+          background: ${hairline} !important;
+          width: 1px !important;
+        }
+        ${tabIndicatorCss}
+      `;
+
+      // 4. Motion Rules (calm | atmospheric | kinetic)
+      const motionRule = isDyn ? resolveVfxMotionRule(th, mainPack) : 'none';
+      const motionCss = motionRule === 'none'
+        ? `
+          .agy-shell [data-testid="agent-response"],
+          .agy-shell .agy-user-bubble-frame,
+          .agy-shell .surface-composer {
+            transition: none !important;
+            animation: none !important;
+          }
+        `
+        : (motionRule === 'kinetic'
+          ? `
+            .agy-shell [data-testid="agent-response"]::after {
+              content: "";
+              position: absolute;
+              top: 0;
+              left: 16px;
+              right: 16px;
+              height: 1px;
+              background: linear-gradient(90deg, transparent, ${pColor}66, transparent);
+              pointer-events: none;
+            }
+          `
+          : '');
+
+      return `
+        /* Refined vfxSpec Blueprint (${surfaceMode} / ${surfaceStyle} / ${tabIndicator} / ${motionRule}) */
+        ${leftColumnCss}
+        ${centerStageCss}
+        ${rightColumnCss}
+        ${motionCss}
+      `;
     }
 
     const uiDesignVarsCss = `
@@ -2554,238 +2691,9 @@
       .agy-shell [data-testid="agent-response"] :is(h1, h2, h3) {
         font-family: var(--agy-font-vibe, ${fontVibeStack}) !important;
       }
-      ${uiBorderCss}
     `;
 
-    let layoutCss = '';
-    if (st.themeMode === 'dynamic') {
-      const sStyle = uiDesign.sidebarStyle || 'floating-cards';
-      const cStyle = uiDesign.composerStyle || 'floating-dock';
-      const cardLayout = uiDesign.chatCardLayout || 'hud-panel';
-      const pColor = mainTheme.primary || '#38bdf8';
-      const sColor = mainTheme.secondary || pColor;
-      const gColor = mainTheme.glow || 'rgba(56, 189, 248, 0.24)';
-
-      const sidebarNavSel = '.agy-shell :is([role="navigation"][aria-label="Sidebar"], aside, [data-sidebar="true"])';
-      const sidebarItemSel = '.agy-shell [role="navigation"][aria-label="Sidebar"] :is([data-testid="new-conversation-button"], [data-testid="automations-button"], [data-testid="conversation-row-sidebar"], .agy-sidebar-row, [data-testid="settings-button"], a, [class*="group/headerbtn"])';
-
-      let sidebarLayoutCss = '';
-      if (sStyle === 'floating-cards') {
-        sidebarLayoutCss = `
-          ${sidebarNavSel} {
-            margin: 8px 6px 8px 8px !important;
-            border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
-            border: 1.5px solid ${borderAccent} !important;
-            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.42), 0 0 18px ${gColor} !important;
-            overflow: hidden !important;
-            backdrop-filter: none !important;
-          }
-          ${sidebarNavSel} [data-testid="sidebar-navigation-items"] {
-            padding: 4px 2px !important;
-          }
-          ${sidebarItemSel} {
-            border-radius: ${Math.max(6, cardRadiusPx - 4)}px !important;
-            border: 1px solid transparent !important;
-            margin: 2px 6px !important;
-            padding: 6px 10px !important;
-            transition: background-color 0.18s ease, transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease !important;
-          }
-          ${sidebarItemSel}:hover {
-            transform: translateX(3px) !important;
-            border-color: ${pColor} !important;
-            box-shadow: 0 2px 12px ${gColor} !important;
-          }
-        `;
-      } else if (sStyle === 'framed-panel') {
-        sidebarLayoutCss = `
-          ${sidebarNavSel} {
-            margin: 4px 0 4px 4px !important;
-            border: 2px solid ${pColor} !important;
-            box-shadow: inset 0 0 0 1px ${sColor}, 0 0 18px ${gColor} !important;
-            clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px)) !important;
-            backdrop-filter: none !important;
-          }
-          ${sidebarNavSel} [class*="group/section-header"] {
-            border-bottom: 1px solid ${mainTheme.borderColor || borderAccent} !important;
-          }
-          ${sidebarItemSel} {
-            border-left: 2px solid transparent !important;
-            transition: background-color 0.18s ease, transform 0.18s ease, border-color 0.18s ease !important;
-          }
-          ${sidebarItemSel}:hover {
-            transform: translateX(3px) !important;
-            border-left-color: ${pColor} !important;
-            box-shadow: inset 3px 0 10px ${gColor} !important;
-          }
-        `;
-      } else if (sStyle === 'sleek-rail') {
-        sidebarLayoutCss = `
-          ${sidebarNavSel} {
-            border-left: 3px solid ${pColor} !important;
-            border-right: 1px solid ${mainTheme.borderColor || 'rgba(255, 255, 255, 0.12)'} !important;
-            box-shadow: 4px 0 18px ${gColor} !important;
-            padding-left: 2px !important;
-            backdrop-filter: none !important;
-          }
-          ${sidebarItemSel} {
-            border-left: 2px solid transparent !important;
-            border-radius: 6px !important;
-            transition: background-color 0.18s ease, transform 0.18s ease, border-color 0.18s ease !important;
-          }
-          ${sidebarItemSel}:hover {
-            transform: translateX(3px) !important;
-            border-left-color: ${pColor} !important;
-          }
-        `;
-      }
-
-      let composerLayoutCss = '';
-      const composerCommon = `
-        .agy-shell .surface-composer {
-          padding: 2.5px !important;
-          background: linear-gradient(125deg, ${pColor} 0%, ${sColor} 50%, ${pColor} 100%) !important;
-          background-size: 220% 220% !important;
-          transition: transform 0.2s ease, box-shadow 0.2s ease !important;
-          backdrop-filter: none !important;
-        }
-        .agy-shell .surface-composer:hover,
-        .agy-shell .surface-composer:focus-within {
-          transform: translateY(-2px) !important;
-          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.58), 0 0 26px ${gColor} !important;
-        }
-      `;
-      if (cStyle === 'floating-dock') {
-        composerLayoutCss = `
-          ${composerCommon}
-          .agy-shell .surface-composer {
-            margin-bottom: 12px !important;
-            border-radius: ${Math.max(16, cardRadiusPx + 4)}px !important;
-            box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 22px ${gColor} !important;
-          }
-          .agy-shell .surface-composer-card {
-            border-radius: ${Math.max(14, cardRadiusPx + 2)}px !important;
-            backdrop-filter: none !important;
-          }
-        `;
-      } else if (cStyle === 'hud-console') {
-        composerLayoutCss = `
-          ${composerCommon}
-          .agy-shell .surface-composer {
-            border-radius: 8px !important;
-            box-shadow: 0 0 22px ${gColor}, inset 0 0 12px ${gColor} !important;
-          }
-          .agy-shell .surface-composer-card {
-            border-radius: 6px !important;
-            backdrop-filter: none !important;
-          }
-        `;
-      } else if (cStyle === 'command-bar') {
-        composerLayoutCss = `
-          ${composerCommon}
-          .agy-shell .surface-composer {
-            border-radius: 10px !important;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 18px ${gColor} !important;
-          }
-          .agy-shell .surface-composer-card {
-            border-radius: 8px !important;
-            backdrop-filter: none !important;
-          }
-        `;
-      }
-
-      const chatCardCommon = `
-        .agy-shell [data-testid="agent-response"] {
-          position: relative !important;
-          transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
-        }
-        .agy-shell [data-testid="agent-response"]:hover {
-          transform: translateY(-2px) !important;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.44), 0 0 22px ${gColor} !important;
-        }
-        .agy-shell [data-testid="agent-response"]::after {
-          content: "";
-          position: absolute;
-          top: 6px;
-          right: 6px;
-          width: 16px;
-          height: 16px;
-          background-image: url("${cornerFiligreeUrl}");
-          background-size: contain;
-          background-repeat: no-repeat;
-          transform: rotate(90deg);
-          pointer-events: none;
-          animation: agyFiligreeShimmer 3.8s ease-in-out infinite;
-        }
-        .agy-shell .agy-user-bubble-frame {
-          padding: 2.5px !important;
-          background: linear-gradient(125deg, ${pColor} 0%, ${sColor} 50%, ${pColor} 100%) !important;
-          background-size: 220% 220% !important;
-          box-shadow: 0 6px 22px rgba(0, 0, 0, 0.48), 0 0 16px ${gColor} !important;
-          transition: transform 0.2s ease, box-shadow 0.2s ease !important;
-        }
-        .agy-shell .agy-user-bubble-frame:hover {
-          transform: translateY(-2px) !important;
-          box-shadow: 0 10px 28px rgba(0, 0, 0, 0.54), 0 0 22px ${gColor} !important;
-        }
-      `;
-
-      let chatCardLayoutCss = '';
-      if (cardLayout === 'hud-panel') {
-        chatCardLayoutCss = `
-          ${chatCardCommon}
-          .agy-shell [data-testid="agent-response"] {
-            border-left: 4px solid ${pColor} !important;
-            border-top: 1px solid ${mainTheme.borderColor || borderAccent} !important;
-            border-right: 1px solid ${mainTheme.borderColor || borderAccent} !important;
-            border-bottom: 1px solid ${mainTheme.borderColor || borderAccent} !important;
-            box-shadow: 0 6px 22px rgba(0, 0, 0, 0.36), 0 0 14px ${gColor}, inset 0 1px 0 ${gColor} !important;
-          }
-        `;
-      } else if (cardLayout === 'terminal-block') {
-        chatCardLayoutCss = `
-          ${chatCardCommon}
-          .agy-shell [data-testid="agent-response"] {
-            border: 1px solid ${mainTheme.borderColor || 'rgba(255, 255, 255, 0.16)'} !important;
-            border-left: 4px solid ${sColor} !important;
-            border-radius: 6px !important;
-            font-family: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace !important;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 14px ${gColor} !important;
-          }
-        `;
-      } else if (cardLayout === 'floating-bubble') {
-        chatCardLayoutCss = `
-          ${chatCardCommon}
-          .agy-shell [data-testid="agent-response"] {
-            border-radius: ${Math.max(18, cardRadiusPx + 4)}px !important;
-            padding-top: 16px !important;
-            padding-bottom: 16px !important;
-            padding-right: 20px !important;
-            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34), 0 0 18px ${gColor} !important;
-            border: 1.5px solid ${mainTheme.aiCardBorder || pColor} !important;
-          }
-        `;
-      } else if (cardLayout === 'clean-sheet') {
-        chatCardLayoutCss = `
-          ${chatCardCommon}
-          .agy-shell [data-testid="agent-response"] {
-            border: 1px solid ${mainTheme.isLight ? 'rgba(15, 23, 42, 0.14)' : 'rgba(255, 255, 255, 0.14)'} !important;
-            border-left: 3px solid ${pColor} !important;
-            border-radius: ${Math.min(12, cardRadiusPx)}px !important;
-            padding-top: 14px !important;
-            padding-bottom: 14px !important;
-            padding-right: 18px !important;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2), 0 0 12px ${gColor} !important;
-          }
-        `;
-      }
-
-      layoutCss = `
-        /* Dynamic IDE Layout Re-composition: ${uiDesign.layoutPreset} (${sStyle} / ${cStyle} / ${cardLayout}) */
-        ${sidebarLayoutCss}
-        ${composerLayoutCss}
-        ${chatCardLayoutCss}
-      `;
-    }
+    const layoutCss = applyVfxBlueprint(mainTheme, st);
 
     const isLight = Boolean(mainTheme.isLight);
     const uiInk = mainTheme.uiTextColor || (isLight ? '#0f172a' : 'rgba(248, 250, 252, 0.98)');
@@ -3747,67 +3655,117 @@
         70% { transform: translateY(-4px) scale(1.08) rotate(4deg); }
         100% { transform: translateY(0) scale(1); }
       }
-      body:not([data-has-browser-hole="true"])::before {
-        content: "";
+      #agy-better-pet {
         position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        z-index: 9600;
+        z-index: 9510;
+        width: 96px;
+        aspect-ratio: 192 / 208;
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-drag: none;
+        -webkit-app-region: no-drag;
+        outline: none;
+        filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35));
+      }
+      #agy-better-pet[data-pet-dragging="true"] {
+        cursor: grabbing;
+      }
+      .agy-better-pet__body {
+        width: 100%;
+        height: 100%;
+        background-image: var(--pet-sheet);
+        background-repeat: no-repeat;
+        background-size: 800% 1100%;
+        image-rendering: pixelated;
+        --pet-launch-shift: 0px;
+        transform: translateY(var(--pet-launch-shift));
+        transform-origin: 50% 50%;
+        transition: transform 0s;
+      }
+      #agy-better-pet[data-pet-dragging="true"] .agy-better-pet__body {
+        --pet-launch-shift: -16px;
+        transition: transform 0.36s cubic-bezier(0.34, 1.3, 0.64, 1);
+      }
+      .agy-better-pet__badge {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        width: 10px;
+        height: 10px;
+        border-radius: 9999px;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        background: var(--pet-accent, #38bdf8);
+        box-shadow: 0 0 8px var(--pet-glow, rgba(56, 189, 248, 0.45));
         pointer-events: none;
-        background: linear-gradient(90deg, ${mainTheme.primary || '#38bdf8'}, ${mainTheme.secondary || mainTheme.primary || '#e066ff'}, ${mainTheme.primary || '#38bdf8'});
-        background-size: 200% 100%;
-        box-shadow: 0 0 10px ${mainTheme.glow || 'rgba(56, 189, 248, 0.45)'};
-        animation: agyBorderFlow 4s linear infinite;
       }
-      #agy-ide-pet[data-pet-state="idle"] .agy-pet-sprite {
-        animation: agyPetBreath 3.2s ease-in-out infinite;
+      #agy-better-pet[data-pet-state="running"] .agy-better-pet__badge {
+        background: #22d3ee;
+        box-shadow: 0 0 10px #22d3ee;
+        animation: agyTelemetryPulse 1.1s ease-in-out infinite;
       }
-      #agy-ide-pet[data-pet-state="running"] .agy-pet-sprite {
-        animation: agyPetBounce 0.72s ease-in-out infinite;
+      #agy-better-pet[data-pet-state="waiting"] .agy-better-pet__badge {
+        background: #ff8549;
+        box-shadow: 0 0 8px #ff8549;
       }
-      #agy-ide-pet[data-pet-state="sleepy"] .agy-pet-sprite {
-        opacity: 0.82;
-        animation: agyPetBreath 4.8s ease-in-out infinite;
+      #agy-better-pet[data-pet-state="failed"] .agy-better-pet__badge {
+        background: #ff6764;
+        box-shadow: 0 0 8px #ff6764;
       }
-      #agy-ide-pet.agy-pet-blink .agy-pet-eyes {
-        transform: scaleY(0.15);
-        transform-origin: center 7px;
+      .agy-better-pet__tooltip {
+        position: absolute;
+        bottom: calc(100% + 4px);
+        right: 0;
+        padding: 3px 8px;
+        border-radius: 6px;
+        background: rgba(12, 14, 22, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: #f8fafc;
+        font-size: 10px;
+        font-weight: 500;
+        white-space: nowrap;
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        opacity: 0;
+        transform: translateY(3px);
+        transition: opacity 0.15s ease, transform 0.15s ease;
+        pointer-events: none;
       }
-      #agy-ide-pet.agy-pet-cheer .agy-pet-sprite {
-        animation: agyPetCheer 0.52s ease-out !important;
+      #agy-better-pet:hover .agy-better-pet__tooltip {
+        opacity: 1;
+        transform: translateY(0);
       }
       @keyframes agyParticleFloat {
-        0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.45; }
-        50% { transform: translate3d(14px, -28px, 0) scale(1.16); opacity: 0.75; }
+        0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.22; }
+        50% { transform: translate3d(12px, -22px, 0) scale(1.1); opacity: 0.38; }
       }
       @keyframes agyParticleFall {
-        0% { transform: translate3d(0, -32px, 0) rotate(0deg); opacity: 0.45; }
-        50% { transform: translate3d(12px, 14px, 0) rotate(90deg); opacity: 0.75; }
-        100% { transform: translate3d(-8px, 56px, 0) rotate(180deg); opacity: 0.45; }
+        0% { transform: translate3d(0, -24px, 0) rotate(0deg); opacity: 0.22; }
+        50% { transform: translate3d(10px, 12px, 0) rotate(90deg); opacity: 0.38; }
+        100% { transform: translate3d(-6px, 42px, 0) rotate(180deg); opacity: 0.22; }
       }
       @keyframes agyParticleRise {
-        0% { transform: translate3d(0, 18px, 0) scale(0.92); opacity: 0.45; }
-        50% { transform: translate3d(-10px, -24px, 0) scale(1.12); opacity: 0.75; }
-        100% { transform: translate3d(8px, -54px, 0) scale(0.9); opacity: 0.45; }
+        0% { transform: translate3d(0, 14px, 0) scale(0.92); opacity: 0.22; }
+        50% { transform: translate3d(-8px, -18px, 0) scale(1.08); opacity: 0.38; }
+        100% { transform: translate3d(6px, -42px, 0) scale(0.9); opacity: 0.22; }
       }
       @keyframes agyParticleOrbit {
-        0% { transform: rotate(0deg) translate3d(18px, 0, 0) rotate(0deg); opacity: 0.45; }
-        50% { transform: rotate(180deg) translate3d(18px, 0, 0) rotate(-180deg) scale(1.12); opacity: 0.75; }
-        100% { transform: rotate(360deg) translate3d(18px, 0, 0) rotate(-360deg); opacity: 0.45; }
+        0% { transform: rotate(0deg) translate3d(14px, 0, 0) rotate(0deg); opacity: 0.22; }
+        50% { transform: rotate(180deg) translate3d(14px, 0, 0) rotate(-180deg) scale(1.08); opacity: 0.38; }
+        100% { transform: rotate(360deg) translate3d(14px, 0, 0) rotate(-360deg); opacity: 0.22; }
       }
       @keyframes agyParticlePulse {
-        0%, 100% { transform: scale(0.84); opacity: 0.45; }
-        50% { transform: scale(1.3); opacity: 0.75; }
+        0%, 100% { transform: scale(0.86); opacity: 0.22; }
+        50% { transform: scale(1.18); opacity: 0.38; }
       }
       @keyframes agyParticleDrift {
-        0%, 100% { transform: translate3d(0, -10px, 0) rotate(0deg); opacity: 0.45; }
-        50% { transform: translate3d(22px, 24px, 0) rotate(24deg); opacity: 0.75; }
+        0%, 100% { transform: translate3d(0, -8px, 0) rotate(0deg); opacity: 0.22; }
+        50% { transform: translate3d(18px, 18px, 0) rotate(20deg); opacity: 0.38; }
       }
       @keyframes agyParticleTwinkle {
-        0%, 100% { transform: scale(0.85); opacity: 0.45; }
-        50% { transform: scale(1.25); opacity: 0.75; }
+        0%, 100% { transform: scale(0.85); opacity: 0.22; }
+        50% { transform: scale(1.18); opacity: 0.38; }
       }
       @keyframes agyIntroCheckIn {
         from { opacity: 0; transform: translate3d(-8px, 0, 0); }
@@ -3822,15 +3780,6 @@
         background-image: radial-gradient(circle at 76% 32%, ${mainTheme.glow} 0%, transparent 56%), radial-gradient(circle at 22% 76%, ${mainTheme.secondaryGlow || mainTheme.glow} 0%, transparent 52%);
         will-change: opacity, transform;
         animation: agyAmbientAura 10s ease-in-out infinite;
-      }
-      #agy-hud-quick-dock button:hover {
-        transform: translateY(-2px) scale(1.08);
-        border-color: ${mainTheme.primary || '#38bdf8'} !important;
-      }
-      .agy-shell .agy-user-bubble-frame,
-      .agy-shell .surface-composer {
-        background-size: 220% 220% !important;
-        animation: agyBorderFlow 7s ease-in-out infinite !important;
       }
       .agy-shell .agy-user-bubble-frame::before,
       .agy-shell .surface-composer::before {
@@ -3933,8 +3882,8 @@
 
     syncDynamicAuraElement(st.themeMode === 'dynamic', st.wpEnabled);
     syncDynamicFxLayer(st.themeMode === 'dynamic', mainTheme);
-    syncDynamicHudWidgets(st.themeMode === 'dynamic', mainTheme);
-    syncIdePet(st.themeMode === 'dynamic', mainTheme, st.petEnabled !== false);
+    removeDynamicHudWidgets();
+    syncBetterPet(st.themeMode === 'dynamic', mainTheme, st.petEnabled !== false);
     if (st.themeMode === 'dynamic') {
       if (!st.bootIntro || window.__AGY_BOOT_FINISHED__ || overrides.themeMode === 'dynamic') {
         window.__AGY_BOOT_FINISHED__ = true;
@@ -4004,6 +3953,7 @@
     const fxLayer = document.getElementById('agy-dynamic-fx-layer');
     if (fxLayer) fxLayer.remove();
     removeDynamicHudWidgets();
+    removeBetterPet();
     dismissThemeIntro();
     teardownBootOverlay();
     clearRevealRaf();
@@ -4034,6 +3984,7 @@
     if (staleFx) staleFx.remove();
     document.querySelectorAll('[id^="agy-hud-"]').forEach((el) => el.remove());
     removeDynamicHudWidgets();
+    removeBetterPet();
   }
 
   window.__AGY_INTERNAL__ = {
@@ -4048,7 +3999,7 @@
     escapeHtml: escHtml, canonicalMediaKey, isSameMediaUrl, deriveMediaName,
     getMediaLibrary, upsertSavedMedia, removeSavedMediaFromStore,
     normalizeGreetingLines, getState, resolveMediaUrl, sanitizeCssUrl,
-    resolveDynamicPack, syncDynamicFxLayer, syncDynamicHudWidgets, syncIdePet,
+    resolveDynamicPack, syncDynamicFxLayer, mountBetterPet, syncBetterPet, removeBetterPet,
     findActiveShell, clearRevealRaf, clearBootTimers, stopBootAudio,
     teardownBootOverlay, scheduleRevealWhenReady, applyTheme,
     syncEmptyGreeting, playOneShotTaskAudio, playRandomTaskVoice,
@@ -4141,8 +4092,8 @@
         align-items: center;
         justify-content: center;
         padding: 32px;
-        background: rgba(0, 0, 0, 0.65);
-        backdrop-filter: blur(10px);
+        background: rgba(0, 0, 0, 0.72);
+        backdrop-filter: none;
       `;
 
       backdrop.innerHTML = `
@@ -6527,7 +6478,7 @@
     escapeHtml: escHtml, canonicalMediaKey, isSameMediaUrl, deriveMediaName,
     getMediaLibrary, upsertSavedMedia, removeSavedMediaFromStore,
     normalizeGreetingLines, getState, resolveMediaUrl, sanitizeCssUrl,
-    resolveDynamicPack, syncDynamicFxLayer, syncDynamicHudWidgets, syncIdePet,
+    resolveDynamicPack, syncDynamicFxLayer, mountBetterPet, syncBetterPet, removeBetterPet,
     findActiveShell, clearRevealRaf, clearBootTimers, stopBootAudio,
     teardownBootOverlay, scheduleRevealWhenReady, applyTheme,
     syncEmptyGreeting, playOneShotTaskAudio, playRandomTaskVoice,

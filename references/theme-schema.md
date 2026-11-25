@@ -48,6 +48,11 @@
 | `isLight` | boolean | Optional | Enables Light Mode Glass typography (`#0f172a` ink, frosted light pills, dark window controls) |
 | `uiTextColor`, `uiMutedColor` | css color | Optional | Override header/sidebar/body primary and muted ink (defaults adapt to `isLight`) |
 | `pillBg`, `pillHoverBg`, `pillTextColor`, `pillBorder` | css color | Optional | Custom styling for composer strip pills (`No Project`, `Local Checkout`, branch trigger) |
+| `vfxSpec` | object | Optional | Clean 3-column UI VFX blueprint (`leftColumn`, `centerStage`, `rightColumn`, `motionRules`) |
+| `petDirective` | object | Optional | Image-derived companion pet design spec (`hasCharacter`, `sourceObject`, `personifiedConcept`, `petName`, `style`, `palette`, `idleMood`, `prop`, `signatureAction`) |
+| `petSpriteUrl` | string | Optional | Relative asset path (`"assets/pets/rocky.webp"`, `"user_media/pet_<slug>.webp"`) for the 8×11 v2 sprite atlas |
+| `petId` | string | Optional | Stable pet identifier (e.g. `"rocky"`, `"pet-<slug>"`) |
+| `petMeta` | object | Optional | Display metadata (`{ petName, personifiedConcept, style }`) shown in pet hover tooltip |
 | `dynamicPack` | object | Optional | Adaptive Dynamic Mode profile (particles, HUD ring, intro overlay, sound profile, voice lines) |
 
 ### `dynamicPack` Object
@@ -94,6 +99,41 @@ Controls full Dynamic Mode IDE layout re-composition and floating HUD widgets:
 | `dockShape` | `'circle' \| 'hex' \| 'pill' \| 'square'` | Quick-action dock button geometry |
 | `hudWidget` | `{ badge, title, subtitle, statusText }` | Compact floating status HUD card content (uppercase strings) |
 | `topBarPillText` | string | Short uppercase floating top-bar status pill text |
+
+### `vfxSpec` Object
+
+Clean, zero-clutter 3-column UI VFX blueprint (see `skills/ui-vfx-director/SKILL.md`). Enforces **0 live `backdrop-filter: blur()`**, **0 `:has()` selectors**, and **1px subtle borders only**:
+
+| Section | Key | Type / Values | Purpose |
+| :--- | :--- | :--- | :--- |
+| `leftColumn` | `surfaceMode` | `'smoked-glass' \| 'matte-tint' \| 'rail-accent'` | Left sidebar `[role="navigation"][aria-label="Sidebar"]` surface |
+| `leftColumn` | `density` | `'compact' \| 'balanced' \| 'spacious'` | Sidebar row padding rhythm |
+| `leftColumn` | `borderHairline` | `'subtle' \| 'accent-left' \| 'none'` | Crisp `1px` edge separation |
+| `leftColumn` | `showOrnament` | `boolean` | Non-overlapping corner/rail ornament toggle |
+| `centerStage` | `cardStyle` | `'glass-card' \| 'editorial-sheet' \| 'hud-hairline'` | Subtle `1px` card border style (never `2.5px` double/dashed) |
+| `centerStage` | `radiusPx` | `number` (`8..16`) | Corner radius for chat cards, composer, and step blocks |
+| `centerStage` | `typographyVibe` | `'sans' \| 'mono' \| 'serif'` | Editorial / technical / classic font mood |
+| `centerStage` | `contrastFloor` | `'wcag-aa-dark' \| 'wcag-aa-light'` | Smoked glass readability floor (`aiCardBg >= 0.84` dark / `0.88` light) |
+| `rightColumn` | `panelMode` | `'unified-glass' \| 'clean-slate' \| 'split-accent'` | Sidecar `[data-side-panel-docked]` surface |
+| `rightColumn` | `sashGlow` | `'subtle' \| 'crisp' \| 'none'` | `[data-side-panel-sash]` `1px` divider accent |
+| `rightColumn` | `tabIndicator` | `'underline' \| 'pill' \| 'dot'` | Active tab indicator inside `[data-side-panel-strip]` |
+| `motionRules` | `budget` | `'calm' \| 'atmospheric' \| 'kinetic'` | `'calm'` = 150ms micro-transitions + 0 particles; `'atmospheric'` = 6–8 subtle particles (`0.22..0.42` opacity) + soft shimmer; `'kinetic'` = hairline shimmer + 8 particles + HUD accent |
+
+### `petDirective` Object
+
+Synchronizes the `Neito112/desktop-agent_pet` v2 (`8×11` @ `192×208`, `1536×2288`) companion pet with the theme image (fallback: `"assets/pets/rocky.webp"`):
+
+| Key | Type | Purpose |
+| :--- | :--- | :--- |
+| `hasCharacter` | `boolean` | `true` if image depicts a character/creature; `false` when personifying 1 iconic object |
+| `sourceObject` | `string` | Iconic object from the image when `hasCharacter` is `false` (`""` when `true`) |
+| `personifiedConcept` | `string` | Concise mascot concept for sprite generation & hover tooltip |
+| `petName` | `string` | Friendly companion name (1–2 words) |
+| `style` | `'pixel' \| 'plush' \| 'sticker' \| 'vector'` | Visual sprite style (`'pixel'` default) |
+| `palette` | `string[]` | 3–4 hex colors matching the wallpaper |
+| `idleMood` | `string` | Short mood slug |
+| `prop` | `string` | Small consistent prop held or worn across rows |
+| `signatureAction` | `string` | Expressive gesture for `waving` / `jumping` rows |
 
 ## Asset Resolution (`scripts/build_payload.py`)
 

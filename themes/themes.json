@@ -56,7 +56,12 @@
       "soundProfile": "crystalline",
       "introTitle": "GEMINI-CHAN // LINK START",
       "introSubtitle": "SNOWY VIOLET RESONANCE 100%",
-      "introChecks": ["STARFIELD", "VOICE", "VIDEO", "SYNC"],
+      "introChecks": [
+        "STARFIELD",
+        "VOICE",
+        "VIDEO",
+        "SYNC"
+      ],
       "voiceWelcome": "Gemini-chan online. Welcome back.",
       "voiceSwitch": "Gemini-chan synchronized.",
       "uiDesign": {
@@ -78,6 +83,71 @@
         },
         "topBarPillText": "GEMINI-CHAN // LIVE STUDIO"
       }
+    },
+    "vfxSpec": {
+      "leftColumn": {
+        "surfaceMode": "smoked-glass",
+        "density": "balanced",
+        "borderHairline": "subtle",
+        "showOrnament": true
+      },
+      "centerStage": {
+        "cardStyle": "glass-card",
+        "radiusPx": 14,
+        "typographyVibe": "sans",
+        "contrastFloor": "wcag-aa-dark"
+      },
+      "rightColumn": {
+        "panelMode": "unified-glass",
+        "sashGlow": "subtle",
+        "tabIndicator": "underline"
+      },
+      "motionRules": {
+        "budget": "atmospheric",
+        "particleCount": 7,
+        "particleOpacity": [
+          0.22,
+          0.38
+        ]
+      }
+    },
+    "petDirective": {
+      "hasCharacter": true,
+      "sourceObject": "",
+      "petName": "Rocky",
+      "personifiedConcept": "Snowy violet companion spirit with starlight ribbon ears",
+      "style": "pixel",
+      "palette": [
+        "#c084fc",
+        "#f472b6",
+        "#f8fafc",
+        "#1e1b4b"
+      ],
+      "idleMood": "serene-wonder",
+      "prop": "starlight prism",
+      "signatureAction": "cheerful halo wave",
+      "animationMood": "serene-wonder"
+    },
+    "petSpriteUrl": "assets/pets/rocky.webp",
+    "petId": "rocky",
+    "petMeta": {
+      "hasCharacter": true,
+      "sourceObject": "",
+      "petName": "Rocky",
+      "personifiedConcept": "Snowy violet companion spirit with starlight ribbon ears",
+      "style": "pixel",
+      "palette": [
+        "#c084fc",
+        "#f472b6",
+        "#f8fafc",
+        "#1e1b4b"
+      ],
+      "idleMood": "serene-wonder",
+      "prop": "starlight prism",
+      "signatureAction": "cheerful halo wave",
+      "animationMood": "serene-wonder",
+      "spriteVersionNumber": 2,
+      "fallback": false
     }
   },
   "Furina Live": {
@@ -137,7 +207,12 @@
       "soundProfile": "crystalline",
       "introTitle": "FURINA // CURTAIN RISE",
       "introSubtitle": "HYDRO SPOTLIGHT 100%",
-      "introChecks": ["STAGE", "HYDRO", "VOICE", "SYNC"],
+      "introChecks": [
+        "STAGE",
+        "HYDRO",
+        "VOICE",
+        "SYNC"
+      ],
       "voiceWelcome": "Furina stage online. Welcome back.",
       "voiceSwitch": "Spotlight aligned.",
       "uiDesign": {
@@ -159,6 +234,71 @@
         },
         "topBarPillText": "FURINA // HYDRO STAGE"
       }
+    },
+    "vfxSpec": {
+      "leftColumn": {
+        "surfaceMode": "smoked-glass",
+        "density": "balanced",
+        "borderHairline": "accent-left",
+        "showOrnament": true
+      },
+      "centerStage": {
+        "cardStyle": "glass-card",
+        "radiusPx": 14,
+        "typographyVibe": "sans",
+        "contrastFloor": "wcag-aa-dark"
+      },
+      "rightColumn": {
+        "panelMode": "unified-glass",
+        "sashGlow": "crisp",
+        "tabIndicator": "underline"
+      },
+      "motionRules": {
+        "budget": "atmospheric",
+        "particleCount": 7,
+        "particleOpacity": [
+          0.22,
+          0.36
+        ]
+      }
+    },
+    "petDirective": {
+      "hasCharacter": true,
+      "sourceObject": "",
+      "petName": "Rocky",
+      "personifiedConcept": "Fontaine hydro stage sprite with a miniature top hat",
+      "style": "pixel",
+      "palette": [
+        "#38bdf8",
+        "#e2e8f0",
+        "#0284c7",
+        "#0f172a"
+      ],
+      "idleMood": "stage-poise",
+      "prop": "hydro baton",
+      "signatureAction": "theatrical bow wave",
+      "animationMood": "stage-poise"
+    },
+    "petSpriteUrl": "assets/pets/rocky.webp",
+    "petId": "rocky",
+    "petMeta": {
+      "hasCharacter": true,
+      "sourceObject": "",
+      "petName": "Rocky",
+      "personifiedConcept": "Fontaine hydro stage sprite with a miniature top hat",
+      "style": "pixel",
+      "palette": [
+        "#38bdf8",
+        "#e2e8f0",
+        "#0284c7",
+        "#0f172a"
+      ],
+      "idleMood": "stage-poise",
+      "prop": "hydro baton",
+      "signatureAction": "theatrical bow wave",
+      "animationMood": "stage-poise",
+      "spriteVersionNumber": 2,
+      "fallback": false
     }
   },
   "Celestial Eclipse": {
@@ -215,7 +355,12 @@
       "soundProfile": "crystalline",
       "introTitle": "ECLIPSE ORBIT // LINK START",
       "introSubtitle": "BLACK SUN TELEMETRY 100%",
-      "introChecks": ["CORONA", "ORBIT", "OPTICS", "SYNC"],
+      "introChecks": [
+        "CORONA",
+        "ORBIT",
+        "OPTICS",
+        "SYNC"
+      ],
       "voiceWelcome": "Eclipse telemetry online. Welcome back.",
       "voiceSwitch": "Eclipse synchronized.",
       "uiDesign": {
@@ -237,6 +382,71 @@
         },
         "topBarPillText": "ECLIPSE // ORBITAL TELEMETRY"
       }
+    },
+    "vfxSpec": {
+      "leftColumn": {
+        "surfaceMode": "smoked-glass",
+        "density": "balanced",
+        "borderHairline": "subtle",
+        "showOrnament": true
+      },
+      "centerStage": {
+        "cardStyle": "hud-hairline",
+        "radiusPx": 12,
+        "typographyVibe": "sans",
+        "contrastFloor": "wcag-aa-dark"
+      },
+      "rightColumn": {
+        "panelMode": "unified-glass",
+        "sashGlow": "subtle",
+        "tabIndicator": "dot"
+      },
+      "motionRules": {
+        "budget": "atmospheric",
+        "particleCount": 6,
+        "particleOpacity": [
+          0.22,
+          0.34
+        ]
+      }
+    },
+    "petDirective": {
+      "hasCharacter": false,
+      "sourceObject": "black-sun orbital eclipse ring",
+      "petName": "Rocky",
+      "personifiedConcept": "Tiny Astral Eclipse Sprite with a glowing amber-cyan corona ring",
+      "style": "pixel",
+      "palette": [
+        "#38bdf8",
+        "#f59e0b",
+        "#0f172a",
+        "#e2e8f0"
+      ],
+      "idleMood": "orbital-calm",
+      "prop": "mini astrolabe",
+      "signatureAction": "orbiting ring spin",
+      "animationMood": "orbital-calm"
+    },
+    "petSpriteUrl": "assets/pets/rocky.webp",
+    "petId": "rocky",
+    "petMeta": {
+      "hasCharacter": false,
+      "sourceObject": "black-sun orbital eclipse ring",
+      "petName": "Rocky",
+      "personifiedConcept": "Tiny Astral Eclipse Sprite with a glowing amber-cyan corona ring",
+      "style": "pixel",
+      "palette": [
+        "#38bdf8",
+        "#f59e0b",
+        "#0f172a",
+        "#e2e8f0"
+      ],
+      "idleMood": "orbital-calm",
+      "prop": "mini astrolabe",
+      "signatureAction": "orbiting ring spin",
+      "animationMood": "orbital-calm",
+      "spriteVersionNumber": 2,
+      "fallback": false
     }
   },
   "Luminous Grotto": {
@@ -299,7 +509,12 @@
       "soundProfile": "warm-bell",
       "introTitle": "LUMINOUS GROTTO // AWAKEN",
       "introSubtitle": "BIOLUMINESCENT FLORA ACTIVE",
-      "introChecks": ["FLORA", "AETHER", "CHIME", "SERENE"],
+      "introChecks": [
+        "FLORA",
+        "AETHER",
+        "CHIME",
+        "SERENE"
+      ],
       "voiceWelcome": "Luminous grotto awakened. Welcome back.",
       "voiceSwitch": "Grotto harmonized.",
       "uiDesign": {
@@ -321,6 +536,71 @@
         },
         "topBarPillText": "GROTTO // BIOLUMINESCENCE"
       }
+    },
+    "vfxSpec": {
+      "leftColumn": {
+        "surfaceMode": "smoked-glass",
+        "density": "spacious",
+        "borderHairline": "subtle",
+        "showOrnament": true
+      },
+      "centerStage": {
+        "cardStyle": "glass-card",
+        "radiusPx": 14,
+        "typographyVibe": "serif",
+        "contrastFloor": "wcag-aa-dark"
+      },
+      "rightColumn": {
+        "panelMode": "unified-glass",
+        "sashGlow": "subtle",
+        "tabIndicator": "pill"
+      },
+      "motionRules": {
+        "budget": "atmospheric",
+        "particleCount": 6,
+        "particleOpacity": [
+          0.22,
+          0.35
+        ]
+      }
+    },
+    "petDirective": {
+      "hasCharacter": false,
+      "sourceObject": "bioluminescent crystal lantern",
+      "petName": "Rocky",
+      "personifiedConcept": "Little Grotto Crystal Wisp with soft teal bioluminescent spores",
+      "style": "pixel",
+      "palette": [
+        "#2dd4bf",
+        "#a7f3d0",
+        "#064e3b",
+        "#0f172a"
+      ],
+      "idleMood": "serene-zen",
+      "prop": "glowing spore leaf",
+      "signatureAction": "gentle lantern bob",
+      "animationMood": "serene-zen"
+    },
+    "petSpriteUrl": "assets/pets/rocky.webp",
+    "petId": "rocky",
+    "petMeta": {
+      "hasCharacter": false,
+      "sourceObject": "bioluminescent crystal lantern",
+      "petName": "Rocky",
+      "personifiedConcept": "Little Grotto Crystal Wisp with soft teal bioluminescent spores",
+      "style": "pixel",
+      "palette": [
+        "#2dd4bf",
+        "#a7f3d0",
+        "#064e3b",
+        "#0f172a"
+      ],
+      "idleMood": "serene-zen",
+      "prop": "glowing spore leaf",
+      "signatureAction": "gentle lantern bob",
+      "animationMood": "serene-zen",
+      "spriteVersionNumber": 2,
+      "fallback": false
     }
   },
   "WLOP Cosmic": {
@@ -377,7 +657,12 @@
       "soundProfile": "crystalline",
       "introTitle": "STARLIGHT CONCERTO // ONLINE",
       "introSubtitle": "HARMONIC RESONANCE 100%",
-      "introChecks": ["STRINGS", "STARLIGHT", "AUDIO", "SYNC"],
+      "introChecks": [
+        "STRINGS",
+        "STARLIGHT",
+        "AUDIO",
+        "SYNC"
+      ],
       "voiceWelcome": "Starlight concerto online. Welcome back.",
       "voiceSwitch": "Harmony aligned.",
       "uiDesign": {
@@ -399,6 +684,71 @@
         },
         "topBarPillText": "STARLIGHT // CONCERTO HUD"
       }
+    },
+    "vfxSpec": {
+      "leftColumn": {
+        "surfaceMode": "smoked-glass",
+        "density": "balanced",
+        "borderHairline": "subtle",
+        "showOrnament": true
+      },
+      "centerStage": {
+        "cardStyle": "editorial-sheet",
+        "radiusPx": 14,
+        "typographyVibe": "serif",
+        "contrastFloor": "wcag-aa-dark"
+      },
+      "rightColumn": {
+        "panelMode": "unified-glass",
+        "sashGlow": "subtle",
+        "tabIndicator": "underline"
+      },
+      "motionRules": {
+        "budget": "atmospheric",
+        "particleCount": 7,
+        "particleOpacity": [
+          0.22,
+          0.36
+        ]
+      }
+    },
+    "petDirective": {
+      "hasCharacter": true,
+      "sourceObject": "",
+      "petName": "Rocky",
+      "personifiedConcept": "Starlight Concerto Familiar with luminous gold-cyan violin bow",
+      "style": "pixel",
+      "palette": [
+        "#67e8f9",
+        "#fde047",
+        "#1e1b4b",
+        "#f8fafc"
+      ],
+      "idleMood": "graceful-focus",
+      "prop": "starlight bow",
+      "signatureAction": "concerto flourish wave",
+      "animationMood": "graceful-focus"
+    },
+    "petSpriteUrl": "assets/pets/rocky.webp",
+    "petId": "rocky",
+    "petMeta": {
+      "hasCharacter": true,
+      "sourceObject": "",
+      "petName": "Rocky",
+      "personifiedConcept": "Starlight Concerto Familiar with luminous gold-cyan violin bow",
+      "style": "pixel",
+      "palette": [
+        "#67e8f9",
+        "#fde047",
+        "#1e1b4b",
+        "#f8fafc"
+      ],
+      "idleMood": "graceful-focus",
+      "prop": "starlight bow",
+      "signatureAction": "concerto flourish wave",
+      "animationMood": "graceful-focus",
+      "spriteVersionNumber": 2,
+      "fallback": false
     }
   },
   "Midnight Obsidian": {
@@ -452,7 +802,12 @@
       "soundProfile": "synth-chime",
       "introTitle": "OBSIDIAN STUDIO // ONLINE",
       "introSubtitle": "ULTRA-LIGHT WORKSPACE READY",
-      "introChecks": ["SHELL", "FOCUS", "AUDIO", "READY"],
+      "introChecks": [
+        "SHELL",
+        "FOCUS",
+        "AUDIO",
+        "READY"
+      ],
       "voiceWelcome": "Obsidian workspace ready. Welcome back.",
       "voiceSwitch": "Studio synchronized.",
       "uiDesign": {
@@ -474,6 +829,71 @@
         },
         "topBarPillText": "OBSIDIAN // FOCUS WORKSPACE"
       }
+    },
+    "vfxSpec": {
+      "leftColumn": {
+        "surfaceMode": "matte-tint",
+        "density": "compact",
+        "borderHairline": "subtle",
+        "showOrnament": false
+      },
+      "centerStage": {
+        "cardStyle": "editorial-sheet",
+        "radiusPx": 10,
+        "typographyVibe": "sans",
+        "contrastFloor": "wcag-aa-dark"
+      },
+      "rightColumn": {
+        "panelMode": "clean-slate",
+        "sashGlow": "none",
+        "tabIndicator": "underline"
+      },
+      "motionRules": {
+        "budget": "calm",
+        "particleCount": 0,
+        "particleOpacity": [
+          0.22,
+          0.3
+        ]
+      }
+    },
+    "petDirective": {
+      "hasCharacter": false,
+      "sourceObject": "faceted obsidian monolith",
+      "petName": "Rocky",
+      "personifiedConcept": "Minimalist Obsidian Cube Buddy with crisp slate eyes",
+      "style": "pixel",
+      "palette": [
+        "#94a3b8",
+        "#e2e8f0",
+        "#1e293b",
+        "#0f172a"
+      ],
+      "idleMood": "calm-focus",
+      "prop": "slate stylus",
+      "signatureAction": "crisp nod wave",
+      "animationMood": "calm-focus"
+    },
+    "petSpriteUrl": "assets/pets/rocky.webp",
+    "petId": "rocky",
+    "petMeta": {
+      "hasCharacter": false,
+      "sourceObject": "faceted obsidian monolith",
+      "petName": "Rocky",
+      "personifiedConcept": "Minimalist Obsidian Cube Buddy with crisp slate eyes",
+      "style": "pixel",
+      "palette": [
+        "#94a3b8",
+        "#e2e8f0",
+        "#1e293b",
+        "#0f172a"
+      ],
+      "idleMood": "calm-focus",
+      "prop": "slate stylus",
+      "signatureAction": "crisp nod wave",
+      "animationMood": "calm-focus",
+      "spriteVersionNumber": 2,
+      "fallback": false
     }
   },
   "Miku Cyber": {
@@ -535,7 +955,12 @@
       "soundProfile": "crystalline",
       "introTitle": "MIKU CYBER // STAGE 39",
       "introSubtitle": "TEAL HORIZON RESONANCE 100%",
-      "introChecks": ["VIDEO", "VISOR", "SYNTH", "SYNC"],
+      "introChecks": [
+        "VIDEO",
+        "VISOR",
+        "SYNTH",
+        "SYNC"
+      ],
       "voiceWelcome": "Miku Cyber online. Stage 39 synchronized.",
       "voiceSwitch": "Miku Cyber horizon active.",
       "uiDesign": {
@@ -559,6 +984,71 @@
         },
         "topBarPillText": "MIKU CYBER // STAGE 39"
       }
+    },
+    "vfxSpec": {
+      "leftColumn": {
+        "surfaceMode": "rail-accent",
+        "density": "balanced",
+        "borderHairline": "accent-left",
+        "showOrnament": true
+      },
+      "centerStage": {
+        "cardStyle": "hud-hairline",
+        "radiusPx": 10,
+        "typographyVibe": "mono",
+        "contrastFloor": "wcag-aa-dark"
+      },
+      "rightColumn": {
+        "panelMode": "split-accent",
+        "sashGlow": "crisp",
+        "tabIndicator": "pill"
+      },
+      "motionRules": {
+        "budget": "kinetic",
+        "particleCount": 8,
+        "particleOpacity": [
+          0.24,
+          0.4
+        ]
+      }
+    },
+    "petDirective": {
+      "hasCharacter": true,
+      "sourceObject": "",
+      "petName": "Rocky",
+      "personifiedConcept": "Cyber Vocaloid Chibi Mascot with glowing teal twin-tail equalizer bars",
+      "style": "pixel",
+      "palette": [
+        "#2dd4bf",
+        "#38bdf8",
+        "#f472b6",
+        "#0f172a"
+      ],
+      "idleMood": "kinetic-beat",
+      "prop": "neon leek baton",
+      "signatureAction": "equalizer bounce wave",
+      "animationMood": "kinetic-beat"
+    },
+    "petSpriteUrl": "assets/pets/rocky.webp",
+    "petId": "rocky",
+    "petMeta": {
+      "hasCharacter": true,
+      "sourceObject": "",
+      "petName": "Rocky",
+      "personifiedConcept": "Cyber Vocaloid Chibi Mascot with glowing teal twin-tail equalizer bars",
+      "style": "pixel",
+      "palette": [
+        "#2dd4bf",
+        "#38bdf8",
+        "#f472b6",
+        "#0f172a"
+      ],
+      "idleMood": "kinetic-beat",
+      "prop": "neon leek baton",
+      "signatureAction": "equalizer bounce wave",
+      "animationMood": "kinetic-beat",
+      "spriteVersionNumber": 2,
+      "fallback": false
     }
   },
   "Codex Dark Pro": {
@@ -614,7 +1104,12 @@
       "soundProfile": "synth-chime",
       "introTitle": "CODEX DARK PRO // ONLINE",
       "introSubtitle": "CONCENTRIC TELEMETRY READY",
-      "introChecks": ["KERNEL", "INDEX", "STREAM", "READY"],
+      "introChecks": [
+        "KERNEL",
+        "INDEX",
+        "STREAM",
+        "READY"
+      ],
       "voiceWelcome": "Codex Dark Pro online. Telemetry nominal.",
       "voiceSwitch": "Codex telemetry active.",
       "uiDesign": {
@@ -638,6 +1133,71 @@
         },
         "topBarPillText": "CODEX // TELEMETRY PRO"
       }
+    },
+    "vfxSpec": {
+      "leftColumn": {
+        "surfaceMode": "matte-tint",
+        "density": "compact",
+        "borderHairline": "subtle",
+        "showOrnament": false
+      },
+      "centerStage": {
+        "cardStyle": "hud-hairline",
+        "radiusPx": 8,
+        "typographyVibe": "mono",
+        "contrastFloor": "wcag-aa-dark"
+      },
+      "rightColumn": {
+        "panelMode": "clean-slate",
+        "sashGlow": "subtle",
+        "tabIndicator": "underline"
+      },
+      "motionRules": {
+        "budget": "calm",
+        "particleCount": 0,
+        "particleOpacity": [
+          0.22,
+          0.3
+        ]
+      }
+    },
+    "petDirective": {
+      "hasCharacter": false,
+      "sourceObject": "terminal command prompt glyph",
+      "petName": "Rocky",
+      "personifiedConcept": "Chibi Terminal Cursor Sprite with a glowing emerald telemetry visor",
+      "style": "pixel",
+      "palette": [
+        "#34d399",
+        "#60a5fa",
+        "#0f172a",
+        "#e2e8f0"
+      ],
+      "idleMood": "telemetry-steady",
+      "prop": "mini terminal keycap",
+      "signatureAction": "cursor blink salute",
+      "animationMood": "telemetry-steady"
+    },
+    "petSpriteUrl": "assets/pets/rocky.webp",
+    "petId": "rocky",
+    "petMeta": {
+      "hasCharacter": false,
+      "sourceObject": "terminal command prompt glyph",
+      "petName": "Rocky",
+      "personifiedConcept": "Chibi Terminal Cursor Sprite with a glowing emerald telemetry visor",
+      "style": "pixel",
+      "palette": [
+        "#34d399",
+        "#60a5fa",
+        "#0f172a",
+        "#e2e8f0"
+      ],
+      "idleMood": "telemetry-steady",
+      "prop": "mini terminal keycap",
+      "signatureAction": "cursor blink salute",
+      "animationMood": "telemetry-steady",
+      "spriteVersionNumber": 2,
+      "fallback": false
     }
   },
   "Claude Warm Charcoal": {
@@ -695,7 +1255,12 @@
       "soundProfile": "warm-bell",
       "introTitle": "CLAUDE CHARCOAL // READY",
       "introSubtitle": "WARM EDITORIAL WORKSPACE ACTIVE",
-      "introChecks": ["PROSE", "FOCUS", "CONTEXT", "READY"],
+      "introChecks": [
+        "PROSE",
+        "FOCUS",
+        "CONTEXT",
+        "READY"
+      ],
       "voiceWelcome": "Claude Warm Charcoal ready. Welcome back.",
       "voiceSwitch": "Editorial charcoal active.",
       "uiDesign": {
@@ -718,6 +1283,71 @@
         },
         "topBarPillText": "CLAUDE // WARM CHARCOAL"
       }
+    },
+    "vfxSpec": {
+      "leftColumn": {
+        "surfaceMode": "matte-tint",
+        "density": "spacious",
+        "borderHairline": "subtle",
+        "showOrnament": false
+      },
+      "centerStage": {
+        "cardStyle": "editorial-sheet",
+        "radiusPx": 12,
+        "typographyVibe": "serif",
+        "contrastFloor": "wcag-aa-dark"
+      },
+      "rightColumn": {
+        "panelMode": "clean-slate",
+        "sashGlow": "none",
+        "tabIndicator": "dot"
+      },
+      "motionRules": {
+        "budget": "calm",
+        "particleCount": 0,
+        "particleOpacity": [
+          0.22,
+          0.3
+        ]
+      }
+    },
+    "petDirective": {
+      "hasCharacter": false,
+      "sourceObject": "warm terracotta inkwell",
+      "petName": "Rocky",
+      "personifiedConcept": "Cozy Warm Terracotta Inkwell Spirit with gentle amber eyes",
+      "style": "pixel",
+      "palette": [
+        "#d97757",
+        "#f5e6d3",
+        "#292524",
+        "#fbbf24"
+      ],
+      "idleMood": "warm-editorial",
+      "prop": "brass fountain nib",
+      "signatureAction": "gentle inkwell bow",
+      "animationMood": "warm-editorial"
+    },
+    "petSpriteUrl": "assets/pets/rocky.webp",
+    "petId": "rocky",
+    "petMeta": {
+      "hasCharacter": false,
+      "sourceObject": "warm terracotta inkwell",
+      "petName": "Rocky",
+      "personifiedConcept": "Cozy Warm Terracotta Inkwell Spirit with gentle amber eyes",
+      "style": "pixel",
+      "palette": [
+        "#d97757",
+        "#f5e6d3",
+        "#292524",
+        "#fbbf24"
+      ],
+      "idleMood": "warm-editorial",
+      "prop": "brass fountain nib",
+      "signatureAction": "gentle inkwell bow",
+      "animationMood": "warm-editorial",
+      "spriteVersionNumber": 2,
+      "fallback": false
     }
   }
 }
