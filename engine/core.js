@@ -3681,12 +3681,19 @@
     const cx = cv.getContext('2d', { willReadFrequently: true });
     cx.drawImage(img, 0, 0, S, S);
     const data = cx.getImageData(0, 0, S, S).data;
-    let ar = 0, ag = 0, ab = 0, n = 0;
+    let ar = 0, ag = 0, ab = 0, n = 0, transparent = 0;
     const B = 24;
     const buckets = Array.from({ length: B }, () => ({ w: 0, r: 0, g: 0, b: 0 }));
     for (let i = 0; i < data.length; i += 4) {
-      if (data[i + 3] < 128) continue;
-      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+      if (a < 128) {
+        // Mostly-transparent images (logos, stickers, PNG with alpha):
+        // count them against the dark glass they will sit on, instead of
+        // dropping them and letting a few opaque pixels skew the average.
+        transparent++;
+        ar += 10; ag += 14; ab += 24; n++;
+        continue;
+      }
       ar += r; ag += g; ab += b; n++;
       const [h, s, v] = rgbToHsv(r, g, b);
       if (s < 0.22 || v < 0.3) continue;
@@ -3713,13 +3720,20 @@
       if (q) secondary = [Math.round(q.r / q.w), Math.round(q.g / q.w), Math.round(q.b / q.w)];
       else { const [h, s, v] = rgbToHsv(primary[0], primary[1], primary[2]); secondary = hsvToRgb(h + 35, s * 0.8, v); }
     } else {
-      const base = [148, 163, 184];
-      primary = base; secondary = base.map((x) => Math.min(255, x + 40));
+      // Grayscale / monochrome / pastel / near-white / near-black images:
+      // no saturated hue bucket exists, so derive the accent from the
+      // average colour itself (boost saturation) instead of a flat grey.
+      // A near-grey average has no real hue (HSV hue defaults to red),
+      // so use slate blue (210°) instead of an arbitrary reddish tint.
+      const [ah0, as, av] = rgbToHsv(avg[0], avg[1], avg[2]);
+      const ah = as < 0.08 ? 210 : ah0;
+      primary = hsvToRgb(ah, Math.max(as, 0.45), Math.min(0.98, Math.max(av, 0.75)));
+      secondary = hsvToRgb(ah + 40, Math.max(as, 0.35), Math.min(0.96, Math.max(av, 0.7)));
     }
     primary = tune(primary, 0.45, 0.75, 0.98);
     secondary = tune(secondary, 0.35, 0.70, 0.96);
     const overlay = avg.map((x) => Math.max(4, Math.min(22, Math.round(x * 0.1))));
-    return { avg, lum, isLight, primary, secondary, overlay };
+    return { avg, lum, isLight, primary, secondary, overlay, transparentRatio: transparent / Math.max(1, n) };
   }
 
   function makeOrnaments(p, s, o) {
@@ -4106,23 +4120,28 @@
 
   async function createThemeFromImageFile(file, onStatus) {
     if (!file || !/^image\//.test(file.type)) throw new Error('File không phải ảnh');
+    if (file.type === 'image/svg+xml') throw new Error('Ảnh SVG không hỗ trợ — hãy gửi PNG, JPG, WebP, GIF hoặc AVIF');
+    if (file.size && file.size > 50 * 1024 * 1024) throw new Error('Ảnh quá lớn (>50MB) — hãy gửi bản nhỏ hơn');
     const { img, url } = await loadImageFromFile(file);
     try {
       const sw = img.naturalWidth || img.width;
       const sh = img.naturalHeight || img.height;
+      if (!sw || !sh) throw new Error('Không đọc được kích thước ảnh');
       if (onStatus) {
         onStatus('AI đang vẽ tranh mới chuẩn 4K 16:9 theo chủ đề ảnh gốc và thiết kế bảng màu (khoảng 1–2 phút)…');
       }
-      let res;
+      let res = null, aiError = '';
       try {
         res = await requestAiDesign({ image: encodeSourceForAi(img), width: sw, height: sh });
+        if (!res || !res.wallpaperDataUrl) throw new Error('AI không trả về ảnh 4K 16:9');
       } catch (e) {
-        throw new Error(`Không tạo được tranh 4K 16:9 mới bằng AI: ${e.message || e}`);
+        // Any-image fallback: AI (agy) missing, not logged in, timed out or
+        // failed must NOT lose the user's image. Fall through to the local
+        // palette path below instead of throwing.
+        aiError = e && e.message ? String(e.message) : String(e);
+        res = null;
       }
-      if (!res || !res.wallpaperDataUrl) {
-        throw new Error('Không tạo được tranh 4K 16:9 mới bằng AI: AI không trả về ảnh 4K 16:9');
-      }
-
+      if (res) {
       const aiImg = await loadImageFromSrc(res.wallpaperDataUrl);
       const wallpaper = (aiImg.naturalWidth === 3840 && aiImg.naturalHeight === 2160 && res.wallpaperDataUrl.startsWith('data:image/webp'))
         ? res.wallpaperDataUrl
@@ -4160,6 +4179,35 @@
         aiNote: '',
         ai: !!theme.isAiDesigned,
         wpMeta
+      };
+      }
+      // ── Local fallback (no AI): palette + 4K cover from the original image ──
+      if (onStatus) onStatus('AI không khả dụng — đang tạo theme từ palette của ảnh gốc…');
+      const palLocal = analyzePalette(img);
+      const wallpaperLocal = finalize4k16x9Wallpaper(img).dataUrl;
+      const themeLocal = buildThemeFromPalette(palLocal, wallpaperLocal, 'Auto Palette');
+      let baseLocal = (file.name || 'My Theme').replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim().slice(0, 24) || 'My Theme';
+      let nameLocal = baseLocal, j = 2;
+      while (THEMES[nameLocal]) nameLocal = `${baseLocal} ${j++}`;
+      const allLocal = loadCustomThemes();
+      allLocal[nameLocal] = themeLocal;
+      const namesLocal = Object.keys(allLocal);
+      while (namesLocal.length > MAX_CUSTOM_THEMES) {
+        const old = namesLocal.shift();
+        delete allLocal[old]; delete THEMES[old];
+        const ix = THEME_KEYS.indexOf(old); if (ix >= 0) THEME_KEYS.splice(ix, 1);
+      }
+      THEMES[nameLocal] = themeLocal;
+      if (!THEME_KEYS.includes(nameLocal)) THEME_KEYS.push(nameLocal);
+      persistCustomThemes(allLocal);
+      applyTheme({ themeName: nameLocal, bubbleName: nameLocal, customWp: '' });
+      return {
+        name: nameLocal,
+        pal: { primary: hexToRgbList(themeLocal.primary), secondary: hexToRgbList(themeLocal.secondary), overlay: themeLocal.overlayRgb.split(',').map((x) => parseInt(x, 10)), isLight: false },
+        wallpaper: wallpaperLocal,
+        aiNote: aiError ? `AI không dùng được (${aiError.slice(0, 120)}), đã tạo bằng palette tự động.` : 'AI không dùng được, đã tạo bằng palette tự động.',
+        ai: false,
+        wpMeta: { width: 3840, height: 2160, aiOutpainted: false }
       };
     } finally {
       URL.revokeObjectURL(url);

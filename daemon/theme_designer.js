@@ -360,6 +360,84 @@ function probeImageDimensions(filePath) {
     return null;
 }
 
+// Local palette fallback: Pillow-only, no agy / no network. Returns hex
+// primary/secondary + dark overlay triplet, or null when Pillow is missing.
+// Transparent pixels are composited over dark glass (10,14,24); grayscale
+// images get a saturation-boosted accent instead of flat grey.
+function extractPaletteViaPillow(filePath) {
+    const py = findPython();
+    if (!py) return null;
+    const script = [
+        'import json, sys, colorsys',
+        'from PIL import Image, ImageOps',
+        'im = ImageOps.exif_transpose(Image.open(sys.argv[1])).convert("RGBA")',
+        'im.thumbnail((64, 64))',
+        'px = list(im.getdata())',
+        'n = max(1, len(px))',
+        'ar = ag = ab = 0',
+        'buckets = {}',
+        'for r, g, b, a in px:',
+        '    if a < 128:',
+        '        ar += 10; ag += 14; ab += 24; continue',
+        '    ar += r; ag += g; ab += b',
+        '    h, s, v = colorsys.rgb_to_hsv(r/255, g/255, b/255)',
+        '    if s < 0.22 or v < 0.3: continue',
+        '    k = int(h * 24) % 24',
+        '    w = s * v * v',
+        '    e = buckets.setdefault(k, [0, 0, 0, 0])',
+        '    e[0] += w; e[1] += r*w; e[2] += g*w; e[3] += b*w',
+        'avg = [round(ar/n), round(ag/n), round(ab/n)]',
+        'ranked = sorted(buckets.items(), key=lambda kv: -kv[1][0])',
+        'def hx(rgb): return "#%02x%02x%02x" % tuple(int(max(0, min(255, round(c)))) for c in rgb)',
+        'def tune(rgb, smin, vmin, vmax):',
+        '    h, s, v = colorsys.rgb_to_hsv(rgb[0]/255, rgb[1]/255, rgb[2]/255)',
+        '    s = max(s, smin); v = min(vmax, max(v, vmin))',
+        '    r, g, b = colorsys.hsv_to_rgb(h, s, v)',
+        '    return [round(r*255), round(g*255), round(b*255)]',
+        'if ranked:',
+        '    w, r, g, b = ranked[0][1]',
+        '    prim = tune([r/w, g/w, b/w], 0.45, 0.75, 0.98)',
+        '    sec = None',
+        '    for k, (w2, r2, g2, b2) in ranked[1:]:',
+        '        d = abs(k - ranked[0][0]); d = min(d, 24-d)',
+        '        if d >= 3: sec = tune([r2/w2, g2/w2, b2/w2], 0.35, 0.70, 0.96); break',
+        '    if sec is None:',
+        '        h, s, v = colorsys.rgb_to_hsv(prim[0]/255, prim[1]/255, prim[2]/255)',
+        '        r, g, b = colorsys.hsv_to_rgb((h+35/360) % 1, s*0.8, v)',
+        '        sec = [round(r*255), round(g*255), round(b*255)]',
+        'else:',
+        '    h, s, v = colorsys.rgb_to_hsv(avg[0]/255, avg[1]/255, avg[2]/255)',
+        '    if s < 0.08: h = 210/360  # near-grey has no real hue; use slate blue, not red',
+        '    r, g, b = colorsys.hsv_to_rgb(h, max(s, 0.45), min(0.98, max(v, 0.75)))',
+        '    prim = [round(r*255), round(g*255), round(b*255)]',
+        '    r, g, b = colorsys.hsv_to_rgb((h+40/360) % 1, max(s, 0.35), min(0.96, max(v, 0.7)))',
+        '    sec = [round(r*255), round(g*255), round(b*255)]',
+        'ov = [max(4, min(22, round(c*0.1))) for c in avg]',
+        'print(json.dumps({"primary": hx(prim), "secondary": hx(sec), "overlayRgb": ", ".join(str(c) for c in ov)}))'
+    ].join('\n');
+    const res = spawnSync(py, ['-c', script, filePath], { windowsHide: true, encoding: 'utf8' });
+    if (res.status !== 0) return null;
+    try {
+        const p = JSON.parse(String(res.stdout || '').trim());
+        if (p && /^#[0-9a-f]{6}$/i.test(p.primary) && /^#[0-9a-f]{6}$/i.test(p.secondary)) return p;
+    } catch (_) {}
+    return null;
+}
+
+function buildLocalTheme(pal) {
+    const p = pal || { primary: '#94a3b8', secondary: '#cbd5e1', overlayRgb: '7, 13, 22' };
+    const theme = {
+        name: 'Auto Palette',
+        concept: 'Auto Palette • Local fallback, no AI',
+        primary: p.primary,
+        secondary: p.secondary,
+        overlayRgb: p.overlayRgb,
+        isLight: false
+    };
+    theme.dynamicPack = normalizeDynamicPack(theme);
+    return theme;
+}
+
 function readExemplar() {
     try {
         const all = JSON.parse(fs.readFileSync(THEMES_JSON, 'utf8'));
@@ -751,26 +829,52 @@ function designTheme(dataUrl, opts = {}) {
         if (process.env.AGY_THEME_MODEL) args.push('--model', process.env.AGY_THEME_MODEL);
         const bin = findAgy();
         log(`Designing theme via ${bin} (job ${jobDir}, src=${srcW}x${srcH}, aiOutpaint=${needsAiPaint})`);
+        let settled = false;
+        const localFallback = (reason) => {
+            if (settled) return false;
+            settled = true;
+            clearTimeout(timer);
+            try {
+                const outWebpPath = path.join(jobDir, 'wallpaper_4k.webp');
+                let wallpaperDataUrl = '';
+                try { wallpaperDataUrl = normalizeTo4k16x9Webp(absImagePath, outWebpPath, false); }
+                catch (_) { wallpaperDataUrl = `data:image/jpeg;base64,${fs.readFileSync(absImagePath).toString('base64')}`; }
+                const pal = extractPaletteViaPillow(absImagePath);
+                const theme = buildLocalTheme(pal);
+                log(`AI design unavailable (${reason}) — local palette fallback applied`);
+                // normalizeTo4k16x9Webp writes a real 3840x2160 WebP when
+                // Pillow is present; without Pillow it returns the original
+                // image, so report the source size in that case.
+                const is4k = fs.existsSync(outWebpPath);
+                resolve({ theme, wallpaperDataUrl, wpMeta: { width: is4k ? TARGET_W : (srcW || TARGET_W), height: is4k ? TARGET_H : (srcH || TARGET_H), aiOutpainted: false } });
+                return true;
+            } catch (fbErr) {
+                reject(new Error(`AI design failed (${reason}) and local fallback failed: ${fbErr.message || fbErr}`));
+                return true;
+            } finally {
+                cleanup();
+            }
+        };
         const child = spawn(bin, args, { cwd: jobDir, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
         let out = '', err = '';
         child.stdout.on('data', (d) => { out += d; });
         child.stderr.on('data', (d) => { err += d; });
         const timer = setTimeout(() => { try { child.kill(); } catch (_) {} }, timeoutMs);
-        child.on('error', (e) => { clearTimeout(timer); cleanup(); reject(new Error(`Cannot run agy: ${e.message}`)); });
+        child.on('error', (e) => { localFallback(`Cannot run agy: ${e.message}`); });
         child.on('close', (code) => {
             clearTimeout(timer);
             try {
                 let env;
                 try { env = JSON.parse(out.trim().split(/\r?\n/).filter(Boolean).pop()); } catch (_) {}
-                if (!env) return reject(new Error(`agy gave no result (exit ${code}). ${err.trim().slice(-300)}`));
-                if (env.status !== 'SUCCESS') return reject(new Error(env.error || `agy status ${env.status}`));
+                if (!env) { localFallback(`agy gave no result (exit ${code})`); return; }
+                if (env.status !== 'SUCCESS') { localFallback(env.error || `agy status ${env.status}`); return; }
                 let theme = env.structured_output;
                 if (!theme) { try { theme = JSON.parse(env.response); } catch (_) {} }
-                if (!theme || typeof theme !== 'object') return reject(new Error('agy returned no structured theme'));
+                if (!theme || typeof theme !== 'object') { localFallback('agy returned no structured theme'); return; }
 
                 let chosenImagePath = resolveGeneratedImagePath(theme, env.response, jobDir, imageFile);
                 if (needsAiPaint && !chosenImagePath) {
-                    return reject(new Error('AI image-generator did not produce a 16:9 image'));
+                    localFallback('AI image-generator did not produce a 16:9 image'); return;
                 }
                 if (!chosenImagePath) chosenImagePath = absImagePath;
 
@@ -780,13 +884,14 @@ function designTheme(dataUrl, opts = {}) {
                 theme.dynamicPack = normalizeDynamicPack(theme);
 
                 log(`Theme designed in ${env.duration_seconds}s (4K 16:9, aiOutpainted=${needsAiPaint})`);
+                settled = true;
                 resolve({
                     theme,
                     wallpaperDataUrl,
                     wpMeta: { width: TARGET_W, height: TARGET_H, aiOutpainted: needsAiPaint }
                 });
             } catch (procErr) {
-                reject(procErr);
+                localFallback(procErr.message || String(procErr));
             } finally {
                 cleanup();
             }
@@ -794,7 +899,7 @@ function designTheme(dataUrl, opts = {}) {
     });
 }
 
-module.exports = { designTheme, normalizeDynamicPack, SCHEMA, buildSchema, ARCHETYPE_DEFAULTS };
+module.exports = { designTheme, normalizeDynamicPack, SCHEMA, buildSchema, ARCHETYPE_DEFAULTS, buildLocalTheme, extractPaletteViaPillow };
 
 if (require.main === module) {
     const argv = process.argv.slice(2);
