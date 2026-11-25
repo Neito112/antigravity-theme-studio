@@ -2823,6 +2823,322 @@
       }
     `;
 
+    const pSync = mainTheme.primary || '#38bdf8';
+    const sSync = mainTheme.secondary || pSync;
+    const gSync = mainTheme.glow || 'rgba(56, 189, 248, 0.24)';
+    const sgSync = mainTheme.secondaryGlow || gSync;
+    const smokedSurface = mainTheme.aiCardBg || (isLight ? 'rgba(255, 255, 255, 0.88)' : 'rgba(10, 14, 24, 0.84)');
+    const smokedElevated = isLight ? 'rgba(248, 250, 252, 0.94)' : 'rgba(12, 16, 28, 0.90)';
+    const smokedBorder = mainTheme.aiCardBorder || mainTheme.borderColor || (isLight ? 'rgba(15, 23, 42, 0.16)' : 'rgba(255, 255, 255, 0.14)');
+    const compactRadius = borderStyle === 'chamfered' ? 4 : Math.max(6, cardRadiusPx - 4);
+    const subCardRadius = borderStyle === 'chamfered' ? 4 : Math.max(8, cardRadiusPx - 2);
+    const stepBorderAccent = borderStyle === 'double'
+      ? `3px double ${pSync}`
+      : (borderStyle === 'dashed' ? `1.5px dashed ${pSync}` : `1px solid ${smokedBorder}`);
+    const isDynamicMode = st.themeMode === 'dynamic';
+
+    const globalIdeSyncCss = `
+      /* 1. Top Titlebar, Menu Bar, Workspace Tabs & Breadcrumbs */
+      .agy-shell [data-testid="title-menu-bar"],
+      .agy-shell [data-main-content-header] {
+        border-bottom: 1px solid ${mainTheme.headerBorder || smokedBorder} !important;
+        ${isDynamicMode ? `box-shadow: inset 0 -1px 0 ${gSync} !important;` : ''}
+      }
+      .agy-shell [data-testid="title-menu-bar-item"] {
+        border-radius: 6px !important;
+        color: ${uiInk} !important;
+        transition: ${isDynamicMode ? 'background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease' : 'none'} !important;
+      }
+      .agy-shell [data-testid="title-menu-bar-item"]:hover {
+        background: ${pillHoverBg} !important;
+        color: ${pSync} !important;
+        ${isDynamicMode ? `box-shadow: 0 0 8px ${gSync} !important;` : ''}
+      }
+      .agy-shell nav[aria-label="Breadcrumb"] [data-testid="breadcrumb-segment"] {
+        border-radius: 6px !important;
+        padding: 2px 7px !important;
+        border: 1px solid transparent !important;
+        transition: ${isDynamicMode ? 'background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease' : 'none'} !important;
+      }
+      .agy-shell nav[aria-label="Breadcrumb"] [data-testid="breadcrumb-segment"]:last-child {
+        background: ${pillBg} !important;
+        border-color: ${smokedBorder} !important;
+        ${isDynamicMode ? `box-shadow: 0 0 10px ${gSync} !important;` : ''}
+      }
+      .agy-shell nav[aria-label="Breadcrumb"] [data-testid="breadcrumb-segment"]:hover {
+        border-color: ${pSync} !important;
+        color: ${pSync} !important;
+      }
+      .agy-shell [data-testid="pane-titlebar-toolbar"] :is(button, [role="button"]):not(#agy-custom-theme-topbar-btn),
+      .agy-shell :is([data-testid="sidebar-toggle"], [data-testid="sidebar-search-button"], [data-testid="toggle-overview-panel"], [data-overview-panel-toggle], [data-testid="toggle-aux-sidebar"], [data-testid="toggle-maximize-pane"], [data-testid="open-editor-single"], [data-testid="titlebar-more-actions"]) {
+        background: ${pillBg} !important;
+        border: 1px solid ${pillBorder} !important;
+        border-radius: ${Math.min(10, compactRadius)}px !important;
+        color: ${uiInk} !important;
+        transition: ${isDynamicMode ? 'background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease' : 'none'} !important;
+      }
+      .agy-shell [data-testid="pane-titlebar-toolbar"] :is(button, [role="button"]):not(#agy-custom-theme-topbar-btn):hover,
+      .agy-shell :is([data-testid="sidebar-toggle"], [data-testid="sidebar-search-button"], [data-testid="toggle-overview-panel"], [data-overview-panel-toggle], [data-testid="toggle-aux-sidebar"], [data-testid="toggle-maximize-pane"], [data-testid="open-editor-single"], [data-testid="titlebar-more-actions"]):hover {
+        background: ${pillHoverBg} !important;
+        border-color: ${pSync} !important;
+        color: ${pSync} !important;
+        ${isDynamicMode ? `box-shadow: 0 0 10px ${gSync} !important;` : ''}
+      }
+      .agy-shell :is([data-testid="toggle-overview-panel"], [data-overview-panel-toggle], [data-testid="toggle-aux-sidebar"], [data-testid="toggle-maximize-pane"]):is([aria-expanded="true"], [aria-pressed="true"], [data-state="open"]) {
+        border-color: ${pSync} !important;
+        color: ${pSync} !important;
+        box-shadow: inset 0 -2px 0 ${pSync}${isDynamicMode ? `, 0 0 12px ${gSync}` : ''} !important;
+      }
+
+      /* 2. Conversation Task, Step, Thinking, Code & Overview Blocks */
+      .agy-shell [data-testid="turn-cards-container"],
+      .agy-shell [data-step-list] {
+        border-radius: ${subCardRadius}px !important;
+      }
+      .agy-shell [data-step-index] {
+        background: ${smokedSurface} !important;
+        border: ${stepBorderAccent} !important;
+        border-left: 3px solid ${pSync} !important;
+        border-radius: ${subCardRadius}px !important;
+        backdrop-filter: none !important;
+        transition: ${isDynamicMode ? 'background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease' : 'none'} !important;
+      }
+      .agy-shell [data-step-index]:hover,
+      .agy-shell .agy-hover-row:hover {
+        background: ${smokedElevated} !important;
+        border-color: ${pSync} !important;
+        ${isDynamicMode ? `box-shadow: 0 4px 16px rgba(0, 0, 0, 0.32), 0 0 12px ${gSync} !important;` : ''}
+      }
+      .agy-shell [data-testid="worked-for-collapsible"],
+      .agy-shell [data-testid="agent-response"] button[aria-expanded] {
+        background: ${pillBg} !important;
+        border: 1px solid ${pillBorder} !important;
+        border-radius: ${compactRadius}px !important;
+        color: ${uiInk} !important;
+        padding: 4px 10px !important;
+        transition: ${isDynamicMode ? 'background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease' : 'none'} !important;
+      }
+      .agy-shell [data-testid="worked-for-collapsible"]:hover,
+      .agy-shell [data-testid="agent-response"] button[aria-expanded]:hover {
+        background: ${pillHoverBg} !important;
+        border-color: ${pSync} !important;
+        ${isDynamicMode ? `box-shadow: 0 0 10px ${gSync} !important;` : ''}
+      }
+      .agy-shell [data-markdown-root] pre,
+      .agy-shell [data-step-index] pre {
+        background: ${isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(5, 9, 18, 0.92)'} !important;
+        border: 1px solid ${smokedBorder} !important;
+        border-top: 2px solid ${pSync} !important;
+        border-radius: ${subCardRadius}px !important;
+        ${isDynamicMode ? `box-shadow: inset 0 1px 0 ${gSync} !important;` : ''}
+      }
+      .agy-shell [data-markdown-root] :not(pre) > code,
+      .agy-shell [data-step-index] :not(pre) > code {
+        background: ${pillBg} !important;
+        color: ${isLight ? uiInk : '#f8fafc'} !important;
+        border: 1px solid ${pillBorder} !important;
+        border-radius: 5px !important;
+        padding: 1px 5px !important;
+      }
+      .agy-shell [data-markdown-root] button.inline-pill,
+      .agy-shell [data-testid="agent-response"] :is(span.rounded-full, div.rounded-full),
+      .agy-shell [data-testid="load-older-messages-button"] {
+        background: ${pillBg} !important;
+        color: ${pillText} !important;
+        border: 1px solid ${pillBorder} !important;
+        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.22) !important;
+      }
+      .agy-shell [data-markdown-root] button.inline-pill:hover,
+      .agy-shell [data-testid="load-older-messages-button"]:hover {
+        background: ${pillHoverBg} !important;
+        border-color: ${pSync} !important;
+        ${isDynamicMode ? `box-shadow: 0 0 10px ${gSync} !important;` : ''}
+      }
+      .agy-shell [data-testid="cascade-system-message-toolbar"] button,
+      .agy-shell [data-testid="user-message-actions"] button,
+      .agy-shell [data-testid="revert-button"] {
+        border: 1px solid transparent !important;
+        border-radius: 6px !important;
+        transition: ${isDynamicMode ? 'background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease' : 'none'} !important;
+      }
+      .agy-shell [data-testid="cascade-system-message-toolbar"] button:hover,
+      .agy-shell [data-testid="user-message-actions"] button:hover,
+      .agy-shell [data-testid="revert-button"]:hover {
+        background: ${pillHoverBg} !important;
+        border-color: ${pSync} !important;
+        color: ${pSync} !important;
+      }
+      .agy-shell nav[data-testid="conversation-navigator"] [data-testid="conversation-navigator-turn"] {
+        background: ${smokedBorder} !important;
+        transition: ${isDynamicMode ? 'background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease' : 'none'} !important;
+      }
+      .agy-shell nav[data-testid="conversation-navigator"] [data-testid="conversation-navigator-turn"]:hover,
+      .agy-shell nav[data-testid="conversation-navigator"] [data-testid="conversation-navigator-turn"][aria-current="true"] {
+        background: ${pSync} !important;
+        ${isDynamicMode ? `box-shadow: 0 0 8px ${gSync} !important;` : ''}
+      }
+      .agy-shell [data-testid="overview-panel-host-sibling"],
+      .agy-shell [data-testid="overview-panel"] {
+        background: ${modalBg} !important;
+        border: 1px solid ${smokedBorder} !important;
+        border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
+        box-shadow: 0 16px 42px rgba(0, 0, 0, ${isLight ? '0.2' : '0.68'})${isDynamicMode ? `, 0 0 20px ${gSync}` : ''} !important;
+        backdrop-filter: none !important;
+      }
+      .agy-shell :is([data-testid="overview-panel-row-review"], [data-testid="overview-panel-row-files"], [data-testid="overview-panel-row-terminal"], [data-testid="overview-panel-row-plugins"], [data-testid="subagent-node"], [data-testid="background-task-row"]) {
+        background: ${smokedSurface} !important;
+        border: 1px solid ${smokedBorder} !important;
+        border-radius: ${compactRadius}px !important;
+        transition: ${isDynamicMode ? 'background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease' : 'none'} !important;
+      }
+      .agy-shell :is([data-testid="overview-panel-row-review"], [data-testid="overview-panel-row-files"], [data-testid="overview-panel-row-terminal"], [data-testid="overview-panel-row-plugins"], [data-testid="subagent-node"], [data-testid="background-task-row"]):hover {
+        background: ${smokedElevated} !important;
+        border-color: ${pSync} !important;
+        ${isDynamicMode ? `box-shadow: 0 0 12px ${gSync} !important;` : ''}
+      }
+      .agy-shell :is([data-testid="status-loading-spinner"], [data-testid="status-task-running"], [data-agent-state-dot], [data-agent-state-caret]) {
+        color: ${pSync} !important;
+      }
+      .agy-shell [data-testid="idle-status-text"] {
+        color: ${uiMutedInk} !important;
+      }
+      .agy-shell :is([data-testid="subagent-stop"], button[aria-label="Stop execution"], button[aria-label="Cancel Task"]) {
+        background: ${pillBg} !important;
+        border: 1px solid ${pSync} !important;
+        color: ${pSync} !important;
+        border-radius: ${compactRadius}px !important;
+      }
+      .agy-shell :is([data-testid="subagent-stop"], button[aria-label="Stop execution"], button[aria-label="Cancel Task"]):hover {
+        background: ${pillHoverBg} !important;
+        ${isDynamicMode ? `box-shadow: 0 0 12px ${gSync} !important;` : ''}
+      }
+
+      /* 3. Right-Side Artifact / Preview / Aux Panels */
+      .agy-shell [data-side-panel-docked],
+      .agy-shell [data-side-panel-open] {
+        background: ${smokedSurface} !important;
+        border-left: 1px solid ${smokedBorder} !important;
+        backdrop-filter: none !important;
+      }
+      .agy-shell :is([data-side-panel-sash], [data-testid="side-panel-sash"]) {
+        background: ${smokedBorder} !important;
+        transition: ${isDynamicMode ? 'background-color 0.16s ease, box-shadow 0.16s ease' : 'none'} !important;
+      }
+      .agy-shell :is([data-side-panel-sash], [data-testid="side-panel-sash"]):hover {
+        background: ${pSync} !important;
+        ${isDynamicMode ? `box-shadow: 0 0 10px ${gSync} !important;` : ''}
+      }
+      .agy-shell [data-side-panel-strip] {
+        background: ${mainTheme.headerBg || smokedElevated} !important;
+        border-bottom: 1px solid ${mainTheme.headerBorder || smokedBorder} !important;
+        backdrop-filter: none !important;
+      }
+      .agy-shell .agy-aux-tab,
+      .agy-shell [data-side-panel-strip] button[data-tab-id] {
+        border-radius: ${Math.min(10, compactRadius)}px !important;
+        border: 1px solid transparent !important;
+        color: ${uiMutedInk} !important;
+        transition: ${isDynamicMode ? 'background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease' : 'none'} !important;
+      }
+      .agy-shell .agy-aux-tab-title {
+        font-family: var(--agy-font-vibe, ${fontVibeStack}) !important;
+      }
+      .agy-shell .agy-aux-tab:hover,
+      .agy-shell [data-side-panel-strip] button[data-tab-id]:hover {
+        background: ${pillHoverBg} !important;
+        border-color: ${pillBorder} !important;
+        color: ${uiInk} !important;
+      }
+      .agy-shell .agy-aux-tab:is([aria-selected="true"], [data-active="true"]),
+      .agy-shell [data-side-panel-strip] button[data-tab-id]:is([aria-selected="true"], [data-active="true"]) {
+        background: ${pillBg} !important;
+        border-color: ${pSync} !important;
+        color: ${pSync} !important;
+        box-shadow: inset 0 -2px 0 ${pSync}${isDynamicMode ? `, 0 0 10px ${gSync}` : ''} !important;
+      }
+      .agy-shell [data-testid="side-panel-new-tab-button"],
+      .agy-shell .agy-aux-tab .agy-hover-actions button {
+        border-radius: 6px !important;
+        color: ${uiMutedInk} !important;
+      }
+      .agy-shell [data-testid="side-panel-new-tab-button"]:hover,
+      .agy-shell .agy-aux-tab .agy-hover-actions button:hover {
+        background: ${pillHoverBg} !important;
+        color: ${pSync} !important;
+      }
+
+      /* 4. Menus, Popups, Dropdowns & Dialogs */
+      [data-base-ui-portal] :is([role="menu"], [role="listbox"], [role="dialog"], [role="alertdialog"], .surface-opaque),
+      .agy-shell :is([role="menu"], [role="listbox"], [role="dialog"], [role="alertdialog"], .surface-opaque) {
+        background: ${modalBg} !important;
+        color: ${uiInk} !important;
+        border: 1px solid ${mainTheme.borderColor || smokedBorder} !important;
+        border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
+        box-shadow: 0 14px 40px rgba(0, 0, 0, ${isLight ? '0.22' : '0.72'})${isDynamicMode ? `, 0 0 20px ${gSync}` : ''} !important;
+        backdrop-filter: none !important;
+      }
+      [data-base-ui-portal] [role="tooltip"],
+      .agy-shell [role="tooltip"] {
+        background: ${modalBg} !important;
+        color: ${uiInk} !important;
+        border: 1px solid ${pSync} !important;
+        border-radius: 8px !important;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55)${isDynamicMode ? `, 0 0 12px ${gSync}` : ''} !important;
+        backdrop-filter: none !important;
+      }
+      :is([role="menu"], [role="listbox"]) :is([role="menuitem"], [role="option"], [role="menuitemcheckbox"], [role="menuitemradio"], button) {
+        border-radius: ${Math.max(5, compactRadius - 2)}px !important;
+        transition: ${isDynamicMode ? 'background-color 0.14s ease, color 0.14s ease' : 'none'} !important;
+      }
+      :is([role="menu"], [role="listbox"]) :is([role="menuitem"], [role="option"], [role="menuitemcheckbox"], [role="menuitemradio"], button):is(:hover, [data-highlighted], [aria-selected="true"]) {
+        background: ${pillHoverBg} !important;
+        color: ${pSync} !important;
+        box-shadow: inset 2px 0 0 ${pSync} !important;
+      }
+
+      /* 5. Global Micro-Sync: selection, caret, focus-visible & scrollbars */
+      .agy-shell ::selection,
+      [data-base-ui-portal] ::selection {
+        background: ${pSync} !important;
+        color: ${isLight ? '#ffffff' : '#060a14'} !important;
+      }
+      .agy-shell :is(input, textarea, [contenteditable="true"], [data-lexical-editor="true"]) {
+        caret-color: ${pSync} !important;
+      }
+      .agy-shell :focus-visible,
+      [data-base-ui-portal] :focus-visible {
+        outline: 2px solid ${pSync} !important;
+        outline-offset: 2px !important;
+      }
+      .agy-shell [data-testid="overlay-scrollbar-thumb"] {
+        background: ${pSync} !important;
+        opacity: 0.55 !important;
+        border-radius: 9999px !important;
+      }
+      .agy-shell [data-testid="overlay-scrollbar-thumb"]:hover {
+        opacity: 0.9 !important;
+        ${isDynamicMode ? `box-shadow: 0 0 8px ${gSync} !important;` : ''}
+      }
+      .agy-shell [data-overlay-scrollbar-track] {
+        background: transparent !important;
+      }
+      .agy-shell ::-webkit-scrollbar {
+        width: 7px;
+        height: 7px;
+      }
+      .agy-shell ::-webkit-scrollbar-track {
+        background: ${isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.04)'};
+        border-radius: 9999px;
+      }
+      .agy-shell ::-webkit-scrollbar-thumb {
+        background: ${mainTheme.borderColor || smokedBorder};
+        border-radius: 9999px;
+      }
+      .agy-shell ::-webkit-scrollbar-thumb:hover {
+        background: ${pSync};
+      }
+    `;
+
     styleEl.textContent = `
       ${wpCss}
 
@@ -3005,7 +3321,18 @@
       #agy-custom-theme-sidebar-btn svg {
         color: ${mainTheme.primary} !important;
       }
+      ${globalIdeSyncCss}
       ${st.themeMode === 'dynamic' ? `
+      @keyframes agyWorkingPulse {
+        0%, 100% {
+          opacity: 0.58;
+          transform: scale(0.96);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.06);
+        }
+      }
       @keyframes agyAmbientAura {
         0%, 100% {
           opacity: 0.42;
@@ -3158,6 +3485,10 @@
         will-change: opacity, transform;
         animation: agyStudioBreath 3.2s ease-in-out infinite;
       }
+      .agy-shell :is([data-testid="status-loading-spinner"], [data-testid="status-task-running"], [data-agent-state-dot], [data-testid="subagent-stop"], button[aria-label="Stop execution"], button[aria-label="Cancel Task"]) {
+        will-change: opacity, transform;
+        animation: agyWorkingPulse 1.8s ease-in-out infinite !important;
+      }
       ` : `
       #agy-dynamic-ambient-aura {
         display: none !important;
@@ -3169,7 +3500,8 @@
       .agy-user-bubble-frame::after,
       .surface-composer::after,
       #agy-custom-theme-topbar-btn,
-      #agy-custom-theme-topbar-btn::after {
+      #agy-custom-theme-topbar-btn::after,
+      .agy-shell :is([data-testid="status-loading-spinner"], [data-testid="status-task-running"], [data-agent-state-dot], [data-testid="subagent-stop"], button[aria-label="Stop execution"], button[aria-label="Cancel Task"]) {
         animation: none !important;
         transition: none !important;
       }
