@@ -21,13 +21,15 @@ Creates and applies custom glassmorphic themes (wallpapers, cohesive palettes, c
 
 ## Workflow
 
-1. **Gather aesthetic & inspect image**
+1. **Gather aesthetic & prepare 4K workspace wallpaper**
    - Ask briefly for any missing intent only if ambiguous (mood: cozy warm, cyberpunk neon, anime cel, cosmic gold, minimalist pure-CSS gradient, etc.).
    - If the user provides an image with an unwanted corner watermark/signature, clean/crop it cleanly before staging.
-2. **Design cohesive tokens (Dark or Light Glass)**
+   - **Mandatory Generative 4K 16:9 Outpainting ("Vẽ bù"):** Regardless of the source image's aspect ratio (portrait, square, 4:3, ultra-wide) or resolution, preserve the original image's content, composition, lighting, and style and use `image-generator` to generatively paint/outpaint ("vẽ bù") a new seamless **4K 16:9 (`3840x2160`)** widescreen artwork (never pad with blurred bars, solid borders, or letterboxing!), then normalize/sharpen to `3840x2160` WebP (`quality=90`) with Pillow `LANCZOS` + `UnsharpMask`.
+2. **Design cohesive, strictly readable tokens (Dark or Light Glass)**
    - Read `references/theme-schema.md` for every `themes.json` key.
-   - Extract dominant & accent colors from the image to populate `primary`, `secondary`, `overlayRgb`, `bg`, `frameBg`, `sidebarBg`, `aiCardBg`, `headerBg`, `inputCardBg`, and `modalBg` with crisp readable contrast.
-   - For bright/daytime/pastel wallpapers, set `"isLight": true` with high-contrast dark ink (`uiTextColor`, `pillTextColor`) and light frosted `aiCardBg`/`overlayRgb`.
+   - Extract dominant & accent colors from the image to populate `primary`, `secondary`, `overlayRgb`, `bg`, `frameBg`, `sidebarBg`, `aiCardBg`, `headerBg`, `inputCardBg`, and `modalBg` with **strict WCAG AAA readability (>= 7:1 for primary/bubble/pill text, >= 4.8:1 for muted text)**.
+   - Never use overly transparent glass where busy wallpaper details wash out text: enforce minimum opacity floors (`aiCardBg` >= `0.84` dark / `0.88` light, `sidebarBg` & `headerBg` >= `0.48` dark / `0.62` light, `inputGlassBg` >= `0.72`, `pillBg` >= `0.78`, `modalBg` >= `0.95`, `sidebarEnhanceText: true`).
+   - For bright/daytime/pastel wallpapers, set `"isLight": true` with high-contrast dark ink (`#0f172a` / `#334155`) and bright frosted `aiCardBg`/`overlayRgb`.
    - When the user wants matching chat avatars (or provides character/themed artwork), also craft or crop square `userAvatar` & `agentAvatar` assets (PNG/WebP or bespoke SVG emblems) and custom `sticker`/`cornerSvg` flourishes.
 3. **Stage assets & edit `themes/themes.json`**
    - Save wallpaper under `themes/assets/<slug>.webp` (or `.png`), optional SVG stickers/corners, and optional `userAvatar` / `agentAvatar` files under `themes/assets/`.

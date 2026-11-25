@@ -35,7 +35,22 @@ foreach ($Proc in $ExistingDaemons) {
     Write-Host "[install-win] Stopping existing theme daemon (PID $($Proc.ProcessId))..."
     Stop-Process -Id $Proc.ProcessId -Force -ErrorAction SilentlyContinue
 }
-if ($ExistingDaemons) {
+$PortFile = @("$env:APPDATA\antigravity\DevToolsActivePort", "$env:APPDATA\Antigravity\DevToolsActivePort") | Where-Object { Test-Path $_ } | Select-Object -First 1
+if ($PortFile) {
+    $CdpPort = 0
+    $FirstLine = (Get-Content $PortFile -ErrorAction SilentlyContinue | Select-Object -First 1)
+    if ([int]::TryParse(($FirstLine -as [string]), [ref]$CdpPort) -and $CdpPort -gt 0) {
+        $CdpNodes = Get-NetTCPConnection -RemotePort $CdpPort -State Established -ErrorAction SilentlyContinue |
+            ForEach-Object { Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue } |
+            Where-Object { $_ -and $_.ProcessName -eq 'node' } |
+            Select-Object -Unique
+        foreach ($Proc in $CdpNodes) {
+            Write-Host "[install-win] Stopping detached CDP node daemon (PID $($Proc.Id))..."
+            Stop-Process -Id $Proc.Id -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+if ($ExistingDaemons -or $CdpNodes) {
     Start-Sleep -Milliseconds 350
 }
 

@@ -20,8 +20,8 @@ ASSET_KEYS = ("wallpaper", "sticker", "cornerSvg", "userAvatar", "agentAvatar")
 AVATAR_KEYS = {"userAvatar", "agentAvatar"}
 AVATAR_MAX_DIM = 256
 PLACEHOLDER = "/*__THEMES_PLACEHOLDER__*/{}"
-DEFAULT_MAX_DIM = 2560
-WEBP_QUALITY = 88
+DEFAULT_MAX_DIM = 3840
+WEBP_QUALITY = 90
 
 
 def encode_svg(svg_path: Path) -> str:

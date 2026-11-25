@@ -54,7 +54,7 @@
 When compiling `dist/theme_payload.js`:
 - Values under `wallpaper`, `sticker`, `cornerSvg`, `userAvatar`, and `agentAvatar` that point to local paths (relative to `themes/`) are inlined into `data:` URIs.
 - `.svg` files become URL-encoded `data:image/svg+xml,...`.
-- Raster images (`.png`, `.jpg`, `.jpeg`, `.webp`) are resized down to max `2560px` (`256px` for `userAvatar`/`agentAvatar`) and converted to WebP (`quality=88`) when Pillow is installed, keeping payload size ~200–600 KB.
+- Raster images (`.png`, `.jpg`, `.jpeg`, `.webp`) are resized down to max `3840px` 4K (`256px` for `userAvatar`/`agentAvatar`) and converted to WebP (`quality=90`) when Pillow is installed, keeping 4K sharpness with compact payload size.
 - Leave `wallpaper` as `""` and supply `pureBg` for zero-image gradient presets (e.g. `Midnight Obsidian`).
 
 ## Antigravity UI Targets Handled by `engine/core.js`

@@ -45,22 +45,47 @@ function resolvePortFile() {
 }
 
 function stopDaemon() {
-    if (!fs.existsSync(PID_FILE)) {
-        console.log('[uninstall] No active daemon.pid found.');
-        return;
-    }
-    const pid = parseInt(fs.readFileSync(PID_FILE, 'utf8').trim(), 10);
-    if (pid) {
-        try {
-            process.kill(pid, 'SIGTERM');
-            console.log(`[uninstall] Stopped daemon PID ${pid}.`);
-        } catch (_) {
-            console.log(`[uninstall] Daemon PID ${pid} already exited.`);
+    const killed = new Set();
+    if (fs.existsSync(PID_FILE)) {
+        const pid = parseInt(fs.readFileSync(PID_FILE, 'utf8').trim(), 10);
+        if (pid) {
+            try {
+                process.kill(pid, 'SIGTERM');
+                killed.add(pid);
+                console.log(`[uninstall] Stopped daemon PID ${pid}.`);
+            } catch (_) {
+                console.log(`[uninstall] Daemon PID ${pid} already exited.`);
+            }
         }
+        try {
+            fs.unlinkSync(PID_FILE);
+        } catch (_) {}
+    } else {
+        console.log('[uninstall] No active daemon.pid found.');
     }
-    try {
-        fs.unlinkSync(PID_FILE);
-    } catch (_) {}
+
+    if (process.platform === 'win32') {
+        try {
+            const portFile = resolvePortFile();
+            if (fs.existsSync(portFile)) {
+                const port = parseInt(fs.readFileSync(portFile, 'utf8').trim().split(/\r?\n/)[0], 10);
+                if (Number.isFinite(port) && port > 0) {
+                    const ps = `Get-NetTCPConnection -RemotePort ${port} -State Established -ErrorAction SilentlyContinue | ForEach-Object { $p = Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue; if ($p -and $p.ProcessName -eq 'node') { $p.Id } }`;
+                    const out = execSync(`powershell -NoProfile -Command "${ps}"`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+                    for (const line of String(out || '').split(/\r?\n/)) {
+                        const pid = parseInt(line.trim(), 10);
+                        if (pid && !killed.has(pid)) {
+                            try {
+                                execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore' });
+                                killed.add(pid);
+                                console.log(`[uninstall] Stopped detached CDP node daemon PID ${pid}.`);
+                            } catch (_) {}
+                        }
+                    }
+                }
+            }
+        } catch (_) {}
+    }
 }
 
 function removeAutoStart() {

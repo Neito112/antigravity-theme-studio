@@ -214,7 +214,7 @@ function createSession(target) {
     async function ensureBindings() {
         try {
             await send('Runtime.evaluate', {
-                expression: 'delete window.agySaveThemeConfig; delete window.agyDesignTheme;',
+                expression: 'delete window.agySaveThemeConfig; delete window.agyDesignTheme; delete window.agyDesignThemeV2;',
                 awaitPromise: false,
             });
         } catch (_) {}
@@ -222,7 +222,7 @@ function createSession(target) {
             await send('Runtime.addBinding', { name: 'agySaveThemeConfig' });
         } catch (_) {}
         try {
-            await send('Runtime.addBinding', { name: 'agyDesignTheme' });
+            await send('Runtime.addBinding', { name: 'agyDesignThemeV2' });
         } catch (_) {}
     }
 
@@ -293,18 +293,22 @@ function createSession(target) {
             return;
         }
 
-        if (msg.method === 'Runtime.bindingCalled' && msg.params && msg.params.name === 'agyDesignTheme') {
+        if (msg.method === 'Runtime.bindingCalled' && msg.params && msg.params.name === 'agyDesignThemeV2') {
             let job = null;
             try {
                 job = JSON.parse(msg.params.payload || '{}');
             } catch (_) {}
             if (job && job.id && job.image) {
                 const reply = (obj) => {
-                    const expr = `window.__AGY_DESIGN_RESULT__ && window.__AGY_DESIGN_RESULT__(${JSON.stringify(job.id)}, ${JSON.stringify(JSON.stringify(obj))})`;
+                    const expr = `window.__AGY_DESIGN_RESULT_V2__ && window.__AGY_DESIGN_RESULT_V2__(${JSON.stringify(job.id)}, ${JSON.stringify(JSON.stringify(obj))})`;
                     send('Runtime.evaluate', { expression: expr }).catch(() => {});
                 };
-                designTheme(job.image, { log })
-                    .then((theme) => reply({ theme }))
+                designTheme(job.image, { log, width: job.width, height: job.height })
+                    .then((res) => reply({
+                        theme: res.theme,
+                        wallpaperDataUrl: res.wallpaperDataUrl || '',
+                        wpMeta: res.wpMeta || null,
+                    }))
                     .catch((err) => {
                         log(`Theme design failed: ${err.message}`);
                         reply({ error: err.message });

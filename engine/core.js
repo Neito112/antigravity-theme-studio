@@ -128,7 +128,7 @@
         ctx.filter = scaledBlur > 0 ? `blur(${scaledBlur}px)` : 'none';
         ctx.drawImage(img, -12, -12, w + 24, h + 24);
         ctx.filter = 'none';
-        ctx.fillStyle = `rgba(${overlayRgb}, ${overlayAlpha})`;
+        ctx.fillStyle = `rgba(${overlayRgb}, ${Math.max(overlayAlpha, 0.45)})`;
         ctx.fillRect(0, 0, w, h);
         if (tintBg) {
           ctx.fillStyle = tintBg;
@@ -398,13 +398,15 @@
       : (bubbleTheme.innerBorder || '1px solid rgba(255, 255, 255, 0.06)');
 
     const isLight = Boolean(mainTheme.isLight);
-    const uiInk = mainTheme.uiTextColor || (isLight ? '#0f172a' : 'rgba(248, 250, 252, 0.96)');
-    const uiMutedInk = mainTheme.uiMutedColor || (isLight ? '#334155' : 'rgba(241, 245, 249, 0.92)');
-    const uiShadow = isLight ? 'none' : '0 1px 4px rgba(0, 0, 0, 0.92), 0 0 8px rgba(0, 0, 0, 0.68)';
-    const pillBg = mainTheme.pillBg || (isLight ? 'rgba(255, 255, 255, 0.78)' : 'rgba(6, 11, 24, 0.78)');
-    const pillHoverBg = mainTheme.pillHoverBg || (isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(10, 18, 38, 0.92)');
+    const uiInk = mainTheme.uiTextColor || (isLight ? '#0f172a' : 'rgba(248, 250, 252, 0.98)');
+    const uiMutedInk = mainTheme.uiMutedColor || (isLight ? '#334155' : 'rgba(226, 232, 240, 0.94)');
+    const uiShadow = isLight
+      ? '0 1px 2px rgba(255, 255, 255, 0.92), 0 0 6px rgba(255, 255, 255, 0.72)'
+      : '0 1px 4px rgba(0, 0, 0, 0.94), 0 0 8px rgba(0, 0, 0, 0.72)';
+    const pillBg = mainTheme.pillBg || (isLight ? 'rgba(255, 255, 255, 0.86)' : 'rgba(6, 11, 24, 0.82)');
+    const pillHoverBg = mainTheme.pillHoverBg || (isLight ? 'rgba(255, 255, 255, 0.96)' : 'rgba(10, 18, 38, 0.94)');
     const pillText = mainTheme.pillTextColor || (isLight ? '#0f172a' : '#f8fafc');
-    const pillBorder = mainTheme.pillBorder || (isLight ? 'rgba(15, 23, 42, 0.16)' : 'rgba(255, 255, 255, 0.16)');
+    const pillBorder = mainTheme.pillBorder || (isLight ? 'rgba(15, 23, 42, 0.2)' : 'rgba(255, 255, 255, 0.2)');
     const preCodeBg = isLight ? `rgba(${overlayRgb}, 0.72)` : `rgba(${overlayRgb}, 0.56)`;
 
     const effectiveUserAvatar = st.userAvatar === 'none' ? '' : (st.userAvatar || mainTheme.userAvatar || '');
@@ -460,23 +462,30 @@
     `;
 
     const sidebarEnhanceCss = (mainTheme.sidebarEnhanceText || isLight) ? `
-      .agy-shell .bg-sidebar a,
-      .agy-shell .bg-sidebar span,
-      .agy-shell .bg-sidebar button {
-        color: ${isLight ? uiInk : 'inherit'};
-        text-shadow: ${isLight ? 'none' : '0 1px 3px rgba(0, 0, 0, 0.88)'};
+      .agy-shell :is(aside, [data-sidebar="true"], .bg-sidebar) :is(a, span, button, div) {
+        color: ${uiInk};
+        text-shadow: ${isLight ? '0 1px 2px rgba(255, 255, 255, 0.9)' : '0 1px 3px rgba(0, 0, 0, 0.96), 0 0 8px rgba(0, 0, 0, 0.78)'};
       }
-      .agy-shell .bg-sidebar .text-muted-foreground,
-      .agy-shell .bg-sidebar .text-secondary-foreground {
+      .agy-shell :is(aside, [data-sidebar="true"], .bg-sidebar) :is(.text-muted-foreground, .text-secondary-foreground, .opacity-60) {
         color: ${uiMutedInk} !important;
+        opacity: 0.92 !important;
       }
     ` : '';
 
     const aiCardCss = mainTheme.aiCardBg ? `
       /* Translucent reading card for AI responses (zero live backdrop-filter for max 120fps scroll) */
+      .agy-shell [data-main-content-body="true"] {
+        color: ${uiInk} !important;
+        text-shadow: ${isLight ? 'none' : '0 1px 4px rgba(0, 0, 0, 0.92), 0 0 10px rgba(0, 0, 0, 0.72)'};
+      }
+      .agy-shell [data-testid="agent-response"],
+      .agy-shell .agy-user-bubble,
+      .agy-shell .surface-composer-card {
+        text-shadow: none !important;
+      }
       .agy-shell [data-testid="agent-response"] {
         background: ${mainTheme.aiCardBg} !important;
-        ${isLight ? `color: ${uiInk} !important;` : ''}
+        color: ${uiInk} !important;
         backdrop-filter: none !important;
         border: 1px solid ${mainTheme.aiCardBorder || (isLight ? 'rgba(15, 23, 42, 0.12)' : 'rgba(255, 255, 255, 0.1)')} !important;
         border-radius: 14px !important;
@@ -484,6 +493,30 @@
         box-shadow: ${isLight ? '0 4px 14px rgba(15, 23, 42, 0.08)' : '0 4px 14px rgba(0, 0, 0, 0.28)'} !important;
         box-sizing: border-box !important;
         overflow: hidden !important;
+      }
+      .agy-shell [data-testid="agent-response"] :is(p, li, ul, ol, h1, h2, h3, h4, h5, h6, strong, b, em, td, th, blockquote) {
+        color: ${uiInk} !important;
+      }
+      .agy-shell [data-testid="agent-response"] :is(.text-muted-foreground, .text-secondary-foreground),
+      .agy-shell [data-testid="agent-response"] button:not(.bg-primary) {
+        color: ${uiMutedInk} !important;
+      }
+      .agy-shell [data-testid="agent-response"] :is(a, .text-link),
+      .agy-shell [data-testid="agent-response"] button.inline-flex.items-baseline {
+        color: #7dd3fc !important;
+      }
+      .agy-shell [data-testid="agent-response"] pre {
+        background: rgba(4, 8, 16, 0.90) !important;
+        color: #f8fafc !important;
+        border: 1px solid rgba(148, 163, 184, 0.24) !important;
+        border-radius: 10px !important;
+      }
+      .agy-shell [data-testid="agent-response"] :not(pre) > code {
+        background: rgba(15, 23, 42, 0.86) !important;
+        color: #f1f5f9 !important;
+        border: 1px solid rgba(148, 163, 184, 0.26) !important;
+        border-radius: 5px !important;
+        padding: 1px 5px !important;
       }
       .agy-shell [data-testid="agent-response"] .md-table-bleed,
       .agy-shell [data-testid="agent-response"] .md-table-host {
@@ -670,11 +703,10 @@
         border-bottom: 1px solid ${mainTheme.headerBorder || 'rgba(56, 189, 248, 0.15)'} !important;
       }
       `}
-      .agy-shell [class*="@container/titlebar"] [data-testid="breadcrumb-segment"],
-      .agy-shell [class*="@container/titlebar"] [data-testid="pane-titlebar-toolbar"] button,
-      .agy-shell [class*="@container/titlebar"] [data-testid="pane-titlebar-toolbar"] span {
+      .agy-shell [class*="@container/titlebar"] :is(button, span, a):not(#agy-custom-theme-badge),
+      .agy-shell [class*="@container/titlebar"] [data-testid="breadcrumb-segment"] {
         color: ${uiInk} !important;
-        text-shadow: ${uiShadow};
+        text-shadow: ${uiShadow} !important;
       }
       .agy-shell [class*="@container/titlebar"] [data-testid="pane-titlebar-toolbar"] button.border {
         background: ${isLight ? 'rgba(255, 255, 255, 0.56)' : 'rgba(6, 11, 24, 0.36)'} !important;
@@ -785,6 +817,9 @@
         backdrop-filter: none !important;
         border-radius: 14.5px !important;
         border: ${bubbleTheme.innerBorder || '1px solid rgba(255, 255, 255, 0.07)'} !important;
+      }
+      .surface-composer-card :is(textarea, [contenteditable="true"], [contenteditable="true"] p, [contenteditable="true"] span) {
+        color: #f8fafc !important;
       }
 
       /* High-contrast pill badges for top composer bar (adaptive light/dark theme) */
@@ -1825,6 +1860,10 @@
   }
 
   function loadCustomThemes() {
+    const init = (window.__AGY_INITIAL_CONFIG__ && window.__AGY_INITIAL_CONFIG__.customThemes) || null;
+    if (init && typeof init === 'object' && !Array.isArray(init)) {
+      return { ...init };
+    }
     const raw = localStorage.getItem(STORAGE_CUSTOM_THEMES);
     if (raw !== null) {
       try {
@@ -1832,15 +1871,14 @@
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
       } catch (e) {}
     }
-    const init = (window.__AGY_INITIAL_CONFIG__ && window.__AGY_INITIAL_CONFIG__.customThemes) || {};
-    return { ...init };
+    return {};
   }
 
   function registerCustomThemes() {
     const all = loadCustomThemes();
     Object.keys(all).forEach((name) => {
       if (BUILTIN_KEYS.has(name)) return;
-      THEMES[name] = all[name];
+      THEMES[name] = enforceReadableTheme({ ...all[name] });
       if (!THEME_KEYS.includes(name)) THEME_KEYS.push(name);
     });
     const hidden = new Set(loadHiddenBuiltins());
@@ -1854,7 +1892,12 @@
 
   function persistCustomThemes(all) {
     if (window.__AGY_INITIAL_CONFIG__) window.__AGY_INITIAL_CONFIG__.customThemes = { ...all };
-    try { localStorage.setItem(STORAGE_CUSTOM_THEMES, JSON.stringify(all)); } catch (e) {}
+    try {
+      localStorage.setItem(STORAGE_CUSTOM_THEMES, JSON.stringify(all));
+    } catch (e) {
+      // 4K WebP themes can exceed the 5MB localStorage quota; clear stale localStorage so disk theme_config.json stays authoritative.
+      try { localStorage.removeItem(STORAGE_CUSTOM_THEMES); } catch (_) {}
+    }
     if (window.agySaveThemeConfig) {
       try { window.agySaveThemeConfig(JSON.stringify({ customThemes: all })); } catch (e) {}
     }
@@ -1910,7 +1953,7 @@
     const avg = [Math.round(ar / n), Math.round(ag / n), Math.round(ab / n)];
     const lum = (0.2126 * avg[0] + 0.7152 * avg[1] + 0.0722 * avg[2]) / 255;
     const sorted = buckets.map((bk, i) => ({ ...bk, i })).filter((bk) => bk.w > 0).sort((a, b) => b.w - a.w);
-    const isLight = lum > 0.62;
+    const isLight = false;
     const tune = (c, sMin, vMin, vMax) => {
       const [h, s, v] = rgbToHsv(c[0], c[1], c[2]);
       return hsvToRgb(h, Math.max(s, sMin), Math.min(vMax, Math.max(v, vMin)));
@@ -1925,14 +1968,12 @@
       if (q) secondary = [Math.round(q.r / q.w), Math.round(q.g / q.w), Math.round(q.b / q.w)];
       else { const [h, s, v] = rgbToHsv(primary[0], primary[1], primary[2]); secondary = hsvToRgb(h + 35, s * 0.8, v); }
     } else {
-      const base = isLight ? [71, 85, 105] : [148, 163, 184];
+      const base = [148, 163, 184];
       primary = base; secondary = base.map((x) => Math.min(255, x + 40));
     }
-    if (isLight) { primary = tune(primary, 0.5, 0.45, 0.7); secondary = tune(secondary, 0.4, 0.45, 0.72); }
-    else { primary = tune(primary, 0.45, 0.72, 0.97); secondary = tune(secondary, 0.35, 0.65, 0.95); }
-    const overlay = isLight
-      ? avg.map((x) => Math.round(x + (255 - x) * 0.85))
-      : avg.map((x) => Math.round(x * 0.1));
+    primary = tune(primary, 0.45, 0.75, 0.98);
+    secondary = tune(secondary, 0.35, 0.70, 0.96);
+    const overlay = avg.map((x) => Math.max(4, Math.min(22, Math.round(x * 0.1))));
     return { avg, lum, isLight, primary, secondary, overlay };
   }
 
@@ -1946,6 +1987,126 @@
     return { cornerSvg: uri(corner), sticker: uri(sticker) };
   }
 
+  function parseCssColor(str) {
+    if (typeof str !== 'string') return null;
+    const s = str.trim();
+    const hex = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(s);
+    if (hex) {
+      let h = hex[1];
+      if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+      const r = parseInt(h.slice(0, 2), 16);
+      const g = parseInt(h.slice(2, 4), 16);
+      const b = parseInt(h.slice(4, 6), 16);
+      const a = h.length === 8 ? parseInt(h.slice(6, 8), 16) / 255 : 1;
+      return { r, g, b, a };
+    }
+    const rgb = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/i.exec(s);
+    if (rgb) {
+      return {
+        r: Math.min(255, Math.max(0, Number(rgb[1]))),
+        g: Math.min(255, Math.max(0, Number(rgb[2]))),
+        b: Math.min(255, Math.max(0, Number(rgb[3]))),
+        a: rgb[4] !== undefined ? Math.min(1, Math.max(0, Number(rgb[4]))) : 1
+      };
+    }
+    return null;
+  }
+
+  function extractFirstColor(cssBg) {
+    if (typeof cssBg !== 'string') return null;
+    const direct = parseCssColor(cssBg);
+    if (direct) return direct;
+    const m = /rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+(?:\s*,\s*[\d.]+)?\s*\)|#[0-9a-f]{3,8}\b/i.exec(cssBg);
+    return m ? parseCssColor(m[0]) : null;
+  }
+
+  function relLum(c) {
+    const ch = [c.r, c.g, c.b].map((v) => {
+      const s = v / 255;
+      return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+  }
+
+  function contrastRatio(c1, c2) {
+    const l1 = relLum(c1), l2 = relLum(c2);
+    return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+  }
+
+  function compositeOver(fg, bg) {
+    const a = fg.a !== undefined ? fg.a : 1;
+    return {
+      r: Math.round(fg.r * a + bg.r * (1 - a)),
+      g: Math.round(fg.g * a + bg.g * (1 - a)),
+      b: Math.round(fg.b * a + bg.b * (1 - a)),
+      a: 1
+    };
+  }
+
+  function enforceSurfaceAlpha(cssColor, minAlpha, isLight, fallbackCss) {
+    const parsed = parseCssColor(cssColor);
+    if (!parsed) return fallbackCss;
+    const lum = relLum(parsed);
+    if (isLight && lum < 0.55) return fallbackCss;
+    if (!isLight && lum > 0.06) return fallbackCss;
+    const a = Math.max(minAlpha, parsed.a);
+    return `rgba(${Math.round(parsed.r)}, ${Math.round(parsed.g)}, ${Math.round(parsed.b)}, ${Number(a.toFixed(2))})`;
+  }
+
+  function ensureReadableInk(inkCss, surfaceCss, minRatio, isLight, fallbackHex) {
+    const ink = parseCssColor(inkCss);
+    const surf = extractFirstColor(surfaceCss) || (isLight ? { r: 248, g: 250, b: 252, a: 0.9 } : { r: 10, g: 14, b: 24, a: 0.9 });
+    const worstUnder = isLight ? { r: 24, g: 28, b: 36, a: 1 } : { r: 235, g: 240, b: 248, a: 1 };
+    const effectiveBg = compositeOver(surf, worstUnder);
+    const pureBg = { r: surf.r, g: surf.g, b: surf.b, a: 1 };
+    if (ink) {
+      const effInk = compositeOver(ink, effectiveBg);
+      const rWorst = contrastRatio(effInk, effectiveBg);
+      const rPure = contrastRatio(compositeOver(ink, pureBg), pureBg);
+      if (rWorst >= minRatio && rPure >= minRatio) return inkCss;
+    }
+    return fallbackHex;
+  }
+
+  function enforceReadableTheme(t, pal) {
+    delete t.isLight;
+    const L = false;
+    const ovParts = String(t.overlayRgb || '').split(',').map((x) => parseInt(x.trim(), 10));
+    const validOv = ovParts.length === 3 && ovParts.every((n) => Number.isFinite(n) && n >= 0 && n <= 255);
+    const ovColor = validOv ? { r: ovParts[0], g: ovParts[1], b: ovParts[2], a: 1 } : null;
+    if (!ovColor) {
+      t.overlayRgb = '7, 13, 22';
+    } else if (relLum(ovColor) > 0.06) {
+      const maxCh = Math.max(1, ovColor.r, ovColor.g, ovColor.b);
+      const scaled = [ovColor.r, ovColor.g, ovColor.b].map((ch) => Math.max(5, Math.min(20, Math.round((ch / maxCh) * 18))));
+      t.overlayRgb = scaled.join(', ');
+    }
+    const ov = t.overlayRgb;
+    t.aiCardBg = enforceSurfaceAlpha(t.aiCardBg, 0.88, L, `rgba(${ov}, 0.90)`);
+    t.sidebarBg = enforceSurfaceAlpha(t.sidebarBg, 0.64, L, `rgba(${ov}, 0.66)`);
+    t.headerBg = enforceSurfaceAlpha(t.headerBg, 0.64, L, `rgba(${ov}, 0.66)`);
+    t.inputGlassBg = enforceSurfaceAlpha(t.inputGlassBg, 0.82, L, `rgba(${ov}, 0.84)`);
+    t.modalBg = enforceSurfaceAlpha(t.modalBg, 0.96, L, 'rgba(10, 14, 24, 0.97)');
+    t.cardBg = enforceSurfaceAlpha(t.cardBg, 0.88, L, 'rgba(14, 20, 34, 0.88)');
+    t.pillBg = enforceSurfaceAlpha(t.pillBg, 0.84, L, `rgba(${ov}, 0.86)`);
+
+    const icBase = extractFirstColor(t.inputCardBg);
+    if (!icBase || relLum(icBase) > 0.08 || icBase.a < 0.88) {
+      t.inputCardBg = `linear-gradient(145deg, rgba(${ov}, 0.92) 0%, rgba(5, 9, 16, 0.96) 100%)`;
+    }
+    const bgBase = extractFirstColor(t.bg);
+    if (!bgBase || relLum(bgBase) > 0.12 || bgBase.a < 0.88) {
+      t.bg = `linear-gradient(145deg, rgba(${ov}, 0.92) 0%, rgba(6, 10, 18, 0.96) 100%)`;
+    }
+
+    t.uiTextColor = ensureReadableInk(t.uiTextColor, t.aiCardBg, 9.0, L, '#f8fafc');
+    t.uiMutedColor = ensureReadableInk(t.uiMutedColor, t.aiCardBg, 6.0, L, '#cbd5e1');
+    t.pillTextColor = ensureReadableInk(t.pillTextColor, t.pillBg, 9.0, L, '#f8fafc');
+    t.textColor = ensureReadableInk(t.textColor, t.bg, 9.0, L, '#f8fafc');
+    t.sidebarEnhanceText = true;
+    return t;
+  }
+
   function buildThemeFromPalette(pal, wallpaper, concept) {
     const p = pal.primary, s = pal.secondary, o = pal.overlay;
     const ov = o.join(', ');
@@ -1955,31 +2116,35 @@
       concept,
       primary: toHex(p), secondary: toHex(s),
       glow: rgba(p, 0.28), secondaryGlow: rgba(s, 0.22),
-      bg: `linear-gradient(145deg, rgba(${Math.round(p[0] * 0.18)}, ${Math.round(p[1] * 0.18)}, ${Math.round(p[2] * 0.18)}, 0.9) 0%, rgba(6, 8, 14, 0.94) 100%)`,
+      bg: `linear-gradient(145deg, rgba(${Math.round(p[0] * 0.18)}, ${Math.round(p[1] * 0.18)}, ${Math.round(p[2] * 0.18)}, 0.92) 0%, rgba(6, 8, 14, 0.96) 100%)`,
       frameBg: `linear-gradient(135deg, ${rgba(p, 0.72)} 0%, ${rgba(s, 0.5)} 50%, ${rgba(p, 0.6)} 100%)`,
       textColor: '#f8fafc',
       borderColor: rgba(p, 0.34), innerBorder: `1px solid ${rgba(p, 0.16)}`,
       clearBackdrop: true, overlayRgb: ov, bgPosition: 'center center',
-      sidebarBg: dark(L ? 0.3 : 0.24), sidebarBlur: '3px', sidebarHoverBg: rgba(p, 0.16), sidebarEnhanceText: true,
-      aiCardBg: L ? 'rgba(255, 255, 255, 0.72)' : dark(0.74), aiCardBorder: rgba(p, 0.2),
-      headerBg: dark(L ? 0.3 : 0.24), headerBlur: '3px', headerBorder: rgba(p, 0.12),
+      sidebarBg: dark(L ? 0.66 : 0.5), sidebarBlur: '3px', sidebarHoverBg: rgba(p, 0.18), sidebarEnhanceText: true,
+      aiCardBg: L ? 'rgba(255, 255, 255, 0.9)' : dark(0.86), aiCardBorder: rgba(p, 0.22),
+      headerBg: dark(L ? 0.66 : 0.5), headerBlur: '3px', headerBorder: rgba(p, 0.14),
       unifiedGlass: true,
-      btnBg: L ? 'rgba(255, 255, 255, 0.6)' : `rgba(${Math.round(p[0] * 0.12 + 8)}, ${Math.round(p[1] * 0.12 + 14)}, ${Math.round(p[2] * 0.12 + 24)}, 0.58)`,
-      inputGlassBg: L ? 'rgba(255, 255, 255, 0.6)' : dark(0.58),
-      inputCardBg: L ? 'linear-gradient(145deg, rgba(255, 255, 255, 0.86) 0%, rgba(241, 245, 249, 0.9) 100%)' : `linear-gradient(145deg, rgba(${Math.round(p[0] * 0.14)}, ${Math.round(p[1] * 0.14)}, ${Math.round(p[2] * 0.14)}, 0.9) 0%, rgba(5, 8, 14, 0.95) 100%)`,
+      btnBg: L ? 'rgba(255, 255, 255, 0.82)' : `rgba(${Math.round(p[0] * 0.12 + 8)}, ${Math.round(p[1] * 0.12 + 14)}, ${Math.round(p[2] * 0.12 + 24)}, 0.76)`,
+      inputGlassBg: L ? 'rgba(255, 255, 255, 0.84)' : dark(0.74),
+      inputCardBg: L ? 'linear-gradient(145deg, rgba(255, 255, 255, 0.92) 0%, rgba(241, 245, 249, 0.95) 100%)' : `linear-gradient(145deg, rgba(${Math.round(p[0] * 0.14)}, ${Math.round(p[1] * 0.14)}, ${Math.round(p[2] * 0.14)}, 0.92) 0%, rgba(5, 8, 14, 0.96) 100%)`,
       modalBg: L ? 'rgba(248, 250, 252, 0.97)' : `rgba(${Math.round(p[0] * 0.08 + 5)}, ${Math.round(p[1] * 0.08 + 8)}, ${Math.round(p[2] * 0.08 + 14)}, 0.97)`,
-      modalHeaderBg: L ? 'rgba(226, 232, 240, 0.92)' : `rgba(${Math.round(p[0] * 0.12 + 8)}, ${Math.round(p[1] * 0.12 + 12)}, ${Math.round(p[2] * 0.12 + 20)}, 0.92)`,
-      cardBg: L ? 'rgba(255, 255, 255, 0.82)' : `rgba(${Math.round(p[0] * 0.1 + 8)}, ${Math.round(p[1] * 0.1 + 12)}, ${Math.round(p[2] * 0.1 + 22)}, 0.82)`,
-      cardSelectedBg: rgba(p, L ? 0.2 : 0.22),
+      modalHeaderBg: L ? 'rgba(226, 232, 240, 0.94)' : `rgba(${Math.round(p[0] * 0.12 + 8)}, ${Math.round(p[1] * 0.12 + 12)}, ${Math.round(p[2] * 0.12 + 20)}, 0.94)`,
+      cardBg: L ? 'rgba(255, 255, 255, 0.88)' : `rgba(${Math.round(p[0] * 0.1 + 8)}, ${Math.round(p[1] * 0.1 + 12)}, ${Math.round(p[2] * 0.1 + 22)}, 0.88)`,
+      cardSelectedBg: rgba(p, L ? 0.22 : 0.24),
       wallpaper, isOrnament: true, ...makeOrnaments(p, s, o), stickerW: 96, stickerH: 30, stickerTop: -15, stickerRight: 14,
       isCustomImageTheme: true
     };
     if (L) {
-      t.isLight = true; t.uiTextColor = '#0f172a'; t.uiMutedColor = '#475569';
-      t.pillBg = 'rgba(255, 255, 255, 0.55)'; t.pillHoverBg = 'rgba(255, 255, 255, 0.8)';
+      t.isLight = true; t.uiTextColor = '#0f172a'; t.uiMutedColor = '#334155';
+      t.pillBg = 'rgba(255, 255, 255, 0.88)'; t.pillHoverBg = 'rgba(255, 255, 255, 0.96)';
       t.pillTextColor = '#0f172a'; t.pillBorder = rgba(p, 0.35);
+    } else {
+      t.uiTextColor = '#f8fafc'; t.uiMutedColor = '#e2e8f0';
+      t.pillBg = 'rgba(8, 14, 28, 0.84)'; t.pillHoverBg = 'rgba(12, 22, 42, 0.94)';
+      t.pillTextColor = '#f8fafc'; t.pillBorder = rgba(p, 0.32);
     }
-    return t;
+    return enforceReadableTheme(t, pal);
   }
 
   function loadImageFromFile(file) {
@@ -1992,43 +2157,145 @@
     });
   }
 
-  function downscaleToDataUrl(img, maxSide, mime) {
-    const k = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+  function loadImageFromSrc(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('Không tải được ảnh kết quả'));
+      img.src = src;
+    });
+  }
+
+  function encodeSourceForAi(img) {
+    const sw = img.naturalWidth || img.width;
+    const sh = img.naturalHeight || img.height;
+    const k = Math.min(1, 2048 / Math.max(sw, sh));
     const cv = document.createElement('canvas');
-    cv.width = Math.max(1, Math.round(img.naturalWidth * k));
-    cv.height = Math.max(1, Math.round(img.naturalHeight * k));
-    cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
-    if (mime === 'image/jpeg') return cv.toDataURL('image/jpeg', 0.88);
-    let out = cv.toDataURL('image/webp', 0.82);
-    if (!out.startsWith('data:image/webp')) out = cv.toDataURL('image/jpeg', 0.85);
+    cv.width = Math.max(1, Math.round(sw * k));
+    cv.height = Math.max(1, Math.round(sh * k));
+    const cx = cv.getContext('2d');
+    cx.imageSmoothingEnabled = true;
+    cx.imageSmoothingQuality = 'high';
+    cx.drawImage(img, 0, 0, cv.width, cv.height);
+    let out = cv.toDataURL('image/webp', 0.92);
+    if (!out.startsWith('data:image/webp')) out = cv.toDataURL('image/jpeg', 0.92);
     return out;
+  }
+
+  function progressiveScaleToCanvas(src, dstW, dstH) {
+    let cur = src;
+    let cw = src.naturalWidth || src.width;
+    let ch = src.naturalHeight || src.height;
+    const makeStep = (w, h) => {
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(w));
+      c.height = Math.max(1, Math.round(h));
+      const x = c.getContext('2d');
+      x.imageSmoothingEnabled = true;
+      x.imageSmoothingQuality = 'high';
+      x.drawImage(cur, 0, 0, c.width, c.height);
+      return c;
+    };
+    while (cw * 1.85 < dstW || ch * 1.85 < dstH) {
+      cw = Math.min(dstW, Math.round(cw * 1.8));
+      ch = Math.min(dstH, Math.round(ch * 1.8));
+      cur = makeStep(cw, ch);
+    }
+    while (cw > dstW * 2.1 || ch > dstH * 2.1) {
+      cw = Math.max(dstW, Math.round(cw * 0.55));
+      ch = Math.max(dstH, Math.round(ch * 0.55));
+      cur = makeStep(cw, ch);
+    }
+    if (cw !== dstW || ch !== dstH || cur === src) {
+      cur = makeStep(dstW, dstH);
+    }
+    return cur;
+  }
+
+  function sharpenCanvas(cv, amount) {
+    if (!amount || amount <= 0.02) return;
+    const w = cv.width, h = cv.height;
+    const ctx = cv.getContext('2d', { willReadFrequently: true });
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const src = imgData.data;
+    const out = new Uint8ClampedArray(src);
+    const a = Math.min(0.45, Math.max(0.05, amount));
+    const rowStride = w * 4;
+    for (let y = 1; y < h - 1; y++) {
+      let idx = y * rowStride + 4;
+      for (let x = 1; x < w - 1; x++, idx += 4) {
+        for (let c = 0; c < 3; c++) {
+          const center = src[idx + c];
+          const avg = (
+            src[idx - 4 + c] + src[idx + 4 + c] +
+            src[idx - rowStride + c] + src[idx + rowStride + c]
+          ) * 0.25;
+          const diff = center - avg;
+          // Suppress micro-noise while sharpening real detail edges
+          if (Math.abs(diff) > 2.5) {
+            const v = center + diff * a * 2.4;
+            out[idx + c] = v < 0 ? 0 : (v > 255 ? 255 : v);
+          }
+        }
+      }
+    }
+    imgData.data.set(out);
+    ctx.putImageData(imgData, 0, 0);
+  }
+
+  function finalize4k16x9Wallpaper(img) {
+    const targetW = 3840;
+    const targetH = 2160;
+    const sw = img.naturalWidth || img.width;
+    const sh = img.naturalHeight || img.height;
+    const scale = Math.max(targetW / sw, targetH / sh);
+    const drawW = Math.round(sw * scale);
+    const drawH = Math.round(sh * scale);
+
+    const scaled = progressiveScaleToCanvas(img, drawW, drawH);
+    if (scale > 1.05) {
+      sharpenCanvas(scaled, Math.min(0.42, 0.16 + (scale - 1) * 0.14));
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(scaled, Math.round((targetW - drawW) / 2), Math.round((targetH - drawH) / 2));
+
+    let dataUrl = canvas.toDataURL('image/webp', 0.9);
+    if (!dataUrl.startsWith('data:image/webp')) dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    return { dataUrl, canvas, width: targetW, height: targetH };
   }
 
   // ---- AI design (agy CLI via daemon) ----
   window.__AGY_DESIGN_PENDING__ = window.__AGY_DESIGN_PENDING__ || {};
-  window.__AGY_DESIGN_RESULT__ = (id, json) => {
+  window.__AGY_DESIGN_RESULT_V2__ = (id, json) => {
     const p = window.__AGY_DESIGN_PENDING__[id];
     if (!p) return;
     delete window.__AGY_DESIGN_PENDING__[id];
     clearTimeout(p.t);
     try {
       const r = JSON.parse(json);
-      if (r.error) p.reject(new Error(r.error)); else p.resolve(r.theme);
+      if (r.error) p.reject(new Error(r.error));
+      else p.resolve({ theme: r.theme, wallpaperDataUrl: r.wallpaperDataUrl || '', wpMeta: r.wpMeta || null });
     } catch (e) { p.reject(e); }
   };
 
-  function requestAiDesign(refDataUrl) {
-    if (typeof window.agyDesignTheme !== 'function') {
-      return Promise.reject(new Error('Daemon chưa hỗ trợ thiết kế bằng AI (khởi động lại daemon)'));
+  function requestAiDesign(payloadObj) {
+    if (typeof window.agyDesignThemeV2 !== 'function') {
+      return Promise.reject(new Error('Daemon chưa nâng cấp V2 hoặc chưa khởi động lại (hãy chạy install-win.ps1)'));
     }
     return new Promise((resolve, reject) => {
       const id = 'd' + Date.now() + Math.random().toString(36).slice(2, 6);
       const t = setTimeout(() => {
         delete window.__AGY_DESIGN_PENDING__[id];
         reject(new Error('AI thiết kế quá thời gian chờ'));
-      }, 300000);
+      }, 420000);
       window.__AGY_DESIGN_PENDING__[id] = { resolve, reject, t };
-      try { window.agyDesignTheme(JSON.stringify({ id, image: refDataUrl })); }
+      try { window.agyDesignThemeV2(JSON.stringify({ id, ...payloadObj })); }
       catch (e) { clearTimeout(t); delete window.__AGY_DESIGN_PENDING__[id]; reject(e); }
     });
   }
@@ -2082,31 +2349,49 @@
     t.cornerSvg = svgToDataUri(raw.cornerSvgMarkup, ornaments.cornerSvg);
     t.sticker = svgToDataUri(raw.stickerSvgMarkup, ornaments.sticker);
     t.isOrnament = true;
+    t.bgPosition = 'center center';
     t.stickerW = numIn(raw.stickerW, 40, 200, 96);
     t.stickerH = numIn(raw.stickerH, 12, 60, 30);
     t.stickerTop = numIn(raw.stickerTop, -40, 0, -15);
     t.stickerRight = numIn(raw.stickerRight, -20, 60, 14);
     t.isAiDesigned = true;
-    return t;
+    return enforceReadableTheme(t, pal);
   }
 
   async function createThemeFromImageFile(file, onStatus) {
     if (!file || !/^image\//.test(file.type)) throw new Error('File không phải ảnh');
     const { img, url } = await loadImageFromFile(file);
     try {
-      const pal = analyzePalette(img);
-      const wallpaper = downscaleToDataUrl(img, 1920);
-      let aiNote = '';
-      let theme, aiName = '';
-      try {
-        if (onStatus) onStatus('AI đang nhìn ảnh và thiết kế preset (khoảng 1 phút, dùng quota Antigravity)…');
-        const raw = await requestAiDesign(downscaleToDataUrl(img, 1024, 'image/jpeg'));
-        theme = sanitizeDesignedTheme(raw, wallpaper, pal);
-        aiName = typeof raw.name === 'string' ? raw.name.trim().replace(/[^\p{L}\p{N} '&-]/gu, '').slice(0, 24) : '';
-      } catch (e) {
-        aiNote = `AI không khả dụng (${e.message || e}); dùng bản tự tính màu.`;
-        theme = buildThemeFromPalette(pal, wallpaper, `Tạo từ ảnh • ${pal.isLight ? 'Light' : 'Dark'} Glass`);
+      const sw = img.naturalWidth || img.width;
+      const sh = img.naturalHeight || img.height;
+      if (onStatus) {
+        onStatus('AI đang vẽ tranh mới chuẩn 4K 16:9 theo chủ đề ảnh gốc và thiết kế bảng màu (khoảng 1–2 phút)…');
       }
+      let res;
+      try {
+        res = await requestAiDesign({ image: encodeSourceForAi(img), width: sw, height: sh });
+      } catch (e) {
+        throw new Error(`Không tạo được tranh 4K 16:9 mới bằng AI: ${e.message || e}`);
+      }
+      if (!res || !res.wallpaperDataUrl) {
+        throw new Error('Không tạo được tranh 4K 16:9 mới bằng AI: AI không trả về ảnh 4K 16:9');
+      }
+
+      const aiImg = await loadImageFromSrc(res.wallpaperDataUrl);
+      const wallpaper = (aiImg.naturalWidth === 3840 && aiImg.naturalHeight === 2160 && res.wallpaperDataUrl.startsWith('data:image/webp'))
+        ? res.wallpaperDataUrl
+        : finalize4k16x9Wallpaper(aiImg).dataUrl;
+      const wpMeta = {
+        width: 3840,
+        height: 2160,
+        aiOutpainted: !!(res.wpMeta && res.wpMeta.aiOutpainted !== false)
+      };
+      const pal = analyzePalette(aiImg);
+      const theme = sanitizeDesignedTheme(res.theme || {}, wallpaper, pal);
+      const aiName = res.theme && typeof res.theme.name === 'string'
+        ? res.theme.name.trim().replace(/[^\p{L}\p{N} '&-]/gu, '').slice(0, 24)
+        : '';
+
       let base = aiName || (file.name || 'My Theme').replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim().slice(0, 24) || 'My Theme';
       let name = base, i = 2;
       while (THEMES[name]) name = `${base} ${i++}`;
@@ -2121,8 +2406,15 @@
       THEMES[name] = theme;
       if (!THEME_KEYS.includes(name)) THEME_KEYS.push(name);
       persistCustomThemes(all);
-      applyTheme({ themeName: name, bubbleName: name });
-      return { name, pal: { primary: hexToRgbList(theme.primary), secondary: hexToRgbList(theme.secondary), overlay: theme.overlayRgb.split(',').map((x) => parseInt(x, 10)), isLight: !!theme.isLight }, wallpaper, aiNote, ai: !!theme.isAiDesigned };
+      applyTheme({ themeName: name, bubbleName: name, customWp: '' });
+      return {
+        name,
+        pal: { primary: hexToRgbList(theme.primary), secondary: hexToRgbList(theme.secondary), overlay: theme.overlayRgb.split(',').map((x) => parseInt(x, 10)), isLight: false },
+        wallpaper,
+        aiNote: '',
+        ai: !!theme.isAiDesigned,
+        wpMeta
+      };
     } finally {
       URL.revokeObjectURL(url);
     }
@@ -2332,7 +2624,8 @@
         const r = await createThemeFromImageFile(file, (m) => { baseMsg = m; paintStatus(); });
         clearInterval(waitTimer); waitTimer = null;
         const sw = (c) => `<span style="display:inline-block;width:22px;height:22px;border-radius:6px;background:${toHex(c)};border:1px solid rgba(255,255,255,0.3);"></span>`;
-        render(`<div style="display:flex;align-items:center;gap:12px;"><img src="${r.wallpaper}" style="width:96px;height:60px;object-fit:cover;border-radius:8px;"><div><div>✅ Đã áp dụng <b>${esc(r.name)}</b> (${r.ai ? 'AI design' : (r.pal.isLight ? 'Light' : 'Dark') + ' Glass'})</div>${r.aiNote ? '<div style="margin-top:4px;opacity:0.8;">⚠️ ' + esc(r.aiNote) + '</div>' : ''}<div style="display:flex;gap:6px;margin-top:6px;">${sw(r.pal.primary)}${sw(r.pal.secondary)}${sw(r.pal.overlay)}</div></div></div>`);
+        const wpBadge = r.wpMeta ? ` • ${r.wpMeta.width}×${r.wpMeta.height} 4K 16:9${r.wpMeta.aiOutpainted ? ' (AI vẽ bù)' : ''}` : '';
+        render(`<div style="display:flex;align-items:center;gap:12px;"><img src="${r.wallpaper}" style="width:96px;height:60px;object-fit:cover;border-radius:8px;"><div><div>✅ Đã áp dụng <b>${esc(r.name)}</b> (${r.ai ? 'AI design' : (r.pal.isLight ? 'Light' : 'Dark') + ' Glass'}${esc(wpBadge)})</div>${r.aiNote ? '<div style="margin-top:4px;opacity:0.8;">⚠️ ' + esc(r.aiNote) + '</div>' : ''}<div style="display:flex;gap:6px;margin-top:6px;">${sw(r.pal.primary)}${sw(r.pal.secondary)}${sw(r.pal.overlay)}</div></div></div>`);
       } catch (err) {
         if (waitTimer) { clearInterval(waitTimer); waitTimer = null; }
         const st2 = card.querySelector('[data-status]');
