@@ -194,6 +194,99 @@
       ? Math.min(2, Math.max(0, Number(rawUi.accentGlowIntensity)))
       : 1;
 
+    const layoutFallback = (() => {
+      if (archKey === 'cyber-hud' || archKey === 'mecha-tactical' || archKey === 'neon-synth') {
+        return {
+          layoutPreset: 'tactical-hud',
+          sidebarStyle: 'framed-panel',
+          composerStyle: 'hud-console',
+          chatCardLayout: 'hud-panel',
+          dockPosition: 'right-vertical',
+          dockShape: 'hex'
+        };
+      }
+      if (archKey === 'crimson-blade' || archKey === 'ember-forge') {
+        return {
+          layoutPreset: 'blade-terminal',
+          sidebarStyle: 'framed-panel',
+          composerStyle: 'command-bar',
+          chatCardLayout: 'terminal-block',
+          dockPosition: 'top-right',
+          dockShape: 'square'
+        };
+      }
+      if (archKey === 'nature-zen' || archKey === 'pastel-dream') {
+        return {
+          layoutPreset: 'floating-atelier',
+          sidebarStyle: 'sleek-rail',
+          composerStyle: 'floating-dock',
+          chatCardLayout: 'floating-bubble',
+          dockPosition: 'bottom-right',
+          dockShape: 'pill'
+        };
+      }
+      if (archKey === 'cosmic-arcane' || archKey === 'gothic-nocturne') {
+        return {
+          layoutPreset: 'astral-sanctum',
+          sidebarStyle: 'floating-cards',
+          composerStyle: 'floating-dock',
+          chatCardLayout: 'hud-panel',
+          dockPosition: 'right-vertical',
+          dockShape: 'circle'
+        };
+      }
+      return {
+        layoutPreset: 'adaptive-studio',
+        sidebarStyle: 'floating-cards',
+        composerStyle: 'floating-dock',
+        chatCardLayout: 'clean-sheet',
+        dockPosition: 'right-vertical',
+        dockShape: 'circle'
+      };
+    })();
+
+    const layoutPreset = (typeof rawUi.layoutPreset === 'string' && rawUi.layoutPreset.trim())
+      ? rawUi.layoutPreset.trim().slice(0, 36)
+      : layoutFallback.layoutPreset;
+    const sidebarStyle = ['floating-cards', 'sleek-rail', 'framed-panel'].includes(rawUi.sidebarStyle)
+      ? rawUi.sidebarStyle
+      : layoutFallback.sidebarStyle;
+    const composerStyle = ['floating-dock', 'command-bar', 'hud-console'].includes(rawUi.composerStyle)
+      ? rawUi.composerStyle
+      : layoutFallback.composerStyle;
+    const chatCardLayout = ['hud-panel', 'clean-sheet', 'terminal-block', 'floating-bubble'].includes(rawUi.chatCardLayout)
+      ? rawUi.chatCardLayout
+      : layoutFallback.chatCardLayout;
+    const dockPosition = ['right-vertical', 'bottom-right', 'top-right'].includes(rawUi.dockPosition)
+      ? rawUi.dockPosition
+      : layoutFallback.dockPosition;
+    const dockShape = ['circle', 'hex', 'pill', 'square'].includes(rawUi.dockShape)
+      ? rawUi.dockShape
+      : layoutFallback.dockShape;
+
+    const defaultLabel = rawArch
+      ? rawArch.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+      : base.archetypeLabel;
+    const resolvedArchetypeLabel = raw.archetypeLabel || (DYNAMIC_ARCHETYPES[archKey] ? DYNAMIC_ARCHETYPES[archKey].archetypeLabel : defaultLabel);
+    const rawHudWidget = (rawUi.hudWidget && typeof rawUi.hudWidget === 'object') ? rawUi.hudWidget : {};
+    const hudWidget = {
+      badge: (typeof rawHudWidget.badge === 'string' && rawHudWidget.badge.trim())
+        ? rawHudWidget.badge.trim().slice(0, 18)
+        : archKey.toUpperCase().slice(0, 14),
+      title: (typeof rawHudWidget.title === 'string' && rawHudWidget.title.trim())
+        ? rawHudWidget.title.trim().slice(0, 28)
+        : (raw.introTitle || base.introTitle || resolvedArchetypeLabel).toUpperCase().slice(0, 26),
+      subtitle: (typeof rawHudWidget.subtitle === 'string' && rawHudWidget.subtitle.trim())
+        ? rawHudWidget.subtitle.trim().slice(0, 32)
+        : resolvedArchetypeLabel.toUpperCase().slice(0, 28),
+      statusText: (typeof rawHudWidget.statusText === 'string' && rawHudWidget.statusText.trim())
+        ? rawHudWidget.statusText.trim().slice(0, 24)
+        : 'SYNC 100%'
+    };
+    const topBarPillText = (typeof rawUi.topBarPillText === 'string' && rawUi.topBarPillText.trim())
+      ? rawUi.topBarPillText.trim().toUpperCase().slice(0, 36)
+      : `${resolvedArchetypeLabel.toUpperCase().slice(0, 16)} // ${layoutPreset.toUpperCase().slice(0, 16)}`;
+
     const rawSynth = (raw.soundSynth && typeof raw.soundSynth === 'object') ? raw.soundSynth : null;
     const synthNotes = rawSynth && Array.isArray(rawSynth.notes)
       ? rawSynth.notes.map(Number).filter(n => Number.isFinite(n) && n >= 20 && n <= 8000).slice(0, 12)
@@ -220,13 +313,9 @@
       ? Math.min(2, Math.max(0.5, Number(raw.voiceRate)))
       : 1.03;
 
-    const defaultLabel = rawArch
-      ? rawArch.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-      : base.archetypeLabel;
-
     return {
       archetype: archKey,
-      archetypeLabel: raw.archetypeLabel || (DYNAMIC_ARCHETYPES[archKey] ? DYNAMIC_ARCHETYPES[archKey].archetypeLabel : defaultLabel),
+      archetypeLabel: resolvedArchetypeLabel,
       particleStyle: raw.particleStyle || base.particleStyle,
       particleShape,
       particleSvgInner,
@@ -242,7 +331,15 @@
         fontVibe,
         cardRadiusPx,
         borderStyle,
-        accentGlowIntensity
+        accentGlowIntensity,
+        layoutPreset,
+        sidebarStyle,
+        composerStyle,
+        chatCardLayout,
+        dockPosition,
+        dockShape,
+        hudWidget,
+        topBarPillText
       },
       introTitle: raw.introTitle || base.introTitle,
       introSubtitle: raw.introSubtitle || base.introSubtitle,
@@ -739,6 +836,182 @@
     }
   }
 
+  function removeDynamicHudWidgets() {
+    ['agy-hud-top-pill', 'agy-hud-status-widget', 'agy-hud-quick-dock'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    });
+  }
+
+  function syncDynamicHudWidgets(isDynamic, theme) {
+    if (!isDynamic) {
+      removeDynamicHudWidgets();
+      return;
+    }
+    const th = theme || {};
+    const pack = resolveDynamicPack(th);
+    const ui = pack.uiDesign || {};
+    const primary = th.primary || '#38bdf8';
+    const secondary = th.secondary || primary;
+    const isLight = Boolean(th.isLight);
+    const bgSurface = isLight ? 'rgba(255, 255, 255, 0.90)' : (th.modalBg || 'rgba(8, 12, 22, 0.88)');
+    const textInk = isLight ? '#0f172a' : '#f8fafc';
+    const mutedInk = isLight ? '#475569' : '#94a3b8';
+    const borderCol = th.borderColor || (isLight ? 'rgba(15, 23, 42, 0.18)' : 'rgba(56, 189, 248, 0.32)');
+    const glowCol = th.glow || 'rgba(56, 189, 248, 0.28)';
+    const fontStack = getFontVibeStack(ui.fontVibe);
+
+    // 1. #agy-hud-top-pill
+    let topPill = document.getElementById('agy-hud-top-pill');
+    if (!topPill) {
+      topPill = document.createElement('button');
+      topPill.id = 'agy-hud-top-pill';
+      topPill.type = 'button';
+      topPill.title = 'Open Custom Theme Studio';
+      topPill.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openCustomThemeModal();
+      });
+      document.body.appendChild(topPill);
+    }
+    topPill.style.cssText = [
+      'position:fixed',
+      'top:42px',
+      'left:50%',
+      'transform:translateX(-50%)',
+      'z-index:9000',
+      'opacity:0.88',
+      'pointer-events:auto',
+      'cursor:pointer',
+      'display:inline-flex',
+      'align-items:center',
+      'gap:7px',
+      'padding:3px 12px',
+      'border-radius:9999px',
+      `background:${bgSurface}`,
+      `border:1px solid ${borderCol}`,
+      `color:${textInk}`,
+      `font-family:${fontStack}`,
+      'font-size:10.5px',
+      'font-weight:700',
+      'letter-spacing:0.8px',
+      'text-transform:uppercase',
+      `box-shadow:0 4px 14px rgba(0,0,0,0.32), 0 0 10px ${glowCol}`,
+      'backdrop-filter:none',
+      'white-space:nowrap',
+      'max-width:340px',
+      'overflow:hidden',
+      'text-overflow:ellipsis'
+    ].join(';');
+    topPill.innerHTML = `<span style="width:6px;height:6px;border-radius:50%;flex:none;background:${primary};box-shadow:0 0 8px ${primary};animation:agyStudioBreath 2.2s ease-in-out infinite;"></span><span>${escHtml(ui.topBarPillText || pack.archetypeLabel)}</span>`;
+
+    // 2. #agy-hud-status-widget
+    const hw = ui.hudWidget || {};
+    let statusWidget = document.getElementById('agy-hud-status-widget');
+    if (!statusWidget) {
+      statusWidget = document.createElement('div');
+      statusWidget.id = 'agy-hud-status-widget';
+      document.body.appendChild(statusWidget);
+    }
+    const isCollapsed = Boolean(window.__AGY_HUD_WIDGET_COLLAPSED__);
+    statusWidget.style.cssText = [
+      'position:fixed',
+      'top:52px',
+      'right:18px',
+      'z-index:9000',
+      isCollapsed ? 'width:auto' : 'width:190px',
+      'pointer-events:none',
+      `font-family:${fontStack}`,
+      `color:${textInk}`
+    ].join(';');
+
+    if (isCollapsed) {
+      statusWidget.innerHTML = `<button type="button" data-hud-widget-toggle="1" title="Expand HUD Status" style="pointer-events:auto;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:9999px;background:${bgSurface};border:1px solid ${borderCol};color:${primary};font-size:10px;font-weight:700;letter-spacing:0.6px;box-shadow:0 4px 14px rgba(0,0,0,0.3);backdrop-filter:none;"><span style="width:5px;height:5px;border-radius:50%;background:${primary};"></span>${escHtml(hw.badge || 'HUD')}</button>`;
+    } else {
+      const cardRadius = Math.min(14, Number.isFinite(ui.cardRadiusPx) ? ui.cardRadiusPx : 10);
+      statusWidget.innerHTML = `
+        <div style="pointer-events:auto;position:relative;padding:9px 11px;border-radius:${cardRadius}px;background:${bgSurface};border:1px solid ${borderCol};border-left:3px solid ${primary};box-shadow:0 8px 24px rgba(0,0,0,0.38), 0 0 12px ${glowCol};backdrop-filter:none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px;">
+            <span style="font-size:9.5px;font-weight:800;letter-spacing:0.8px;padding:1px 6px;border-radius:9999px;background:${glowCol};color:${primary};border:1px solid ${borderCol};">${escHtml(hw.badge || 'SYNC')}</span>
+            <button type="button" data-hud-widget-toggle="1" title="Collapse HUD Widget" style="pointer-events:auto;cursor:pointer;background:transparent;border:none;color:${mutedInk};font-size:13px;line-height:1;padding:0 2px;">×</button>
+          </div>
+          <div style="font-size:11.5px;font-weight:700;letter-spacing:0.4px;color:${textInk};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(hw.title || pack.introTitle)}</div>
+          <div style="font-size:9.5px;color:${mutedInk};letter-spacing:0.5px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(hw.subtitle || pack.archetypeLabel)}</div>
+          <div style="display:flex;align-items:center;gap:5px;margin-top:6px;padding-top:5px;border-top:1px solid ${isLight ? 'rgba(15,23,42,0.1)' : 'rgba(255,255,255,0.08)'};font-size:9.5px;font-weight:600;color:${secondary};">
+            <span style="width:5px;height:5px;border-radius:50%;background:${primary};box-shadow:0 0 6px ${primary};"></span>
+            <span>${escHtml(hw.statusText || 'SYNC 100%')}</span>
+          </div>
+        </div>
+      `;
+    }
+    const toggleBtn = statusWidget.querySelector('[data-hud-widget-toggle="1"]');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.__AGY_HUD_WIDGET_COLLAPSED__ = !window.__AGY_HUD_WIDGET_COLLAPSED__;
+        syncDynamicHudWidgets(true, th);
+      });
+    }
+
+    // 3. #agy-hud-quick-dock
+    let quickDock = document.getElementById('agy-hud-quick-dock');
+    if (!quickDock) {
+      quickDock = document.createElement('div');
+      quickDock.id = 'agy-hud-quick-dock';
+      document.body.appendChild(quickDock);
+    }
+    const dockPos = ui.dockPosition || 'right-vertical';
+    const dockPosCss = dockPos === 'bottom-right'
+      ? 'right:18px;bottom:88px;flex-direction:row;'
+      : (dockPos === 'top-right'
+        ? 'right:18px;top:160px;flex-direction:row;'
+        : 'right:16px;top:50%;transform:translateY(-50%);flex-direction:column;');
+    quickDock.style.cssText = `position:fixed;${dockPosCss}z-index:9000;display:flex;gap:7px;pointer-events:none;`;
+
+    const dockShape = ui.dockShape || 'circle';
+    const btnShapeCss = dockShape === 'hex'
+      ? 'width:34px;height:32px;clip-path:polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);border-radius:0;'
+      : (dockShape === 'pill'
+        ? 'width:38px;height:28px;border-radius:9999px;'
+        : (dockShape === 'square'
+          ? 'width:32px;height:32px;border-radius:6px;'
+          : 'width:32px;height:32px;border-radius:9999px;'));
+
+    const isMuted = localStorage.getItem(STORAGE_SOUND_MUTED) === 'true';
+    const dockBtnBase = `pointer-events:auto;cursor:pointer;display:flex;align-items:center;justify-content:center;${btnShapeCss}background:${bgSurface};border:1px solid ${borderCol};color:${textInk};font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,0.35), 0 0 8px ${glowCol};backdrop-filter:none;transition:transform 0.14s ease, border-color 0.14s ease;`;
+    quickDock.innerHTML = `
+      <button type="button" data-hud-action="studio" title="Open Custom Theme Studio" style="${dockBtnBase}">🎨</button>
+      <button type="button" data-hud-action="intro" title="Preview Intro" style="${dockBtnBase}">▶</button>
+      <button type="button" data-hud-action="mode" title="Toggle Dynamic / Static" style="${dockBtnBase}">⚡</button>
+      <button type="button" data-hud-action="sound" title="${isMuted ? 'Unmute Sound' : 'Mute Sound'}" style="${dockBtnBase}">${isMuted ? '🔇' : '🔊'}</button>
+    `;
+    quickDock.querySelectorAll('button[data-hud-action]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const act = btn.getAttribute('data-hud-action');
+        if (act === 'studio') {
+          openCustomThemeModal();
+        } else if (act === 'intro') {
+          showThemeIntro(th, true);
+        } else if (act === 'mode') {
+          const cur = getStateSafe();
+          const nextMode = cur.themeMode === 'static' ? 'dynamic' : 'static';
+          applyTheme({ themeMode: nextMode });
+        } else if (act === 'sound') {
+          const curMuted = localStorage.getItem(STORAGE_SOUND_MUTED) === 'true';
+          const nextMuted = !curMuted;
+          localStorage.setItem(STORAGE_SOUND_MUTED, String(nextMuted));
+          btn.textContent = nextMuted ? '🔇' : '🔊';
+          btn.title = nextMuted ? 'Unmute Sound' : 'Mute Sound';
+          if (!nextMuted) playClickSound(th);
+        }
+      });
+    });
+  }
+
   function dismissThemeIntro() {
     if (window.__AGY_INTRO_TIMERS__) {
       window.__AGY_INTRO_TIMERS__.forEach(id => clearTimeout(id));
@@ -1158,6 +1431,166 @@
       }
       ${uiBorderCss}
     `;
+
+    let layoutCss = '';
+    if (st.themeMode === 'dynamic') {
+      const sStyle = uiDesign.sidebarStyle || 'floating-cards';
+      const cStyle = uiDesign.composerStyle || 'floating-dock';
+      const cardLayout = uiDesign.chatCardLayout || 'hud-panel';
+      const pColor = mainTheme.primary || '#38bdf8';
+      const sColor = mainTheme.secondary || pColor;
+      const gColor = mainTheme.glow || 'rgba(56, 189, 248, 0.24)';
+
+      let sidebarLayoutCss = '';
+      if (sStyle === 'floating-cards') {
+        sidebarLayoutCss = `
+          .agy-shell :is(aside, [data-sidebar="true"], .bg-sidebar:not(.surface-opaque)) {
+            margin: 8px 6px 8px 8px !important;
+            border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
+            border: 1px solid ${borderAccent} !important;
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.36), 0 0 14px ${gColor} !important;
+            overflow: hidden !important;
+            backdrop-filter: none !important;
+          }
+          .agy-shell :is(aside, [data-sidebar="true"]) :is(a, [class*="group/headerbtn"]) {
+            border-radius: ${Math.max(6, cardRadiusPx - 4)}px !important;
+            margin: 2px 6px !important;
+            padding: 6px 10px !important;
+            transition: background-color 0.15s ease, transform 0.15s ease !important;
+          }
+        `;
+      } else if (sStyle === 'framed-panel') {
+        sidebarLayoutCss = `
+          .agy-shell :is(aside, [data-sidebar="true"], .bg-sidebar:not(.surface-opaque)) {
+            margin: 4px 0 4px 4px !important;
+            border: 2px solid ${pColor} !important;
+            box-shadow: inset 0 0 0 1px ${sColor}, 0 0 16px ${gColor} !important;
+            clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px)) !important;
+            backdrop-filter: none !important;
+          }
+          .agy-shell :is(aside, [data-sidebar="true"]) [class*="group/section-header"] {
+            border-bottom: 1px solid ${mainTheme.borderColor || borderAccent} !important;
+          }
+        `;
+      } else if (sStyle === 'sleek-rail') {
+        sidebarLayoutCss = `
+          .agy-shell :is(aside, [data-sidebar="true"], .bg-sidebar:not(.surface-opaque)) {
+            border-left: 3px solid ${pColor} !important;
+            border-right: 1px solid ${mainTheme.borderColor || 'rgba(255, 255, 255, 0.08)'} !important;
+            padding-left: 2px !important;
+            backdrop-filter: none !important;
+          }
+          .agy-shell :is(aside, [data-sidebar="true"]) :is(a, [class*="group/headerbtn"]) {
+            border-left: 2px solid transparent !important;
+            border-radius: 6px !important;
+          }
+          .agy-shell :is(aside, [data-sidebar="true"]) :is(a, [class*="group/headerbtn"]):hover {
+            border-left-color: ${pColor} !important;
+          }
+        `;
+      }
+
+      let composerLayoutCss = '';
+      if (cStyle === 'floating-dock') {
+        composerLayoutCss = `
+          .agy-shell .surface-composer {
+            margin-bottom: 12px !important;
+            border-radius: ${Math.max(16, cardRadiusPx + 4)}px !important;
+            border-top: 2px solid ${pColor} !important;
+            box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 20px ${gColor} !important;
+            backdrop-filter: none !important;
+          }
+          .agy-shell .surface-composer-card {
+            border-radius: ${Math.max(14, cardRadiusPx + 2)}px !important;
+            backdrop-filter: none !important;
+          }
+        `;
+      } else if (cStyle === 'hud-console') {
+        composerLayoutCss = `
+          .agy-shell .surface-composer {
+            border: 1.5px solid ${pColor} !important;
+            border-radius: 6px !important;
+            box-shadow: 0 0 18px ${gColor}, inset 0 0 12px ${gColor} !important;
+            background-image: linear-gradient(90deg, ${pColor} 14px, transparent 14px), linear-gradient(90deg, ${pColor} 14px, transparent 14px), linear-gradient(${pColor} 14px, transparent 14px), linear-gradient(${pColor} 14px, transparent 14px) !important;
+            background-position: 0 0, 100% 100%, 0 0, 100% 100% !important;
+            background-size: 100% 2px, 100% 2px, 2px 100%, 2px 100% !important;
+            background-repeat: no-repeat !important;
+            backdrop-filter: none !important;
+          }
+          .agy-shell .surface-composer-card {
+            border-radius: 4px !important;
+            backdrop-filter: none !important;
+          }
+        `;
+      } else if (cStyle === 'command-bar') {
+        composerLayoutCss = `
+          .agy-shell .surface-composer {
+            border-radius: 8px !important;
+            border: 1px solid ${mainTheme.borderColor || 'rgba(255, 255, 255, 0.16)'} !important;
+            border-left: 3px solid ${pColor} !important;
+            border-right: 3px solid ${sColor} !important;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.42) !important;
+            backdrop-filter: none !important;
+          }
+          .agy-shell .surface-composer-card {
+            border-radius: 6px !important;
+            backdrop-filter: none !important;
+          }
+        `;
+      }
+
+      let chatCardLayoutCss = '';
+      if (cardLayout === 'hud-panel') {
+        chatCardLayoutCss = `
+          .agy-shell [data-testid="agent-response"] {
+            border-left: 3.5px solid ${pColor} !important;
+            border-top: 1px solid ${mainTheme.borderColor || borderAccent} !important;
+            border-right: 1px solid ${mainTheme.borderColor || borderAccent} !important;
+            border-bottom: 1px solid ${mainTheme.borderColor || borderAccent} !important;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.34), inset 0 1px 0 ${gColor} !important;
+          }
+        `;
+      } else if (cardLayout === 'terminal-block') {
+        chatCardLayoutCss = `
+          .agy-shell [data-testid="agent-response"] {
+            border: 1px solid ${mainTheme.borderColor || 'rgba(255, 255, 255, 0.14)'} !important;
+            border-left: 4px solid ${sColor} !important;
+            border-radius: 6px !important;
+            font-family: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace !important;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.38) !important;
+          }
+        `;
+      } else if (cardLayout === 'floating-bubble') {
+        chatCardLayoutCss = `
+          .agy-shell [data-testid="agent-response"] {
+            border-radius: ${Math.max(18, cardRadiusPx + 4)}px !important;
+            padding-top: 16px !important;
+            padding-bottom: 16px !important;
+            padding-right: 20px !important;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32), 0 0 14px ${gColor} !important;
+            border: 1px solid ${mainTheme.aiCardBorder || 'rgba(255, 255, 255, 0.14)'} !important;
+          }
+        `;
+      } else if (cardLayout === 'clean-sheet') {
+        chatCardLayoutCss = `
+          .agy-shell [data-testid="agent-response"] {
+            border: 1px solid ${mainTheme.isLight ? 'rgba(15, 23, 42, 0.10)' : 'rgba(255, 255, 255, 0.09)'} !important;
+            border-radius: ${Math.min(12, cardRadiusPx)}px !important;
+            padding-top: 14px !important;
+            padding-bottom: 14px !important;
+            padding-right: 18px !important;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14) !important;
+          }
+        `;
+      }
+
+      layoutCss = `
+        /* Dynamic IDE Layout Re-composition: ${uiDesign.layoutPreset} (${sStyle} / ${cStyle} / ${cardLayout}) */
+        ${sidebarLayoutCss}
+        ${composerLayoutCss}
+        ${chatCardLayoutCss}
+      `;
+    }
 
     const isLight = Boolean(mainTheme.isLight);
     const uiInk = mainTheme.uiTextColor || (isLight ? '#0f172a' : 'rgba(248, 250, 252, 0.98)');
@@ -1607,6 +2040,7 @@
         border: ${bubbleTheme.innerBorder || '1px solid rgba(255, 255, 255, 0.07)'} !important;
       }
       ${uiDesignVarsCss}
+      ${layoutCss}
       .surface-composer-card :is(textarea, [contenteditable="true"], [contenteditable="true"] p, [contenteditable="true"] span) {
         color: #f8fafc !important;
       }
@@ -1860,6 +2294,7 @@
 
     syncDynamicAuraElement(st.themeMode === 'dynamic', st.wpEnabled);
     syncDynamicFxLayer(st.themeMode === 'dynamic', mainTheme);
+    syncDynamicHudWidgets(st.themeMode === 'dynamic', mainTheme);
     if (st.themeMode === 'static') dismissThemeIntro();
     syncTitleBarOverlay(st);
     scheduleTitleBarSync(st);
@@ -1917,6 +2352,7 @@
     if (aura) aura.remove();
     const fxLayer = document.getElementById('agy-dynamic-fx-layer');
     if (fxLayer) fxLayer.remove();
+    removeDynamicHudWidgets();
     dismissThemeIntro();
     const shell = document.querySelector('.agy-shell');
     if (shell) {
@@ -2365,7 +2801,7 @@
           <div id="agy-live-preview-strip" style="position: relative; overflow: hidden; border-radius: 10px; height: 36px; margin-bottom: 14px; background: linear-gradient(90deg, ${mainTheme.glow}, ${mainTheme.secondaryGlow || mainTheme.primary}, ${mainTheme.glow}); background-size: 300% 100%; animation: agyPreviewStripFlow 4s ease-in-out infinite; display: flex; align-items: center; padding: 0 16px; gap: 10px; border: 1px solid ${mainTheme.borderColor};">
             <span style="position: absolute; left: 0; top: 0; bottom: 0; width: 25%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent); animation: agyLiveStripScan 2.4s ease-in-out infinite; pointer-events: none;"></span>
             <span style="font-size: 12px; font-weight: 700; color: #090d16; letter-spacing: 0.5px; text-shadow: 0 1px 3px rgba(0,0,0,0.3);">⚡ ${escHtml(activePack.archetypeLabel)}</span>
-            <span style="font-size: 11px; color: rgba(0,0,0,0.7); margin-left: 4px;">${escHtml(activePack.particleShape || activePack.particleStyle)} · ${escHtml(activePack.uiDesign.borderStyle)} · ${escHtml(activePack.soundProfile)}</span>
+            <span style="font-size: 11px; color: rgba(0,0,0,0.75); margin-left: 4px;">${escHtml(activePack.uiDesign.layoutPreset)} · ${escHtml(activePack.uiDesign.sidebarStyle)} · ${escHtml(activePack.uiDesign.composerStyle)} · ${escHtml(activePack.uiDesign.chatCardLayout)}</span>
             <span style="margin-left: auto; font-size: 11px; font-weight: 600; color: rgba(0,0,0,0.65); background: rgba(255,255,255,0.32); border-radius: 999px; padding: 2px 8px;">ANIMATE ON</span>
           </div>
           ` : `
@@ -2401,7 +2837,7 @@
                 ? `<span style="position: absolute; bottom: 8px; left: 10px; z-index: 2; font-size: 10px; font-weight: 700; color: ${th.primary || '#38bdf8'}; background: rgba(0,0,0,0.65); border-radius: 999px; padding: 1px 7px; border: 1px solid ${th.glow || 'rgba(56,189,248,0.4)'}; letter-spacing: 0.3px;">⚡ ${escHtml(cardPack.archetypeLabel)}</span>`
                 : `<span style="position: absolute; bottom: 8px; left: 10px; z-index: 2; font-size: 10px; font-weight: 700; color: #94a3b8; background: rgba(0,0,0,0.65); border-radius: 999px; padding: 1px 7px; border: 1px solid rgba(148,163,184,0.3); letter-spacing: 0.3px;">🧊 Static</span>`;
               const packTags = st.themeMode === 'dynamic'
-                ? `<div style="font-size: 10.5px; color: #71717a; margin-top: 2px;">${escHtml(cardPack.particleShape || cardPack.particleStyle)} · ${escHtml(cardPack.uiDesign.borderStyle)} · ${escHtml(cardPack.soundProfile)}</div>`
+                ? `<div style="font-size: 10.5px; color: #71717a; margin-top: 2px;">${escHtml(cardPack.uiDesign.layoutPreset)} · ${escHtml(cardPack.uiDesign.sidebarStyle)} / ${escHtml(cardPack.uiDesign.composerStyle)} / ${escHtml(cardPack.uiDesign.chatCardLayout)}</div>`
                 : '';
               const cardUi = cardPack.uiDesign || { cardRadiusPx: 12, borderStyle: 'solid', fontVibe: 'sans' };
               const cardRadius = Number.isFinite(cardUi.cardRadiusPx) ? cardUi.cardRadiusPx : 12;

@@ -48,7 +48,26 @@
       "introSubtitle": "BLACK SUN TELEMETRY 100%",
       "introChecks": ["CORONA", "ORBIT", "OPTICS", "SYNC"],
       "voiceWelcome": "Eclipse telemetry online. Welcome back.",
-      "voiceSwitch": "Eclipse synchronized."
+      "voiceSwitch": "Eclipse synchronized.",
+      "uiDesign": {
+        "fontVibe": "display",
+        "cardRadiusPx": 14,
+        "borderStyle": "glow-frame",
+        "accentGlowIntensity": 0.78,
+        "layoutPreset": "orbital-dock",
+        "sidebarStyle": "framed-panel",
+        "composerStyle": "hud-console",
+        "chatCardLayout": "hud-panel",
+        "dockPosition": "right-vertical",
+        "dockShape": "hex",
+        "hudWidget": {
+          "badge": "SECTOR 01",
+          "title": "BLACK SUN ORBIT",
+          "subtitle": "ASTRAL TELEMETRY",
+          "statusText": "ORBIT LOCKED"
+        },
+        "topBarPillText": "ECLIPSE // ORBITAL TELEMETRY"
+      }
     }
   },
   "Luminous Grotto": {
@@ -106,7 +125,26 @@
       "introSubtitle": "BIOLUMINESCENT FLORA ACTIVE",
       "introChecks": ["FLORA", "AETHER", "CHIME", "SERENE"],
       "voiceWelcome": "Luminous grotto awakened. Welcome back.",
-      "voiceSwitch": "Grotto harmonized."
+      "voiceSwitch": "Grotto harmonized.",
+      "uiDesign": {
+        "fontVibe": "serif",
+        "cardRadiusPx": 18,
+        "borderStyle": "solid",
+        "accentGlowIntensity": 0.45,
+        "layoutPreset": "editorial-glass",
+        "sidebarStyle": "floating-cards",
+        "composerStyle": "floating-dock",
+        "chatCardLayout": "floating-bubble",
+        "dockPosition": "bottom-right",
+        "dockShape": "pill",
+        "hudWidget": {
+          "badge": "SANCTUARY",
+          "title": "BIOLUMINESCENT",
+          "subtitle": "ABYSSAL FLORA",
+          "statusText": "SERENE FLOW"
+        },
+        "topBarPillText": "GROTTO // BIOLUMINESCENCE"
+      }
     }
   },
   "WLOP Cosmic": {
@@ -158,7 +196,26 @@
       "introSubtitle": "HARMONIC RESONANCE 100%",
       "introChecks": ["STRINGS", "STARLIGHT", "AUDIO", "SYNC"],
       "voiceWelcome": "Starlight concerto online. Welcome back.",
-      "voiceSwitch": "Harmony aligned."
+      "voiceSwitch": "Harmony aligned.",
+      "uiDesign": {
+        "fontVibe": "display",
+        "cardRadiusPx": 16,
+        "borderStyle": "double",
+        "accentGlowIntensity": 0.85,
+        "layoutPreset": "floating-hud",
+        "sidebarStyle": "floating-cards",
+        "composerStyle": "hud-console",
+        "chatCardLayout": "clean-sheet",
+        "dockPosition": "top-right",
+        "dockShape": "circle",
+        "hudWidget": {
+          "badge": "CONCERTO",
+          "title": "STARLIGHT NEXUS",
+          "subtitle": "CELESTIAL STRINGS",
+          "statusText": "HARMONIC 100%"
+        },
+        "topBarPillText": "STARLIGHT // CONCERTO HUD"
+      }
     }
   },
   "Midnight Obsidian": {
@@ -207,7 +264,26 @@
       "introSubtitle": "ULTRA-LIGHT WORKSPACE READY",
       "introChecks": ["SHELL", "FOCUS", "AUDIO", "READY"],
       "voiceWelcome": "Obsidian workspace ready. Welcome back.",
-      "voiceSwitch": "Studio synchronized."
+      "voiceSwitch": "Studio synchronized.",
+      "uiDesign": {
+        "fontVibe": "sans",
+        "cardRadiusPx": 10,
+        "borderStyle": "solid",
+        "accentGlowIntensity": 0.35,
+        "layoutPreset": "minimal-rail",
+        "sidebarStyle": "sleek-rail",
+        "composerStyle": "command-bar",
+        "chatCardLayout": "terminal-block",
+        "dockPosition": "bottom-right",
+        "dockShape": "square",
+        "hudWidget": {
+          "badge": "DEEP WORK",
+          "title": "OBSIDIAN STUDIO",
+          "subtitle": "MINIMAL WORKSPACE",
+          "statusText": "FOCUS READY"
+        },
+        "topBarPillText": "OBSIDIAN // FOCUS WORKSPACE"
+      }
     }
   }
 }

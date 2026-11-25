@@ -24,6 +24,11 @@ const NUM = { type: 'number' };
 
 const FONT_VIBES = ['sans', 'mono', 'serif', 'display'];
 const BORDER_STYLES = ['solid', 'double', 'dashed', 'glow-frame', 'chamfered'];
+const SIDEBAR_STYLES = ['floating-cards', 'sleek-rail', 'framed-panel'];
+const COMPOSER_STYLES = ['floating-dock', 'command-bar', 'hud-console'];
+const CHAT_CARD_LAYOUTS = ['hud-panel', 'clean-sheet', 'terminal-block', 'floating-bubble'];
+const DOCK_POSITIONS = ['right-vertical', 'bottom-right', 'top-right'];
+const DOCK_SHAPES = ['circle', 'hex', 'pill', 'square'];
 const PARTICLE_MOTIONS = ['fall', 'rise', 'float', 'orbit', 'pulse', 'drift'];
 const SOUND_WAVEFORMS = ['sine', 'triangle', 'sawtooth', 'square'];
 
@@ -38,7 +43,13 @@ const ARCHETYPE_DEFAULTS = {
         introChecks: ['VISUAL', 'AUDIO', 'AETHER', 'SYNC'],
         voiceWelcome: 'Link start. Welcome back, adventurer.',
         voiceSwitch: 'Realm synchronized.',
-        uiDesign: { fontVibe: 'serif', cardRadiusPx: 12, borderStyle: 'double', accentGlowIntensity: 0.75 },
+        uiDesign: {
+            fontVibe: 'serif', cardRadiusPx: 12, borderStyle: 'double', accentGlowIntensity: 0.75,
+            layoutPreset: 'floating-hud', sidebarStyle: 'floating-cards', composerStyle: 'hud-console',
+            chatCardLayout: 'hud-panel', dockPosition: 'right-vertical', dockShape: 'hex',
+            hudWidget: { badge: 'LVL 99', title: 'CARDINAL ONLINE', subtitle: 'AINCRAD SECTOR', statusText: 'SYNC 100%' },
+            topBarPillText: 'CARDINAL // SYSTEM LOG'
+        },
         particleShape: 'crystal-shard',
         particleMotion: 'float',
         particleCount: 12,
@@ -56,7 +67,13 @@ const ARCHETYPE_DEFAULTS = {
         introChecks: ['STARLIGHT', 'RESONANCE', 'AURA', 'READY'],
         voiceWelcome: 'Celestial nexus online. Welcome back.',
         voiceSwitch: 'Starlight aligned.',
-        uiDesign: { fontVibe: 'display', cardRadiusPx: 16, borderStyle: 'glow-frame', accentGlowIntensity: 0.8 },
+        uiDesign: {
+            fontVibe: 'display', cardRadiusPx: 16, borderStyle: 'glow-frame', accentGlowIntensity: 0.8,
+            layoutPreset: 'floating-hud', sidebarStyle: 'floating-cards', composerStyle: 'floating-dock',
+            chatCardLayout: 'floating-bubble', dockPosition: 'top-right', dockShape: 'circle',
+            hudWidget: { badge: 'AURA MAX', title: 'STARLIGHT NEXUS', subtitle: 'CELESTIAL REALM', statusText: 'RESONANCE ON' },
+            topBarPillText: 'STARLIGHT // CELESTIAL FEED'
+        },
         particleShape: 'sakura-petal',
         particleMotion: 'fall',
         particleCount: 14,
@@ -74,7 +91,13 @@ const ARCHETYPE_DEFAULTS = {
         introChecks: ['UPLINK', 'OPTICS', 'CIPHER', 'SYNC'],
         voiceWelcome: 'Neural interface online. Welcome back.',
         voiceSwitch: 'Uplink synchronized.',
-        uiDesign: { fontVibe: 'mono', cardRadiusPx: 6, borderStyle: 'chamfered', accentGlowIntensity: 0.9 },
+        uiDesign: {
+            fontVibe: 'mono', cardRadiusPx: 6, borderStyle: 'chamfered', accentGlowIntensity: 0.9,
+            layoutPreset: 'orbital-dock', sidebarStyle: 'framed-panel', composerStyle: 'hud-console',
+            chatCardLayout: 'terminal-block', dockPosition: 'right-vertical', dockShape: 'hex',
+            hudWidget: { badge: 'NETRUN', title: 'NEURAL UPLINK', subtitle: 'NIGHT SECTOR 07', statusText: 'CIPHER LOCK' },
+            topBarPillText: 'NEURAL // UPLINK STREAM'
+        },
         particleShape: 'data-spark',
         particleMotion: 'rise',
         particleCount: 14,
@@ -92,7 +115,13 @@ const ARCHETYPE_DEFAULTS = {
         introChecks: ['REACTOR', 'ARMOR', 'THRUST', 'LOCKED'],
         voiceWelcome: 'Reactor online. All systems nominal.',
         voiceSwitch: 'Core engaged.',
-        uiDesign: { fontVibe: 'mono', cardRadiusPx: 4, borderStyle: 'chamfered', accentGlowIntensity: 0.95 },
+        uiDesign: {
+            fontVibe: 'mono', cardRadiusPx: 4, borderStyle: 'chamfered', accentGlowIntensity: 0.95,
+            layoutPreset: 'arcade-frame', sidebarStyle: 'framed-panel', composerStyle: 'hud-console',
+            chatCardLayout: 'hud-panel', dockPosition: 'right-vertical', dockShape: 'square',
+            hudWidget: { badge: 'CORE 99%', title: 'TITAN REACTOR', subtitle: 'HANGAR BAY 01', statusText: 'OUTPUT NOMINAL' },
+            topBarPillText: 'TITAN // REACTOR TELEMETRY'
+        },
         particleShape: 'reactor-ember',
         particleMotion: 'rise',
         particleCount: 15,
@@ -110,7 +139,13 @@ const ARCHETYPE_DEFAULTS = {
         introChecks: ['LAYOUT', 'FOCUS', 'AUDIO', 'READY'],
         voiceWelcome: 'Workspace ready. Have a focused session.',
         voiceSwitch: 'Workspace updated.',
-        uiDesign: { fontVibe: 'sans', cardRadiusPx: 12, borderStyle: 'solid', accentGlowIntensity: 0.35 },
+        uiDesign: {
+            fontVibe: 'sans', cardRadiusPx: 12, borderStyle: 'solid', accentGlowIntensity: 0.35,
+            layoutPreset: 'minimal-rail', sidebarStyle: 'sleek-rail', composerStyle: 'command-bar',
+            chatCardLayout: 'clean-sheet', dockPosition: 'bottom-right', dockShape: 'pill',
+            hudWidget: { badge: 'DEEP WORK', title: 'FOCUS DESK', subtitle: 'AMBIENT OFFICE', statusText: 'FLOW READY' },
+            topBarPillText: 'STUDIO // FOCUS SESSION'
+        },
         particleShape: 'soft-dot',
         particleMotion: 'drift',
         particleCount: 8,
@@ -128,7 +163,13 @@ const ARCHETYPE_DEFAULTS = {
         introChecks: ['FLORA', 'BREEZE', 'CHIME', 'CALM'],
         voiceWelcome: 'Sanctuary open. Breathe and begin.',
         voiceSwitch: 'Ambience shifted.',
-        uiDesign: { fontVibe: 'serif', cardRadiusPx: 18, borderStyle: 'solid', accentGlowIntensity: 0.45 },
+        uiDesign: {
+            fontVibe: 'serif', cardRadiusPx: 18, borderStyle: 'solid', accentGlowIntensity: 0.45,
+            layoutPreset: 'editorial-glass', sidebarStyle: 'floating-cards', composerStyle: 'floating-dock',
+            chatCardLayout: 'floating-bubble', dockPosition: 'bottom-right', dockShape: 'pill',
+            hudWidget: { badge: 'ZEN MODE', title: 'SANCTUARY', subtitle: 'SERENE AMBIENCE', statusText: 'BREATHE 100%' },
+            topBarPillText: 'SANCTUARY // AMBIENT LOG'
+        },
         particleShape: 'leaf',
         particleMotion: 'drift',
         particleCount: 10,
@@ -146,7 +187,13 @@ const ARCHETYPE_DEFAULTS = {
         introChecks: ['VRAM', 'CHIPTUNE', 'STAGE', 'START'],
         voiceWelcome: 'Player one ready. Let us begin.',
         voiceSwitch: 'Stage selected.',
-        uiDesign: { fontVibe: 'mono', cardRadiusPx: 4, borderStyle: 'dashed', accentGlowIntensity: 0.85 },
+        uiDesign: {
+            fontVibe: 'mono', cardRadiusPx: 4, borderStyle: 'dashed', accentGlowIntensity: 0.85,
+            layoutPreset: 'arcade-frame', sidebarStyle: 'framed-panel', composerStyle: 'command-bar',
+            chatCardLayout: 'terminal-block', dockPosition: 'top-right', dockShape: 'square',
+            hudWidget: { badge: '1UP READY', title: 'ARCADE OS', subtitle: 'STAGE 01-A', statusText: 'HIGH SCORE' },
+            topBarPillText: 'ARCADE // PLAYER 1 ACTIVE'
+        },
         particleShape: 'pixel-block',
         particleMotion: 'pulse',
         particleCount: 12,
@@ -164,7 +211,13 @@ const ARCHETYPE_DEFAULTS = {
         introChecks: ['ORBIT', 'AETHER', 'TELEMETRY', 'SYNC'],
         voiceWelcome: 'Astral observatory online. Welcome back.',
         voiceSwitch: 'Orbit locked.',
-        uiDesign: { fontVibe: 'display', cardRadiusPx: 14, borderStyle: 'glow-frame', accentGlowIntensity: 0.78 },
+        uiDesign: {
+            fontVibe: 'display', cardRadiusPx: 14, borderStyle: 'glow-frame', accentGlowIntensity: 0.78,
+            layoutPreset: 'orbital-dock', sidebarStyle: 'framed-panel', composerStyle: 'hud-console',
+            chatCardLayout: 'hud-panel', dockPosition: 'right-vertical', dockShape: 'hex',
+            hudWidget: { badge: 'ORBIT 01', title: 'ASTRAL NEXUS', subtitle: 'DEEP SPACE', statusText: 'TELEMETRY ON' },
+            topBarPillText: 'OBSERVATORY // ORBITAL LOG'
+        },
         particleShape: 'starlight',
         particleMotion: 'orbit',
         particleCount: 12,
@@ -174,15 +227,38 @@ const ARCHETYPE_DEFAULTS = {
     }
 };
 
+const HUD_WIDGET_SCHEMA = {
+    type: 'object',
+    properties: {
+        badge: STR,
+        title: STR,
+        subtitle: STR,
+        statusText: STR
+    },
+    required: ['badge', 'title', 'subtitle', 'statusText']
+};
+
 const UI_DESIGN_SCHEMA = {
     type: 'object',
     properties: {
         fontVibe: { type: 'string', enum: FONT_VIBES },
         cardRadiusPx: NUM,
         borderStyle: { type: 'string', enum: BORDER_STYLES },
-        accentGlowIntensity: NUM
+        accentGlowIntensity: NUM,
+        layoutPreset: STR,
+        sidebarStyle: { type: 'string', enum: SIDEBAR_STYLES },
+        composerStyle: { type: 'string', enum: COMPOSER_STYLES },
+        chatCardLayout: { type: 'string', enum: CHAT_CARD_LAYOUTS },
+        dockPosition: { type: 'string', enum: DOCK_POSITIONS },
+        dockShape: { type: 'string', enum: DOCK_SHAPES },
+        hudWidget: HUD_WIDGET_SCHEMA,
+        topBarPillText: STR
     },
-    required: ['fontVibe', 'cardRadiusPx', 'borderStyle', 'accentGlowIntensity']
+    required: [
+        'fontVibe', 'cardRadiusPx', 'borderStyle', 'accentGlowIntensity',
+        'layoutPreset', 'sidebarStyle', 'composerStyle', 'chatCardLayout',
+        'dockPosition', 'dockShape', 'hudWidget', 'topBarPillText'
+    ]
 };
 
 const SOUND_SYNTH_SCHEMA = {
@@ -346,7 +422,19 @@ function buildPrompt(absImagePath, { srcW, srcH, needsAiPaint }) {
         '  * `particleStyle`: open descriptive particle motif name (e.g. "raindrops", "bubbles", "dust-motes", "crystals", "petals", "embers", "sparks", "none").',
         '  * `hudRingStyle`: open descriptive HUD/ring motif name (e.g. "sonar-rings", "clockwork-gears", "coffee-steam", "magic-circle", "cyber-radar", "none").',
         '  * `soundProfile`: open descriptive audio profile name (e.g. "lofi-rhodes", "sonar-ping", "crystalline", "warm-bell", "synth-chime").',
-        '  * `uiDesign`: `{ fontVibe: "sans"|"mono"|"serif"|"display", cardRadiusPx: number (4..22), borderStyle: "solid"|"double"|"dashed"|"glow-frame"|"chamfered", accentGlowIntensity: number (0.2..1.0) }` — pick typography, corner radius, border geometry, and glow intensity that match the image.',
+        '  * `uiDesign`: full IDE layout & HUD composition tailored to THIS image\'s genre (RPG, anime, office, sci-fi, lofi, etc.):',
+        '    - `fontVibe`: `"sans" | "mono" | "serif" | "display"`',
+        '    - `cardRadiusPx`: number (`4..22`)',
+        '    - `borderStyle`: `"solid" | "double" | "dashed" | "glow-frame" | "chamfered"`',
+        '    - `accentGlowIntensity`: number (`0.2..1.0`)',
+        '    - `layoutPreset`: open string layout name fitting the image (e.g. `"floating-hud"`, `"orbital-dock"`, `"editorial-glass"`, `"arcade-frame"`, `"minimal-rail"`, `"lofi-desk"`)',
+        '    - `sidebarStyle`: `"floating-cards" | "sleek-rail" | "framed-panel"`',
+        '    - `composerStyle`: `"floating-dock" | "command-bar" | "hud-console"`',
+        '    - `chatCardLayout`: `"hud-panel" | "clean-sheet" | "terminal-block" | "floating-bubble"`',
+        '    - `dockPosition`: `"right-vertical" | "bottom-right" | "top-right"`',
+        '    - `dockShape`: `"circle" | "hex" | "pill" | "square"`',
+        '    - `hudWidget`: `{ badge: string, title: string, subtitle: string, statusText: string }` (e.g. `{ badge: "LVL 99", title: "CARDINAL ONLINE", subtitle: "AINCRAD SECTOR", statusText: "SYNC 100%" }` or `{ badge: "DEEP WORK", title: "FOCUS DESK", subtitle: "AMBIENT OFFICE", statusText: "FLOW READY" }`)',
+        '    - `topBarPillText`: short uppercase pill text (e.g. `"CARDINAL // SYSTEM LOG"` or `"LOFI // RAINY SESSION"`)',
         '  * `particleShape`: open shape name (e.g. "raindrop", "bubble", "maple-leaf", "rune-shard").',
         '  * `particleSvgInner`: optional custom inline SVG primitives (`<path>`, `<circle>`, `<ellipse>`, `<rect>`, `<polygon>`, `<polyline>`, `<line>`, `<g>`) designed for a `0 0 24 24` viewBox using `currentColor` (NO `<svg>` wrapper, NO `<script>`, NO `<foreignObject>`, NO `<style>`, NO `on*` attributes, NO `javascript:` URLs).',
         '  * `particleMotion`: one of `"fall"`, `"rise"`, `"float"`, `"orbit"`, `"pulse"`, `"drift"`.',
@@ -574,11 +662,32 @@ function normalizeDynamicPack(theme) {
     const defaultLabel = ARCHETYPE_DEFAULTS[archetype] ? def.archetypeLabel : titleCaseSlug(archetype);
     const particleStyle = str(raw.particleStyle, def.particleStyle, 36);
     const rawUi = (raw.uiDesign && typeof raw.uiDesign === 'object') ? raw.uiDesign : {};
+    const rawHud = (rawUi.hudWidget && typeof rawUi.hudWidget === 'object') ? rawUi.hudWidget : {};
+    const defUi = def.uiDesign;
+    const themeTitleUpper = (theme && typeof theme.name === 'string' && theme.name.trim())
+        ? theme.name.trim().toUpperCase().slice(0, 28)
+        : '';
+    const isUnknownArch = !ARCHETYPE_DEFAULTS[archetype];
+    const fallbackTitle = (isUnknownArch && themeTitleUpper) ? themeTitleUpper : defUi.hudWidget.title;
+    const fallbackPill = (isUnknownArch && themeTitleUpper) ? `${themeTitleUpper} // LIVE` : defUi.topBarPillText;
     const uiDesign = {
-        fontVibe: pick(rawUi.fontVibe, FONT_VIBES, def.uiDesign.fontVibe),
-        cardRadiusPx: clampNum(rawUi.cardRadiusPx, 4, 22, def.uiDesign.cardRadiusPx, true),
-        borderStyle: pick(rawUi.borderStyle, BORDER_STYLES, def.uiDesign.borderStyle),
-        accentGlowIntensity: clampNum(rawUi.accentGlowIntensity, 0.2, 1.0, def.uiDesign.accentGlowIntensity)
+        fontVibe: pick(rawUi.fontVibe, FONT_VIBES, defUi.fontVibe),
+        cardRadiusPx: clampNum(rawUi.cardRadiusPx, 4, 22, defUi.cardRadiusPx, true),
+        borderStyle: pick(rawUi.borderStyle, BORDER_STYLES, defUi.borderStyle),
+        accentGlowIntensity: clampNum(rawUi.accentGlowIntensity, 0.2, 1.0, defUi.accentGlowIntensity),
+        layoutPreset: str(rawUi.layoutPreset, defUi.layoutPreset, 36).toLowerCase(),
+        sidebarStyle: pick(rawUi.sidebarStyle, SIDEBAR_STYLES, defUi.sidebarStyle),
+        composerStyle: pick(rawUi.composerStyle, COMPOSER_STYLES, defUi.composerStyle),
+        chatCardLayout: pick(rawUi.chatCardLayout, CHAT_CARD_LAYOUTS, defUi.chatCardLayout),
+        dockPosition: pick(rawUi.dockPosition, DOCK_POSITIONS, defUi.dockPosition),
+        dockShape: pick(rawUi.dockShape, DOCK_SHAPES, defUi.dockShape),
+        hudWidget: {
+            badge: str(rawHud.badge, defUi.hudWidget.badge, 20).toUpperCase(),
+            title: str(rawHud.title, fallbackTitle, 32).toUpperCase(),
+            subtitle: str(rawHud.subtitle, defUi.hudWidget.subtitle, 36).toUpperCase(),
+            statusText: str(rawHud.statusText, defUi.hudWidget.statusText, 24).toUpperCase()
+        },
+        topBarPillText: str(rawUi.topBarPillText, fallbackPill, 40).toUpperCase()
     };
     const rawSynth = (raw.soundSynth && typeof raw.soundSynth === 'object') ? raw.soundSynth : {};
     const rawNotes = Array.isArray(rawSynth.notes)

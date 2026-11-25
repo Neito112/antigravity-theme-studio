@@ -61,7 +61,7 @@ Used in Dynamic Mode (`themeMode === 'dynamic'`) by `engine/core.js` and generat
 | `particleStyle` | open string | Ambient particle motif name (e.g. `"raindrops"`, `"bubbles"`, `"dust-motes"`, `"crystals"`, `"petals"`, `"none"`) |
 | `hudRingStyle` | open string | HUD/ring motif name (e.g. `"sonar-rings"`, `"clockwork-gears"`, `"magic-circle"`, `"cyber-radar"`, `"none"`) |
 | `soundProfile` | open string | Descriptive sound profile name (e.g. `"lofi-rhodes"`, `"sonar-ping"`, `"crystalline"`, `"warm-bell"`) |
-| `uiDesign` | object | Image-tailored UI geometry: `{ fontVibe: 'sans' \| 'mono' \| 'serif' \| 'display', cardRadiusPx: number (4..22), borderStyle: 'solid' \| 'double' \| 'dashed' \| 'glow-frame' \| 'chamfered', accentGlowIntensity: number (0.2..1.0) }` |
+| `uiDesign` | object | Image-tailored full IDE layout, geometry & HUD composition (see `uiDesign Object` below) |
 | `particleShape` | open string | Particle shape name (e.g. `"raindrop"`, `"bubble"`, `"maple-leaf"`, `"rune-spark"`) |
 | `particleSvgInner` | string (optional) | Safe inline SVG primitives (`<path>`, `<circle>`, `<ellipse>`, `<rect>`, `<polygon>`, `<polyline>`, `<line>`, `<g>`) inside a `0 0 24 24` viewBox (no `<script>`, `<foreignObject>`, `<style>`, `on*` attrs, or `javascript:`) |
 | `particleMotion` | `'fall' \| 'rise' \| 'float' \| 'orbit' \| 'pulse' \| 'drift'` | GPU-composited particle animation trajectory |
@@ -75,6 +75,25 @@ Used in Dynamic Mode (`themeMode === 'dynamic'`) by `engine/core.js` and generat
 | `introChecks` | `string[]` | 3–4 short uppercase `[ OK ]` check labels |
 | `voiceWelcome` | string | 4–8 word English `speechSynthesis` greeting on boot/intro |
 | `voiceSwitch` | string | 2–5 word English `speechSynthesis` confirmation on theme switch |
+
+### `uiDesign` Object
+
+Controls full Dynamic Mode IDE layout re-composition and floating HUD widgets:
+
+| Key | Type / Values | Purpose |
+| :--- | :--- | :--- |
+| `fontVibe` | `'sans' \| 'mono' \| 'serif' \| 'display'` | Typography mood across HUD and cards |
+| `cardRadiusPx` | number (`4..22`) | Corner radius for cards and panels |
+| `borderStyle` | `'solid' \| 'double' \| 'dashed' \| 'glow-frame' \| 'chamfered'` | Card/panel border geometry |
+| `accentGlowIntensity` | number (`0.2..1.0`) | Glow intensity multiplier for active borders/HUDs |
+| `layoutPreset` | open string | Layout preset slug fitting the image (e.g. `'floating-hud'`, `'orbital-dock'`, `'editorial-glass'`, `'arcade-frame'`, `'minimal-rail'`) |
+| `sidebarStyle` | `'floating-cards' \| 'sleek-rail' \| 'framed-panel'` | Left navigation rail layout treatment |
+| `composerStyle` | `'floating-dock' \| 'command-bar' \| 'hud-console'` | Chat composer container layout treatment |
+| `chatCardLayout` | `'hud-panel' \| 'clean-sheet' \| 'terminal-block' \| 'floating-bubble'` | AI response card layout treatment |
+| `dockPosition` | `'right-vertical' \| 'bottom-right' \| 'top-right'` | Floating quick-action dock placement |
+| `dockShape` | `'circle' \| 'hex' \| 'pill' \| 'square'` | Quick-action dock button geometry |
+| `hudWidget` | `{ badge, title, subtitle, statusText }` | Compact floating status HUD card content (uppercase strings) |
+| `topBarPillText` | string | Short uppercase floating top-bar status pill text |
 
 ## Asset Resolution (`scripts/build_payload.py`)
 
