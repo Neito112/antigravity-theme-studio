@@ -8,8 +8,8 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
     sanitizeCssUrl,
     resolveDynamicPack,
     syncDynamicFxLayer,
-    syncDynamicHudWidgets,
-    syncIdePet,
+    removeDynamicHudWidgets,
+    syncBetterPet,
     clearBootTimers,
     stopBootAudio,
     teardownBootOverlay,
@@ -22,7 +22,7 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
 
   function mountBootSequence(forceReplay = false) {
     const st = getState();
-    if (!forceReplay && (!st.bootIntro || window.__AGY_BOOT_PLAYED__)) {
+    if (!forceReplay && !st.bootIntro) {
       return;
     }
     window.__AGY_BOOT_PLAYED__ = true;
@@ -546,8 +546,8 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
       if (curSt.themeMode !== 'dynamic') return;
       const curTh = (THEMES && THEMES[curSt.themeName]) || mainTheme;
       if (typeof syncDynamicFxLayer === 'function') syncDynamicFxLayer(true, curTh);
-      if (typeof syncDynamicHudWidgets === 'function') syncDynamicHudWidgets(true, curTh);
-      if (typeof syncIdePet === 'function') syncIdePet(true, curTh, curSt.petEnabled !== false);
+      if (typeof removeDynamicHudWidgets === 'function') removeDynamicHudWidgets();
+      if (typeof syncBetterPet === 'function') syncBetterPet(true, curTh, curSt.petEnabled !== false);
     }
 
     function finishBoot(instant = false) {

@@ -1223,18 +1223,25 @@
 
   function resolveVfxMotionRule(theme, pack) {
     const vfx = (theme && theme.vfxSpec && typeof theme.vfxSpec === 'object') ? theme.vfxSpec : {};
-    const raw = String(vfx.motionRules || vfx.motion || '').toLowerCase().trim();
+    const mr = vfx.motionRules;
+    const raw = (mr && typeof mr === 'object')
+      ? String(mr.budget || mr.mode || '').toLowerCase().trim()
+      : String(mr || vfx.motion || '').toLowerCase().trim();
     if (raw === 'calm' || raw === 'atmospheric' || raw === 'kinetic') return raw;
     if (pack && pack.particleCount === 0) return 'calm';
     return 'atmospheric';
   }
 
-  function buildParticlesHtml(pack, primary, secondary, motionRule) {
+  function buildParticlesHtml(pack, primary, secondary, motionRule, theme) {
     if (motionRule === 'calm') return '';
     const pStyle = pack.particleStyle || 'stars';
     const pShape = pack.particleShape || pStyle;
     if (pStyle === 'none' || pShape === 'none') return '';
-    const count = motionRule === 'kinetic' ? 8 : 6;
+    const mr = (theme && theme.vfxSpec && typeof theme.vfxSpec.motionRules === 'object') ? theme.vfxSpec.motionRules : {};
+    const defaultCount = motionRule === 'kinetic' ? 8 : 6;
+    const count = Number.isFinite(Number(mr.particleCount)) ? Math.min(10, Math.max(0, Math.round(Number(mr.particleCount)))) : defaultCount;
+    if (count <= 0) return '';
+    const opacity = Number.isFinite(Number(mr.particleOpacity)) ? Math.min(0.45, Math.max(0.12, Number(mr.particleOpacity))) : 0.28;
     const c1 = primary || '#38bdf8';
     const c2 = secondary || c1;
     const animName = resolveParticleMotionAnim(pack.particleMotion, pStyle);
@@ -1247,7 +1254,7 @@
       const delay = -((i * 1.7) % 9).toFixed(1);
       const color = i % 2 === 0 ? c1 : c2;
       const sz = 6 + (i % 5);
-      out += `<span class="agy-fx-particle" style="position:absolute;left:${left}%;top:${top}%;width:${sz}px;height:${sz}px;color:${color};opacity:0.28;will-change:transform,opacity;animation:${animName} ${dur}s ease-in-out ${delay}s infinite;"><svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="currentColor" stroke="currentColor" stroke-width="1" style="display:block;overflow:visible;">${svgInner}</svg></span>`;
+      out += `<span class="agy-fx-particle" style="position:absolute;left:${left}%;top:${top}%;width:${sz}px;height:${sz}px;color:${color};opacity:${opacity};will-change:transform,opacity;animation:${animName} ${dur}s ease-in-out ${delay}s infinite;"><svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="currentColor" stroke="currentColor" stroke-width="1" style="display:block;overflow:visible;">${svgInner}</svg></span>`;
     }
     return out;
   }
@@ -1277,7 +1284,7 @@
     layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:1;overflow:hidden;';
     if (layer.dataset.packKey !== packKey) {
       layer.dataset.packKey = packKey;
-      layer.innerHTML = buildParticlesHtml(pack, primary, secondary, motionRule);
+      layer.innerHTML = buildParticlesHtml(pack, primary, secondary, motionRule, theme);
     }
   }
 
@@ -2455,17 +2462,18 @@
 
       // 1. Left Column (Sidebar)
       const lc = (vfx.leftColumn && typeof vfx.leftColumn === 'object') ? vfx.leftColumn : {};
-      const surfaceMode = lc.surfaceMode || 'glass-rail';
-      const density = lc.density === 'compact' ? 'compact' : 'comfortable';
+      const surfaceMode = lc.surfaceMode || 'smoked-glass';
+      const density = lc.density === 'compact' ? 'compact' : (lc.density === 'spacious' ? 'spacious' : 'balanced');
       const sidebarNavSel = '.agy-shell [role="navigation"][aria-label="Sidebar"]';
       const sidebarItemSel = '.agy-shell [role="navigation"][aria-label="Sidebar"] :is([data-testid="new-conversation-button"], [data-testid="automations-button"], [data-testid="conversation-row-sidebar"], .agy-sidebar-row, [data-testid="settings-button"], a, [class*="group/headerbtn"])';
-      const itemPad = density === 'compact' ? '4px 8px' : '6px 10px';
-      const itemMargin = density === 'compact' ? '1px 4px' : '2px 6px';
+      const itemPad = density === 'compact' ? '4px 8px' : (density === 'spacious' ? '8px 12px' : '6px 10px');
+      const itemMargin = density === 'compact' ? '1px 4px' : (density === 'spacious' ? '3px 8px' : '2px 6px');
       const lcRadius = Math.min(16, Math.max(4, Number(lc.radiusPx) || 10));
+      const lcBorder = lc.borderHairline === false ? 'transparent' : hairline;
 
       let leftColumnCss = `
         ${sidebarNavSel} {
-          border-right: 1px solid ${hairline} !important;
+          border-right: 1px solid ${lcBorder} !important;
           backdrop-filter: none !important;
         }
         ${sidebarItemSel} {
@@ -2479,16 +2487,17 @@
           border-color: ${hairline} !important;
         }
       `;
-      if (surfaceMode === 'inset-panel') {
+      if (surfaceMode === 'inset-panel' || surfaceMode === 'rail-accent') {
         leftColumnCss += `
           ${sidebarNavSel} {
             margin: 6px 0 6px 6px !important;
             border-radius: ${lcRadius}px !important;
-            border: 1px solid ${hairline} !important;
+            border: 1px solid ${lcBorder} !important;
+            border-left: 2px solid ${pColor} !important;
             overflow: hidden !important;
           }
         `;
-      } else if (surfaceMode === 'clean-matte') {
+      } else if (surfaceMode === 'clean-matte' || surfaceMode === 'matte-tint' || surfaceMode === 'smoked-glass') {
         leftColumnCss += `
           ${sidebarNavSel} {
             background: ${subtleBg} !important;
@@ -2498,7 +2507,7 @@
 
       // 2. Center Stage (Agent response, user bubble, composer, steps)
       const cs = (vfx.centerStage && typeof vfx.centerStage === 'object') ? vfx.centerStage : {};
-      const surfaceStyle = cs.surfaceStyle || 'glass-card';
+      const surfaceStyle = cs.cardStyle || cs.surfaceStyle || 'glass-card';
       const csRadius = Math.min(20, Math.max(4, Number(cs.radiusPx) || cardRadiusPx || 12));
       const transitionCss = isDyn
         ? 'transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease !important;'
@@ -2570,6 +2579,8 @@
       // 3. Right Column (Side Panel)
       const rc = (vfx.rightColumn && typeof vfx.rightColumn === 'object') ? vfx.rightColumn : {};
       const tabIndicator = rc.tabIndicator || 'underline';
+      const rightBg = rc.panelMode === 'transparent' ? 'transparent' : rightTint;
+      const sashBg = rc.sashGlow ? pColor : hairline;
       let tabIndicatorCss = `
         .agy-shell [data-side-panel-strip] :is(button[aria-selected="true"], [role="tab"][aria-selected="true"]) {
           border-bottom: 2px solid ${pColor} !important;
@@ -2605,12 +2616,12 @@
       const rightColumnCss = `
         body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-docked],
         body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-strip] {
-          background: ${rightTint} !important;
+          background: ${rightBg} !important;
           backdrop-filter: none !important;
           border-color: ${hairline} !important;
         }
         .agy-shell [data-side-panel-sash] {
-          background: ${hairline} !important;
+          background: ${sashBg} !important;
           width: 1px !important;
         }
         ${tabIndicatorCss}
@@ -5809,7 +5820,7 @@
       const t = setTimeout(() => {
         delete window.__AGY_DESIGN_PENDING__[id];
         reject(new Error('AI thiết kế quá thời gian chờ'));
-      }, 420000);
+      }, 620000);
       window.__AGY_DESIGN_PENDING__[id] = { resolve, reject, t };
       try { window.agyDesignThemeV2(JSON.stringify({ id, ...payloadObj })); }
       catch (e) { clearTimeout(t); delete window.__AGY_DESIGN_PENDING__[id]; reject(e); }
@@ -5870,6 +5881,13 @@
     t.stickerH = numIn(raw.stickerH, 12, 60, 30);
     t.stickerTop = numIn(raw.stickerTop, -40, 0, -15);
     t.stickerRight = numIn(raw.stickerRight, -20, 60, 14);
+    if (raw.vfxSpec && typeof raw.vfxSpec === 'object') t.vfxSpec = raw.vfxSpec;
+    if (raw.petDirective && typeof raw.petDirective === 'object') t.petDirective = raw.petDirective;
+    if (typeof raw.petSpriteUrl === 'string' && raw.petSpriteUrl.trim()) t.petSpriteUrl = raw.petSpriteUrl.trim();
+    if (typeof raw.petId === 'string' && raw.petId.trim()) t.petId = raw.petId.trim();
+    if (raw.petMeta && typeof raw.petMeta === 'object') t.petMeta = raw.petMeta;
+    if (raw.dynamicPack && typeof raw.dynamicPack === 'object') t.dynamicPack = raw.dynamicPack;
+    if (raw.workIdentity && typeof raw.workIdentity === 'object') t.workIdentity = raw.workIdentity;
     t.isAiDesigned = true;
     return enforceReadableTheme(t, pal);
   }
