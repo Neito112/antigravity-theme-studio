@@ -1,7 +1,7 @@
 (() => {
   // Live-code version marker: verify_cdp.js reports this, so an install can
   // be proven live inside Antigravity instead of only on disk.
-  window.__AGY_ENGINE_VERSION__ = 'fusion-media-1';
+  window.__AGY_ENGINE_VERSION__ = 'fusion-unified-2';
   const THEMES = /*__THEMES_PLACEHOLDER__*/{};
   const BOOT_ASSETS = /*__BOOT_ASSETS_PLACEHOLDER__*/{};
   const BUILD_VER = /*__BUILD_VER_PLACEHOLDER__*/"dev";
@@ -13,8 +13,9 @@
   const STORAGE_CUSTOM_THEMES = 'agy_custom_themes_v1';
   const STORAGE_HIDDEN_BUILTINS = 'agy_hidden_builtins_v1';
 
-  if (window.__AGY_MOD_VER__ !== BUILD_VER) {
-    window.__AGY_MOD_VER__ = BUILD_VER;
+  const __modCacheKey = `${BUILD_VER}:${window.__AGY_ENGINE_VERSION__}`;
+  if (window.__AGY_MOD_VER__ !== __modCacheKey) {
+    window.__AGY_MOD_VER__ = __modCacheKey;
     window.__AGY_LOADED_MODS__ = {};
   }
 
@@ -32,7 +33,7 @@
       : MEDIA_BASE;
     const promise = new Promise((resolve, reject) => {
       const s = document.createElement('script');
-      s.src = `${base}/engine/${name}.js?v=${encodeURIComponent(BUILD_VER)}`;
+      s.src = `${base}/engine/${name}.js?v=${encodeURIComponent(BUILD_VER)}&ev=${encodeURIComponent(window.__AGY_ENGINE_VERSION__)}`;
       s.async = true;
       s.onload = () => {
         s.remove();
@@ -2093,14 +2094,32 @@
       applyTheme({ themeMode: 'dynamic' });
     }
     window.__AGY_BOOT_PLAYED__ = true;
+    const activeThemeName = st.themeName || getDefaultThemeKey();
+    const mainTheme = THEMES[activeThemeName] || THEMES[getDefaultThemeKey()] || {};
+    const pack = resolveDynamicPack(mainTheme);
+    const ui = pack.uiDesign || mainTheme.uiDesign || {};
+    const bootCtx = {
+      ...window.__AGY_INTERNAL__,
+      themeName: activeThemeName,
+      mainTheme,
+      pack,
+      primary: mainTheme.primary || '#60a5fa',
+      glow: mainTheme.glow || 'rgba(96, 165, 250, 0.35)',
+      secondaryGlow: mainTheme.secondaryGlow || mainTheme.glow || 'rgba(59, 130, 246, 0.25)',
+      workIdentity: pack.workIdentity || mainTheme.workIdentity || {},
+      emblemSvgInner: ui.emblemSvgInner || '',
+      hudWidget: ui.hudWidget || {},
+      voiceWelcome: pack.voiceWelcome || mainTheme.voiceWelcome || ''
+    };
     loadLazyModule('boot')
-      .then((fn) => { if (typeof fn === 'function') fn(window.__AGY_INTERNAL__, forceReplay); })
+      .then((fn) => { if (typeof fn === 'function') fn(bootCtx, forceReplay); })
       .catch(() => {
         window.__AGY_BOOT_FINISHED__ = true;
-        const cur = getState();
-        const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
-        showThemeIntro(th, forceReplay);
+        showThemeIntro(mainTheme, forceReplay);
         scheduleRevealWhenReady(true);
+        syncDynamicFxLayer(true, mainTheme);
+        syncDynamicHudWidgets(true, mainTheme);
+        syncIdePet(true, mainTheme, st.petEnabled !== false);
       });
   }
   window.__ANTIGRAVITY_REPLAY_BOOT__ = () => mountBootSequence(true);
@@ -3915,7 +3934,15 @@
     syncDynamicAuraElement(st.themeMode === 'dynamic', st.wpEnabled);
     syncDynamicFxLayer(st.themeMode === 'dynamic', mainTheme);
     syncDynamicHudWidgets(st.themeMode === 'dynamic', mainTheme);
-    if (st.themeMode === 'static') {
+    syncIdePet(st.themeMode === 'dynamic', mainTheme, st.petEnabled !== false);
+    if (st.themeMode === 'dynamic') {
+      if (!st.bootIntro || window.__AGY_BOOT_FINISHED__ || overrides.themeMode === 'dynamic') {
+        window.__AGY_BOOT_FINISHED__ = true;
+        if (!window.__AGY_REVEAL_DONE_ONCE__) {
+          scheduleRevealWhenReady(true);
+        }
+      }
+    } else {
       dismissThemeIntro();
       teardownBootOverlay();
     }
@@ -4000,10 +4027,39 @@
     }
   }
 
+  function cleanupStaleEngineArtifacts() {
+    teardownBootOverlay();
+    dismissThemeIntro();
+    const staleFx = document.getElementById('agy-dynamic-fx-layer');
+    if (staleFx) staleFx.remove();
+    document.querySelectorAll('[id^="agy-hud-"]').forEach((el) => el.remove());
+    removeDynamicHudWidgets();
+  }
+
+  window.__AGY_INTERNAL__ = {
+    THEMES, BOOT_ASSETS, THEME_KEYS, DEFAULT_THEME_KEY, getDefaultThemeKey,
+    STORAGE_THEME, STORAGE_BUBBLE, STORAGE_INPUT, STORAGE_DIMMING,
+    STORAGE_WP_ENABLED, STORAGE_WP_MODE, STORAGE_CUSTOM_WP, STORAGE_CUSTOM_VIDEO,
+    STORAGE_TASK_VOICE_ENABLED, STORAGE_TASK_VOICE_VOL, STORAGE_CUSTOM_GREETINGS,
+    STORAGE_USER_AVATAR, STORAGE_AGENT_AVATAR, STORAGE_GLASS_BLUR,
+    STORAGE_AVATAR_SIZE, STORAGE_AVATAR_RADIUS, STORAGE_BOOT_INTRO,
+    STORAGE_SKETCH_REVEAL, STORAGE_TAWA_GREETING, STORAGE_PET_ENABLED,
+    CHECK_SVG,
+    escapeHtml: escHtml, canonicalMediaKey, isSameMediaUrl, deriveMediaName,
+    getMediaLibrary, upsertSavedMedia, removeSavedMediaFromStore,
+    normalizeGreetingLines, getState, resolveMediaUrl, sanitizeCssUrl,
+    resolveDynamicPack, syncDynamicFxLayer, syncDynamicHudWidgets, syncIdePet,
+    findActiveShell, clearRevealRaf, clearBootTimers, stopBootAudio,
+    teardownBootOverlay, scheduleRevealWhenReady, applyTheme,
+    syncEmptyGreeting, playOneShotTaskAudio, playRandomTaskVoice,
+    mountBootSequence, triggerSketchBloomReveal
+  };
+
   window.__ANTIGRAVITY_APPLY_CUSTOM_THEME__ = applyTheme;
   window.__ANTIGRAVITY_REMOVE_CUSTOM_THEME__ = removeCustomTheme;
   window.__ANTIGRAVITY_OPEN_THEME_MODAL__ = openCustomThemeModal;
 
+  cleanupStaleEngineArtifacts();
   applyTheme();
   (() => {
     const st0 = getStateSafe();
@@ -6459,8 +6515,8 @@
     }, 450);
   }
 
-  window.__AGY_INTERNAL__ = {
-    THEMES, BOOT_ASSETS, THEME_KEYS, DEFAULT_THEME_KEY,
+  window.__AGY_INTERNAL__ = Object.assign(window.__AGY_INTERNAL__ || {}, {
+    THEMES, BOOT_ASSETS, THEME_KEYS, DEFAULT_THEME_KEY, getDefaultThemeKey,
     STORAGE_THEME, STORAGE_BUBBLE, STORAGE_INPUT, STORAGE_DIMMING,
     STORAGE_WP_ENABLED, STORAGE_WP_MODE, STORAGE_CUSTOM_WP, STORAGE_CUSTOM_VIDEO,
     STORAGE_TASK_VOICE_ENABLED, STORAGE_TASK_VOICE_VOL, STORAGE_CUSTOM_GREETINGS,
@@ -6471,11 +6527,12 @@
     escapeHtml: escHtml, canonicalMediaKey, isSameMediaUrl, deriveMediaName,
     getMediaLibrary, upsertSavedMedia, removeSavedMediaFromStore,
     normalizeGreetingLines, getState, resolveMediaUrl, sanitizeCssUrl,
+    resolveDynamicPack, syncDynamicFxLayer, syncDynamicHudWidgets, syncIdePet,
     findActiveShell, clearRevealRaf, clearBootTimers, stopBootAudio,
     teardownBootOverlay, scheduleRevealWhenReady, applyTheme,
     syncEmptyGreeting, playOneShotTaskAudio, playRandomTaskVoice,
     mountBootSequence, triggerSketchBloomReveal
-  };
+  });
 
   function tick() {
     injectTopbarButton();

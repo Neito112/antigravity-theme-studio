@@ -1,14 +1,25 @@
 window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
   const {
     BOOT_ASSETS,
+    THEMES,
+    getDefaultThemeKey,
     getState,
     resolveMediaUrl,
     sanitizeCssUrl,
+    resolveDynamicPack,
+    syncDynamicFxLayer,
+    syncDynamicHudWidgets,
+    syncIdePet,
     clearBootTimers,
     stopBootAudio,
     teardownBootOverlay,
     scheduleRevealWhenReady,
+    escapeHtml,
   } = ctx;
+  const esc = typeof escapeHtml === 'function'
+    ? escapeHtml
+    : (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
   function mountBootSequence(forceReplay = false) {
     const st = getState();
     if (!forceReplay && (!st.bootIntro || window.__AGY_BOOT_PLAYED__)) {
@@ -16,6 +27,30 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
     }
     window.__AGY_BOOT_PLAYED__ = true;
     teardownBootOverlay();
+
+    const activeThemeName = ctx.themeName || st.themeName || (typeof getDefaultThemeKey === 'function' ? getDefaultThemeKey() : 'ANTIGRAVITY');
+    const mainTheme = ctx.mainTheme || (THEMES && THEMES[activeThemeName]) || {};
+    const pack = ctx.pack || (typeof resolveDynamicPack === 'function' ? resolveDynamicPack(mainTheme) : {});
+    const ui = pack.uiDesign || mainTheme.uiDesign || {};
+    const primary = ctx.primary || mainTheme.primary || '#60a5fa';
+    const glow = ctx.glow || mainTheme.glow || 'rgba(96, 165, 250, 0.35)';
+    const secondaryGlow = ctx.secondaryGlow || mainTheme.secondaryGlow || glow;
+    const workIdentity = ctx.workIdentity || pack.workIdentity || mainTheme.workIdentity || {};
+    const emblemSvgInner = ctx.emblemSvgInner || ui.emblemSvgInner || '';
+    const hudWidget = ctx.hudWidget || ui.hudWidget || {};
+    const voiceWelcome = ctx.voiceWelcome || pack.voiceWelcome || mainTheme.voiceWelcome || '';
+
+    const brandTitle = String(workIdentity.franchise || activeThemeName || 'ANTIGRAVITY').toUpperCase();
+    const brandSub = String(hudWidget.subtitle || pack.archetypeLabel || 'SYNTHESIZE INTELLIGENCE').toUpperCase();
+    const statusBadge = String(hudWidget.badge || 'SYNC').toUpperCase();
+    const statusCheck = String(hudWidget.statusText || 'PERMISSION AUTHORIZED').toUpperCase();
+    const operatorName = String(workIdentity.operator || 'SENSEI').toUpperCase();
+    const welcomeSubline = voiceWelcome
+      ? String(voiceWelcome).toUpperCase()
+      : `CHÀO MỪNG ${operatorName} • ${brandTitle} READY`;
+    const emblemBadgeHtml = emblemSvgInner
+      ? `<span class="agy-boot-emblem" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none">${emblemSvgInner}</svg></span>`
+      : '';
 
     const starfieldUrl = sanitizeCssUrl(resolveMediaUrl(BOOT_ASSETS.starfieldBg || 'assets/starfield-boot-bg.jpg'));
     const iconColorUrl = resolveMediaUrl(BOOT_ASSETS.agyColorIcon || 'assets/agy-icon-color.png');
@@ -63,7 +98,7 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
         position: absolute;
         inset: 0;
         z-index: 0;
-        background: radial-gradient(circle at 50% 48%, rgba(4,4,6,0.25) 20%, rgba(4,4,6,0.74) 100%);
+        background: radial-gradient(circle at 50% 48%, ${secondaryGlow} 0%, rgba(4,4,6,0.28) 28%, rgba(4,4,6,0.78) 100%);
         opacity: 0;
         transition: opacity 0.85s ease;
         pointer-events: none;
@@ -113,13 +148,19 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
       #agy-boot-overlay.hud-mode .agy-boot-footer { opacity: 1; }
 
       #agy-boot-overlay .agy-boot-brand { display: flex; flex-direction: column; gap: 3px; }
+      #agy-boot-overlay .agy-boot-brand-row { display: flex; align-items: center; gap: 8px; }
+      #agy-boot-overlay .agy-boot-emblem {
+        display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+        border-radius: 6px; border: 1px solid ${primary}; background: rgba(5, 8, 16, 0.72);
+        color: ${primary}; box-shadow: 0 0 12px ${glow}; flex: none;
+      }
       #agy-boot-overlay .agy-boot-brand strong {
         font-size: 14px; color: #ffffff; letter-spacing: 0.16em;
         font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-weight: 700;
       }
-      #agy-boot-overlay .agy-boot-brand .sub-line { font-size: 9px; color: #71717a; letter-spacing: 0.22em; }
+      #agy-boot-overlay .agy-boot-brand .sub-line { font-size: 9px; color: #94a3b8; letter-spacing: 0.22em; }
       #agy-boot-overlay .agy-boot-rev { margin-top: 10px; font-size: 9.5px; color: #52525b; display: flex; align-items: center; gap: 8px; }
-      #agy-boot-overlay .agy-boot-rev .blue-rev { color: #60a5fa; }
+      #agy-boot-overlay .agy-boot-rev .blue-rev { color: ${primary}; text-shadow: 0 0 8px ${glow}; }
 
       #agy-boot-overlay .agy-boot-skip {
         cursor: pointer; background: transparent; border: none; color: #71717a;
@@ -170,18 +211,19 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
       #agy-boot-overlay .agy-hud-subtitle { font-size: 10.5px; letter-spacing: 0.38em; color: #8c8c94; margin-bottom: 30px; }
       #agy-boot-overlay .agy-hud-btn {
         position: relative; overflow: hidden; cursor: pointer; background: rgba(255,255,255,0.03);
-        border: 1px solid rgba(255,255,255,0.34); color: #e4e4e7; padding: 9px 26px;
+        border: 1px solid ${primary}; color: #e4e4e7; padding: 9px 26px;
+        box-shadow: 0 0 14px ${glow};
         font-family: inherit; font-size: 11px; letter-spacing: 0.2em; transition: border-color 0.2s ease, color 0.2s ease;
       }
       #agy-boot-overlay .agy-hud-btn::before {
-        content: ''; position: absolute; inset: 0; background: #ffffff; transform: scaleX(0); transform-origin: left center;
+        content: ''; position: absolute; inset: 0; background: ${primary}; transform: scaleX(0); transform-origin: left center;
         transition: transform 0.28s cubic-bezier(0.22,1,0.36,1); z-index: 0;
       }
       #agy-boot-overlay .agy-hud-btn span { position: relative; z-index: 1; }
       #agy-boot-overlay .agy-hud-btn:hover::before,
       #agy-boot-overlay .agy-hud-btn.triggered::before { transform: scaleX(1); }
       #agy-boot-overlay .agy-hud-btn:hover,
-      #agy-boot-overlay .agy-hud-btn.triggered { color: #000000; border-color: #ffffff; }
+      #agy-boot-overlay .agy-hud-btn.triggered { color: #000000; border-color: ${primary}; }
       #agy-boot-overlay .agy-hud-hint { margin-top: 12px; font-size: 9.5px; color: #52525b; letter-spacing: 0.14em; }
 
       #agy-boot-overlay .agy-id-table { width: 290px; padding: 12px 0; margin-bottom: 22px; display: flex; flex-direction: column; gap: 7px; font-size: 10.5px; }
@@ -200,7 +242,7 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
         clip-path: inset(85% 0 0 0); opacity: 0;
         transition: clip-path 1.05s cubic-bezier(0.35,0.05,0.25,1), opacity 0.12s ease, filter 0.45s ease;
       }
-      #agy-boot-overlay .agy-icon-color-fill.filled { clip-path: inset(13% 0 0 0); opacity: 1; filter: drop-shadow(0 0 14px rgba(59,130,246,0.28)); }
+      #agy-boot-overlay .agy-icon-color-fill.filled { clip-path: inset(13% 0 0 0); opacity: 1; filter: drop-shadow(0 0 16px ${glow}); }
 
       #agy-boot-overlay .agy-dot-grid-small { font-size: 10px; letter-spacing: 0.48em; color: #52525b; line-height: 1.8; }
       #agy-boot-overlay .agy-hex-column {
@@ -213,26 +255,26 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
       #agy-boot-overlay .agy-arc-svg { position: absolute; inset: 0; width: 100%; height: 100%; animation: agySpinCW 4.2s linear infinite; }
       #agy-boot-overlay .agy-arc-svg-inner { position: absolute; inset: 28px; width: calc(100% - 56px); height: calc(100% - 56px); animation: agySpinCCW 5.5s linear infinite; }
       #agy-boot-overlay .agy-orbit-dots { position: absolute; inset: 42px; border-radius: 50%; animation: agySpinCW 3.4s linear infinite; }
-      #agy-boot-overlay .agy-orbit-dot { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #60a5fa; }
+      #agy-boot-overlay .agy-orbit-dot { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: ${primary}; box-shadow: 0 0 8px ${glow}; }
       #agy-boot-overlay .agy-orbit-dot.w { background: #ffffff; width: 3px; height: 3px; }
       @keyframes agySpinCW { to { transform: rotate(360deg); } }
       @keyframes agySpinCCW { to { transform: rotate(-360deg); } }
 
       #agy-boot-overlay .agy-welcome-eyebrow { font-size: 16px; font-weight: 700; letter-spacing: 0.26em; color: #f4f4f5; margin-bottom: 10px; }
       #agy-boot-overlay .agy-welcome-solid-box {
-        background: #ffffff; color: #050505; padding: 4px 18px; font-family: 'Segoe UI', system-ui, sans-serif;
-        font-size: 17px; font-weight: 800; letter-spacing: 0.16em; margin-bottom: 22px; box-shadow: 0 0 28px rgba(255,255,255,0.22);
+        background: ${primary}; color: #050505; padding: 4px 18px; font-family: 'Segoe UI', system-ui, sans-serif;
+        font-size: 17px; font-weight: 800; letter-spacing: 0.16em; margin-bottom: 22px; box-shadow: 0 0 28px ${glow};
       }
-      #agy-boot-overlay .agy-welcome-flare-wrap { position: relative; width: 260px; height: 58px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+      #agy-boot-overlay .agy-welcome-flare-wrap { position: relative; width: 260px; height: 58px; display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 10px; }
       #agy-boot-overlay .agy-welcome-flare-wrap img { width: 46px; height: 46px; object-fit: contain; position: relative; z-index: 2; }
 
       #agy-boot-overlay .agy-bottom-progress-track {
         position: absolute; left: 50%; transform: translateX(-50%); width: 33.33vw; max-width: 440px;
         bottom: 4px; height: 2px; background: rgba(255,255,255,0.12);
       }
-      #agy-boot-overlay .agy-bottom-progress-bar { width: 0%; height: 100%; background: #ffffff; transition: width 0.55s cubic-bezier(0.22,1,0.36,1); }
+      #agy-boot-overlay .agy-bottom-progress-bar { width: 0%; height: 100%; background: ${primary}; box-shadow: 0 0 10px ${glow}; transition: width 0.55s cubic-bezier(0.22,1,0.36,1); }
       #agy-boot-overlay .agy-eq-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 11px; margin-right: 10px; }
-      #agy-boot-overlay .agy-eq-bars span { width: 2px; background: #60a5fa; animation: agyEqPulse 0.9s ease-in-out infinite alternate; }
+      #agy-boot-overlay .agy-eq-bars span { width: 2px; background: ${primary}; animation: agyEqPulse 0.9s ease-in-out infinite alternate; }
       #agy-boot-overlay .agy-eq-bars span:nth-child(2) { animation-delay: 0.2s; }
       #agy-boot-overlay .agy-eq-bars span:nth-child(3) { animation-delay: 0.4s; }
       @keyframes agyEqPulse { from { height: 3px; opacity: 0.45; } to { height: 11px; opacity: 1; } }
@@ -254,10 +296,13 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
 
       <header class="agy-boot-header">
         <div class="agy-boot-brand">
-          <strong>ANTIGRAVITY</strong>
-          <span class="sub-line">SYNTHESIZE INTELLIGENCE</span>
+          <div class="agy-boot-brand-row">
+            ${emblemBadgeHtml}
+            <strong>${esc(brandTitle)}</strong>
+          </div>
+          <span class="sub-line">${esc(brandSub)}</span>
           <div class="agy-boot-rev">
-            <span>REV 0.1.9</span>
+            <span>${esc(statusBadge)}</span>
             <span>•</span>
             <span class="blue-rev" id="agy-hud-clock">WEB PROFILE 00:00:00</span>
           </div>
@@ -268,8 +313,8 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
       <div class="agy-boot-stage-wrap">
         <div class="agy-boot-stage active" id="agy-stage-0">
           <img class="agy-splash-logo" id="agy-splash-logo" src="${iconColorUrl}" alt="Antigravity" />
-          <div class="agy-splash-wordmark">ANTIGRAVITY</div>
-          <div class="agy-splash-caption">SYNTHESIZE INTELLIGENCE</div>
+          <div class="agy-splash-wordmark">${esc(brandTitle)}</div>
+          <div class="agy-splash-caption">${esc(brandSub)}</div>
         </div>
 
         <div class="agy-boot-stage" id="agy-stage-1">
@@ -285,9 +330,9 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
           <div style="margin-bottom:6px"><span class="agy-hud-title" data-stagger="26">XÁC MINH DANH TÍNH</span></div>
           <div class="agy-hud-subtitle" data-stagger="14">IDENTITY VERIFICATION</div>
           <div class="agy-id-table">
-            <div class="agy-id-row"><span>TÊN TRUY CẬP / OPERATOR</span><span>SENSEI</span></div>
-            <div class="agy-id-row"><span>MÃ ĐỊNH DANH / UID</span><span>0042</span></div>
-            <div class="agy-id-row"><span>CẤP QUYỀN / LEVEL</span><span>∞</span></div>
+            <div class="agy-id-row"><span>TÊN TRUY CẬP / OPERATOR</span><span>${esc(operatorName)}</span></div>
+            <div class="agy-id-row"><span>THEME / PROFILE</span><span>${esc(brandTitle)}</span></div>
+            <div class="agy-id-row"><span>TRẠNG THÁI / STATUS</span><span>${esc(statusBadge)}</span></div>
           </div>
           <button class="agy-hud-btn" id="agy-btn-confirm" type="button">
             <span>XÁC NHẬN &nbsp; CONFIRM IDENTITY</span>
@@ -302,11 +347,10 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
             <svg class="agy-icon-outline-svg" id="agy-icon-outline-svg" viewBox="0 0 256 256">
               <defs>
                 <linearGradient id="agyBootStrokeGrad" x1="10%" y1="90%" x2="88%" y2="12%">
-                  <stop offset="0%" stop-color="#3b82f6" />
+                  <stop offset="0%" stop-color="${esc(primary)}" />
                   <stop offset="38%" stop-color="#22c55e" />
                   <stop offset="68%" stop-color="#f59e0b" />
-                  <stop offset="86%" stop-color="#ef4444" />
-                  <stop offset="100%" stop-color="#3b82f6" />
+                  <stop offset="100%" stop-color="${esc(primary)}" />
                 </linearGradient>
               </defs>
               <path
@@ -323,7 +367,7 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
         <div class="agy-boot-stage" id="agy-stage-5">
           <div class="agy-verify-ring-stage">
             <svg class="agy-arc-svg" viewBox="0 0 320 320">
-              <circle cx="160" cy="160" r="146" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-dasharray="430 140 160 220" stroke-linecap="round" />
+              <circle cx="160" cy="160" r="146" fill="none" stroke="${esc(primary)}" stroke-width="3.2" stroke-dasharray="430 140 160 220" stroke-linecap="round" />
               <circle cx="160" cy="14" r="4.5" fill="#ffffff" />
             </svg>
             <svg class="agy-arc-svg-inner" viewBox="0 0 264 264">
@@ -337,19 +381,20 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
             </div>
             <div>
               <div class="agy-hud-title" data-stagger="24" style="font-size:17px;letter-spacing:0.1em;margin-bottom:6px">HOÀN TẤT · ĐÃ XÁC THỰC</div>
-              <div class="agy-hud-subtitle" data-stagger="14" style="margin-bottom:0;font-size:9px;letter-spacing:0.24em">READ COMPLETE · VERIFIED</div>
+              <div class="agy-hud-subtitle" data-stagger="14" style="margin-bottom:0;font-size:9px;letter-spacing:0.24em">${esc(statusCheck)}</div>
             </div>
           </div>
         </div>
 
         <div class="agy-boot-stage" id="agy-stage-6">
           <div class="agy-welcome-eyebrow" data-stagger="28">WELCOME TO</div>
-          <div class="agy-welcome-solid-box agy-welcome-reveal" style="animation-delay:240ms">ANTIGRAVITY</div>
+          <div class="agy-welcome-solid-box agy-welcome-reveal" style="animation-delay:240ms">${esc(brandTitle)}</div>
           <div class="agy-welcome-flare-wrap agy-welcome-reveal" style="animation-delay:360ms">
             <img src="${iconColorUrl}" alt="Antigravity" />
+            ${emblemBadgeHtml}
           </div>
-          <div class="agy-dot-grid-small agy-welcome-reveal" style="margin-bottom:8px;animation-delay:460ms">A N T I G R A V I T Y</div>
-          <div class="agy-hud-hint agy-welcome-reveal" style="color:#a1a1aa;letter-spacing:0.2em;animation-delay:540ms">CHÀO MỪNG SENSEI • SESSION READY</div>
+          <div class="agy-dot-grid-small agy-welcome-reveal" style="margin-bottom:8px;animation-delay:460ms">${esc(brandSub)}</div>
+          <div class="agy-hud-hint agy-welcome-reveal" style="color:#a1a1aa;letter-spacing:0.2em;animation-delay:540ms">${esc(welcomeSubline)}</div>
         </div>
       </div>
 
@@ -483,17 +528,26 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
         }
       }
       const meta = [
-        ['[ 00 / 06 ] INITIALIZING', 'LOADING KERNEL...', 10],
+        ['[ 00 / 06 ] INITIALIZING', `LOADING ${brandTitle}...`, 10],
         ['[ 01 / 06 ] AUTHORIZATION', 'AWAITING OPERATOR CONSENT', 24],
-        ['[ 02 / 06 ] IDENTITY CHECK', 'UID 0042 / LEVEL ∞ READY', 42],
+        ['[ 02 / 06 ] IDENTITY CHECK', `${operatorName} / ${statusBadge} READY`, 42],
         ['[ 03 / 06 ] ACCESS VECTOR', 'SYNCHRONIZING NEURAL CORE', 58],
         ['[ 04 / 06 ] PERMISSION STREAM', 'STREAMING CLEARANCE KEYS', 74],
-        ['[ 05 / 06 ] VERIFY', 'PERMISSION AUTHORIZED', 90],
-        ['[ 06 / 06 ] WELCOME', 'SENSEI SESSION ACTIVE', 100]
+        ['[ 05 / 06 ] VERIFY', statusCheck, 90],
+        ['[ 06 / 06 ] WELCOME', `${brandTitle} SESSION ACTIVE`, 100]
       ];
       stepLabel.textContent = meta[idx][0];
       statusBottom.textContent = meta[idx][1];
       bottomProgress.style.width = `${meta[idx][2]}%`;
+    }
+
+    function activateInsideUiLayers() {
+      const curSt = getState();
+      if (curSt.themeMode !== 'dynamic') return;
+      const curTh = (THEMES && THEMES[curSt.themeName]) || mainTheme;
+      if (typeof syncDynamicFxLayer === 'function') syncDynamicFxLayer(true, curTh);
+      if (typeof syncDynamicHudWidgets === 'function') syncDynamicHudWidgets(true, curTh);
+      if (typeof syncIdePet === 'function') syncIdePet(true, curTh, curSt.petEnabled !== false);
     }
 
     function finishBoot(instant = false) {
@@ -503,7 +557,8 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
       if (instant) {
         stopBootAudio();
         overlay.classList.add('done', 'instant');
-        scheduleRevealWhenReady(false);
+        scheduleRevealWhenReady(true);
+        activateInsideUiLayers();
         return;
       }
       flashCurtain.classList.remove('burst');
@@ -513,6 +568,7 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
         setTimeout(() => {
           overlay.classList.add('done');
           scheduleRevealWhenReady(false);
+          activateInsideUiLayers();
           window.__AGY_BOOT_TIMERS__.push(setTimeout(() => {
             overlay.style.display = 'none';
           }, 700));
