@@ -22,6 +22,132 @@ const STR = { type: 'string' };
 const BOOL = { type: 'boolean' };
 const NUM = { type: 'number' };
 
+const ARCHETYPES = [
+    'rpg-fantasy',
+    'anime-celestial',
+    'cyberpunk-sci-fi',
+    'kaiju-mecha',
+    'minimal-office',
+    'nature-zen',
+    'retro-arcade',
+    'cosmic-arcane'
+];
+
+const PARTICLE_STYLES = ['crystals', 'embers', 'petals', 'sparks', 'grid-dots', 'stars', 'leaves', 'none'];
+const HUD_RING_STYLES = ['magic-circle', 'cyber-radar', 'orbital-halo', 'minimal-arc', 'pixel-frame', 'none'];
+const SOUND_PROFILES = ['crystalline', 'synth-chime', 'warm-bell', 'power-chord', 'retro-blip'];
+
+const ARCHETYPE_DEFAULTS = {
+    'rpg-fantasy': {
+        archetypeLabel: 'RPG Fantasy',
+        particleStyle: 'crystals',
+        hudRingStyle: 'magic-circle',
+        soundProfile: 'crystalline',
+        introTitle: 'CARDINAL SYSTEM // LINK START',
+        introSubtitle: 'AETHERIC SYNC 100%',
+        introChecks: ['VISUAL', 'AUDIO', 'AETHER', 'SYNC'],
+        voiceWelcome: 'Link start. Welcome back, adventurer.',
+        voiceSwitch: 'Realm synchronized.'
+    },
+    'anime-celestial': {
+        archetypeLabel: 'Anime Celestial',
+        particleStyle: 'petals',
+        hudRingStyle: 'orbital-halo',
+        soundProfile: 'crystalline',
+        introTitle: 'STARLIGHT NEXUS // AWAKEN',
+        introSubtitle: 'CELESTIAL RESONANCE ACTIVE',
+        introChecks: ['STARLIGHT', 'RESONANCE', 'AURA', 'READY'],
+        voiceWelcome: 'Celestial nexus online. Welcome back.',
+        voiceSwitch: 'Starlight aligned.'
+    },
+    'cyberpunk-sci-fi': {
+        archetypeLabel: 'Cyberpunk HUD',
+        particleStyle: 'sparks',
+        hudRingStyle: 'cyber-radar',
+        soundProfile: 'synth-chime',
+        introTitle: 'NEURAL LINK // ONLINE',
+        introSubtitle: 'BIOMETRIC SYNC 100%',
+        introChecks: ['UPLINK', 'OPTICS', 'CIPHER', 'SYNC'],
+        voiceWelcome: 'Neural interface online. Welcome back.',
+        voiceSwitch: 'Uplink synchronized.'
+    },
+    'kaiju-mecha': {
+        archetypeLabel: 'Kaiju Mecha',
+        particleStyle: 'embers',
+        hudRingStyle: 'cyber-radar',
+        soundProfile: 'power-chord',
+        introTitle: 'TITAN CORE // IGNITION',
+        introSubtitle: 'REACTOR OUTPUT NOMINAL',
+        introChecks: ['REACTOR', 'ARMOR', 'THRUST', 'LOCKED'],
+        voiceWelcome: 'Reactor online. All systems nominal.',
+        voiceSwitch: 'Core engaged.'
+    },
+    'minimal-office': {
+        archetypeLabel: 'Minimal Office',
+        particleStyle: 'grid-dots',
+        hudRingStyle: 'minimal-arc',
+        soundProfile: 'warm-bell',
+        introTitle: 'FOCUS WORKSPACE // ONLINE',
+        introSubtitle: 'AMBIENT DESK READY',
+        introChecks: ['LAYOUT', 'FOCUS', 'AUDIO', 'READY'],
+        voiceWelcome: 'Workspace ready. Have a focused session.',
+        voiceSwitch: 'Workspace updated.'
+    },
+    'nature-zen': {
+        archetypeLabel: 'Nature Zen',
+        particleStyle: 'leaves',
+        hudRingStyle: 'minimal-arc',
+        soundProfile: 'warm-bell',
+        introTitle: 'SANCTUARY // BREATHE',
+        introSubtitle: 'SERENE AMBIENCE ACTIVE',
+        introChecks: ['FLORA', 'BREEZE', 'CHIME', 'CALM'],
+        voiceWelcome: 'Sanctuary open. Breathe and begin.',
+        voiceSwitch: 'Ambience shifted.'
+    },
+    'retro-arcade': {
+        archetypeLabel: 'Retro Arcade',
+        particleStyle: 'grid-dots',
+        hudRingStyle: 'pixel-frame',
+        soundProfile: 'retro-blip',
+        introTitle: 'ARCADE OS // INSERT COIN',
+        introSubtitle: 'PLAYER 1 READY',
+        introChecks: ['VRAM', 'CHIPTUNE', 'STAGE', 'START'],
+        voiceWelcome: 'Player one ready. Let us begin.',
+        voiceSwitch: 'Stage selected.'
+    },
+    'cosmic-arcane': {
+        archetypeLabel: 'Cosmic Arcane',
+        particleStyle: 'stars',
+        hudRingStyle: 'orbital-halo',
+        soundProfile: 'crystalline',
+        introTitle: 'ASTRAL OBSERVATORY // ACTIVE',
+        introSubtitle: 'ORBITAL TELEMETRY LOCKED',
+        introChecks: ['ORBIT', 'AETHER', 'TELEMETRY', 'SYNC'],
+        voiceWelcome: 'Astral observatory online. Welcome back.',
+        voiceSwitch: 'Orbit locked.'
+    }
+};
+
+const DYNAMIC_PACK_SCHEMA = {
+    type: 'object',
+    properties: {
+        archetype: { type: 'string', enum: ARCHETYPES },
+        archetypeLabel: STR,
+        particleStyle: { type: 'string', enum: PARTICLE_STYLES },
+        hudRingStyle: { type: 'string', enum: HUD_RING_STYLES },
+        soundProfile: { type: 'string', enum: SOUND_PROFILES },
+        introTitle: STR,
+        introSubtitle: STR,
+        introChecks: { type: 'array', items: STR },
+        voiceWelcome: STR,
+        voiceSwitch: STR
+    },
+    required: [
+        'archetype', 'archetypeLabel', 'particleStyle', 'hudRingStyle', 'soundProfile',
+        'introTitle', 'introSubtitle', 'introChecks', 'voiceWelcome', 'voiceSwitch'
+    ]
+};
+
 const BASE_PROPERTIES = {
     name: STR, concept: STR, primary: STR, secondary: STR, glow: STR, secondaryGlow: STR,
     bg: STR, frameBg: STR, textColor: STR, borderColor: STR, innerBorder: STR,
@@ -34,6 +160,7 @@ const BASE_PROPERTIES = {
     pillBg: STR, pillHoverBg: STR, pillTextColor: STR, pillBorder: STR,
     stickerW: NUM, stickerH: NUM, stickerTop: NUM, stickerRight: NUM,
     cornerSvgMarkup: STR, stickerSvgMarkup: STR,
+    dynamicPack: DYNAMIC_PACK_SCHEMA,
     generatedImagePath: STR
 };
 
@@ -42,7 +169,7 @@ const BASE_REQUIRED = [
     'borderColor', 'innerBorder', 'overlayRgb', 'bgPosition', 'sidebarBg', 'sidebarHoverBg',
     'aiCardBg', 'aiCardBorder', 'headerBg', 'headerBorder', 'btnBg', 'inputGlassBg', 'inputCardBg',
     'modalBg', 'modalHeaderBg', 'cardBg', 'cardSelectedBg', 'isLight',
-    'cornerSvgMarkup', 'stickerSvgMarkup'
+    'cornerSvgMarkup', 'stickerSvgMarkup', 'dynamicPack'
 ];
 
 function buildSchema(needsAiPaint) {
@@ -134,6 +261,17 @@ function buildPrompt(absImagePath, { srcW, srcH, needsAiPaint }) {
         '- stickerW 96, stickerH 30, stickerTop -15, stickerRight 14 unless the design needs otherwise.',
         '- name: a short evocative 2-3 word title for the preset (max 24 chars).',
         '- Colors must be valid CSS (hex or rgba()). overlayRgb is "R, G, B".',
+        '- Classify the image into one archetype and populate `dynamicPack` tailored to the image\'s exact subject, mood, and genre (game, RPG, anime, office, sci-fi, nature, retro, cosmic, etc.):',
+        `  * \`archetype\`: one of ${ARCHETYPES.map((a) => `"${a}"`).join(', ')}.`,
+        '  * `archetypeLabel`: short display label (e.g. "RPG Fantasy", "Anime Celestial", "Cyberpunk HUD", "Kaiju Mecha", "Minimal Office", "Nature Zen", "Retro Arcade", "Cosmic Arcane").',
+        `  * \`particleStyle\`: one of ${PARTICLE_STYLES.map((p) => `"${p}"`).join(', ')}.`,
+        `  * \`hudRingStyle\`: one of ${HUD_RING_STYLES.map((r) => `"${r}"`).join(', ')}.`,
+        `  * \`soundProfile\`: one of ${SOUND_PROFILES.map((s) => `"${s}"`).join(', ')}.`,
+        '  * `introTitle`: short uppercase boot title matching the image (e.g. "CARDINAL SYSTEM // LINK START", "FOCUS WORKSPACE // ONLINE").',
+        '  * `introSubtitle`: short uppercase status line (e.g. "BIOMETRIC SYNC 100%", "AMBIENT DESK READY").',
+        '  * `introChecks`: array of 3-4 short uppercase check labels (e.g. ["VISUAL", "AUDIO", "AETHER", "SYNC"]).',
+        '  * `voiceWelcome`: short 4-8 word English spoken greeting matching the theme (e.g. "System online. Welcome back.").',
+        '  * `voiceSwitch`: short 2-5 word English spoken confirmation (e.g. "Theme synchronized.").',
         '',
         'Theme schema reference:',
         schemaDoc,
@@ -260,6 +398,59 @@ const MIME_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp'
  * @param {{timeoutMs?: number, log?: Function, width?: number, height?: number}} opts
  * @returns {Promise<{theme: object, wallpaperDataUrl: string, wpMeta: {width: number, height: number, aiOutpainted: boolean}}>}
  */
+const ARCHETYPE_KEYWORDS = [
+    ['kaiju-mecha', /\b(kaiju|mecha|gundam|evangelion|titan|reactor|mech|armor|pacific)\b/i],
+    ['rpg-fantasy', /\b(rpg|fantasy|sword|sao|aincrad|cardinal|dungeon|knight|magic|dragon|blade|guild|wizard)\b/i],
+    ['cyberpunk-sci-fi', /\b(cyber|neon|sci-?fi|hud|matrix|neural|synth|blade\s*runner|hacker|city|future|chrome)\b/i],
+    ['retro-arcade', /\b(retro|arcade|pixel|8-?bit|16-?bit|vaporwave|crt|gameboy|synthwave|chiptune)\b/i],
+    ['nature-zen', /\b(nature|zen|forest|grotto|flora|leaf|leaves|sakura|garden|mountain|ocean|bamboo|botanical)\b/i],
+    ['minimal-office', /\b(minimal|office|desk|studio|obsidian|clean|mono|workspace|nord|slate|focus)\b/i],
+    ['anime-celestial', /\b(anime|wlop|violin|concerto|manga|celestial|idol|petal|shrine|sky)\b/i],
+    ['cosmic-arcane', /\b(cosmic|eclipse|orbit|astral|nebula|galaxy|black\s*sun|starlight|arcane|void|space)\b/i]
+];
+
+function inferArchetype(theme) {
+    const raw = theme && theme.dynamicPack && typeof theme.dynamicPack.archetype === 'string'
+        ? theme.dynamicPack.archetype.trim().toLowerCase()
+        : '';
+    if (ARCHETYPES.includes(raw)) return raw;
+    const text = `${(theme && theme.name) || ''} ${(theme && theme.concept) || ''}`;
+    for (const [arch, re] of ARCHETYPE_KEYWORDS) {
+        if (re.test(text)) return arch;
+    }
+    const primary = String((theme && theme.primary) || '').toLowerCase();
+    if (/^#(f9|ef|ea|dc|fb|f5)/.test(primary)) return 'kaiju-mecha';
+    if (/^#(10|22|2e|34|4a)/.test(primary)) return 'nature-zen';
+    if (/^#(94|64|cb|e2)/.test(primary)) return 'minimal-office';
+    return 'cosmic-arcane';
+}
+
+function normalizeDynamicPack(theme) {
+    const raw = (theme && theme.dynamicPack && typeof theme.dynamicPack === 'object') ? theme.dynamicPack : {};
+    const archetype = inferArchetype(theme);
+    const def = ARCHETYPE_DEFAULTS[archetype] || ARCHETYPE_DEFAULTS['cosmic-arcane'];
+    const pick = (val, allowed, fallback) => (typeof val === 'string' && allowed.includes(val) ? val : fallback);
+    const str = (val, fallback, maxLen) => {
+        const s = typeof val === 'string' ? val.trim() : '';
+        return s ? s.slice(0, maxLen) : fallback;
+    };
+    const checks = Array.isArray(raw.introChecks)
+        ? raw.introChecks.map((c) => String(c || '').trim().toUpperCase()).filter(Boolean).slice(0, 4)
+        : [];
+    return {
+        archetype,
+        archetypeLabel: str(raw.archetypeLabel, def.archetypeLabel, 28),
+        particleStyle: pick(raw.particleStyle, PARTICLE_STYLES, def.particleStyle),
+        hudRingStyle: pick(raw.hudRingStyle, HUD_RING_STYLES, def.hudRingStyle),
+        soundProfile: pick(raw.soundProfile, SOUND_PROFILES, def.soundProfile),
+        introTitle: str(raw.introTitle, def.introTitle, 48).toUpperCase(),
+        introSubtitle: str(raw.introSubtitle, def.introSubtitle, 48).toUpperCase(),
+        introChecks: checks.length >= 3 ? checks : def.introChecks.slice(),
+        voiceWelcome: str(raw.voiceWelcome, def.voiceWelcome, 96),
+        voiceSwitch: str(raw.voiceSwitch, def.voiceSwitch, 64)
+    };
+}
+
 function designTheme(dataUrl, opts = {}) {
     const timeoutMs = opts.timeoutMs || 420000;
     const log = opts.log || (() => {});
@@ -312,6 +503,7 @@ function designTheme(dataUrl, opts = {}) {
                 const outWebpPath = path.join(jobDir, 'wallpaper_4k.webp');
                 const wallpaperDataUrl = normalizeTo4k16x9Webp(chosenImagePath, outWebpPath, needsAiPaint);
                 delete theme.generatedImagePath;
+                theme.dynamicPack = normalizeDynamicPack(theme);
 
                 log(`Theme designed in ${env.duration_seconds}s (4K 16:9, aiOutpainted=${needsAiPaint})`);
                 resolve({
@@ -328,7 +520,7 @@ function designTheme(dataUrl, opts = {}) {
     });
 }
 
-module.exports = { designTheme, SCHEMA, buildSchema };
+module.exports = { designTheme, normalizeDynamicPack, SCHEMA, buildSchema, ARCHETYPE_DEFAULTS };
 
 if (require.main === module) {
     const argv = process.argv.slice(2);

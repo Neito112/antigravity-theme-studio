@@ -37,7 +37,19 @@
     "stickerW": 96,
     "stickerH": 30,
     "stickerTop": -15,
-    "stickerRight": 14
+    "stickerRight": 14,
+    "dynamicPack": {
+      "archetype": "cosmic-arcane",
+      "archetypeLabel": "Cosmic Arcane",
+      "particleStyle": "stars",
+      "hudRingStyle": "orbital-halo",
+      "soundProfile": "crystalline",
+      "introTitle": "ECLIPSE ORBIT // LINK START",
+      "introSubtitle": "BLACK SUN TELEMETRY 100%",
+      "introChecks": ["CORONA", "ORBIT", "OPTICS", "SYNC"],
+      "voiceWelcome": "Eclipse telemetry online. Welcome back.",
+      "voiceSwitch": "Eclipse synchronized."
+    }
   },
   "Luminous Grotto": {
     "concept": "Bioluminescent Grotto & Sunlit Automaton • Abyssal Flora Glass",
@@ -83,7 +95,19 @@
     "pillBg": "rgba(10, 24, 46, 0.62)",
     "pillHoverBg": "rgba(46, 229, 216, 0.18)",
     "pillTextColor": "#e2f8f5",
-    "pillBorder": "rgba(46, 229, 216, 0.24)"
+    "pillBorder": "rgba(46, 229, 216, 0.24)",
+    "dynamicPack": {
+      "archetype": "nature-zen",
+      "archetypeLabel": "Nature Zen",
+      "particleStyle": "leaves",
+      "hudRingStyle": "minimal-arc",
+      "soundProfile": "warm-bell",
+      "introTitle": "LUMINOUS GROTTO // AWAKEN",
+      "introSubtitle": "BIOLUMINESCENT FLORA ACTIVE",
+      "introChecks": ["FLORA", "AETHER", "CHIME", "SERENE"],
+      "voiceWelcome": "Luminous grotto awakened. Welcome back.",
+      "voiceSwitch": "Grotto harmonized."
+    }
   },
   "WLOP Cosmic": {
     "concept": "Cosmic Violin & Starlight • High-Contrast Glass",
@@ -123,7 +147,19 @@
     "stickerW": 96,
     "stickerH": 30,
     "stickerTop": -15,
-    "stickerRight": 14
+    "stickerRight": 14,
+    "dynamicPack": {
+      "archetype": "anime-celestial",
+      "archetypeLabel": "Anime Celestial",
+      "particleStyle": "stars",
+      "hudRingStyle": "orbital-halo",
+      "soundProfile": "crystalline",
+      "introTitle": "STARLIGHT CONCERTO // ONLINE",
+      "introSubtitle": "HARMONIC RESONANCE 100%",
+      "introChecks": ["STRINGS", "STARLIGHT", "AUDIO", "SYNC"],
+      "voiceWelcome": "Starlight concerto online. Welcome back.",
+      "voiceSwitch": "Harmony aligned."
+    }
   },
   "Midnight Obsidian": {
     "concept": "Pure CSS Gradient • Zero-Image Ultra-Light",
@@ -160,6 +196,18 @@
     "stickerW": 0,
     "stickerH": 0,
     "stickerTop": 0,
-    "stickerRight": 0
+    "stickerRight": 0,
+    "dynamicPack": {
+      "archetype": "minimal-office",
+      "archetypeLabel": "Minimal Office",
+      "particleStyle": "grid-dots",
+      "hudRingStyle": "minimal-arc",
+      "soundProfile": "synth-chime",
+      "introTitle": "OBSIDIAN STUDIO // ONLINE",
+      "introSubtitle": "ULTRA-LIGHT WORKSPACE READY",
+      "introChecks": ["SHELL", "FOCUS", "AUDIO", "READY"],
+      "voiceWelcome": "Obsidian workspace ready. Welcome back.",
+      "voiceSwitch": "Studio synchronized."
+    }
   }
 }

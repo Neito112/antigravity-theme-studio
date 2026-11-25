@@ -22,12 +22,149 @@
   const STORAGE_THEME_MODE = 'agy_theme_mode_v1';
   const STORAGE_SOUND_MUTED = 'agy_sound_muted_v1';
   const STORAGE_SOUND_VOLUME = 'agy_sound_volume_v1';
+  const STORAGE_VOICE_ENABLED = 'agy_voice_enabled_v1';
+  const STORAGE_INTRO_ENABLED = 'agy_intro_enabled_v1';
 
   const CHECK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 
-  // ── Sound Engine ──────────────────────────────────────────────────────────────
-  // Synthesises UI sounds using the Web Audio API — zero external files needed.
-  // All sounds are opt-in (Dynamic mode only) and respect the mute/volume state.
+  // ── Adaptive Dynamic Pack ─────────────────────────────────────────────────────
+  const DYNAMIC_ARCHETYPES = {
+    'rpg-fantasy': {
+      archetype: 'rpg-fantasy',
+      archetypeLabel: 'RPG Fantasy',
+      particleStyle: 'crystals',
+      hudRingStyle: 'magic-circle',
+      soundProfile: 'crystalline',
+      introTitle: 'AETHER SYSTEM // LINK START',
+      introSubtitle: 'ARCANE MATRIX SYNCHRONIZED',
+      introChecks: ['VISUAL', 'AUDIO', 'AETHER', 'SYNC'],
+      voiceWelcome: 'System online. Link start.',
+      voiceSwitch: 'World synchronized.'
+    },
+    'anime-celestial': {
+      archetype: 'anime-celestial',
+      archetypeLabel: 'Anime Celestial',
+      particleStyle: 'petals',
+      hudRingStyle: 'orbital-halo',
+      soundProfile: 'crystalline',
+      introTitle: 'CELESTIAL LINK // AWAKENED',
+      introSubtitle: 'STARLIGHT HARMONICS 100%',
+      introChecks: ['VISUAL', 'STARLIGHT', 'AUDIO', 'SYNC'],
+      voiceWelcome: 'Celestial link awakened. Welcome back.',
+      voiceSwitch: 'Celestial theme active.'
+    },
+    'cyberpunk-sci-fi': {
+      archetype: 'cyberpunk-sci-fi',
+      archetypeLabel: 'Cyberpunk HUD',
+      particleStyle: 'sparks',
+      hudRingStyle: 'cyber-radar',
+      soundProfile: 'synth-chime',
+      introTitle: 'NEURAL HUD // ONLINE',
+      introSubtitle: 'BIOMETRIC SYNC 100%',
+      introChecks: ['OPTICS', 'NEURAL', 'AUDIO', 'UPLINK'],
+      voiceWelcome: 'Neural HUD online. Welcome back.',
+      voiceSwitch: 'System profile loaded.'
+    },
+    'kaiju-mecha': {
+      archetype: 'kaiju-mecha',
+      archetypeLabel: 'Kaiju Mecha',
+      particleStyle: 'embers',
+      hudRingStyle: 'cyber-radar',
+      soundProfile: 'power-chord',
+      introTitle: 'CORE REACTOR // IGNITION',
+      introSubtitle: 'ARMOR & THRUSTERS NOMINAL',
+      introChecks: ['REACTOR', 'RADAR', 'WEAPONS', 'SYNC'],
+      voiceWelcome: 'Core reactor online. Standing by.',
+      voiceSwitch: 'Combat profile engaged.'
+    },
+    'minimal-office': {
+      archetype: 'minimal-office',
+      archetypeLabel: 'Minimal Office',
+      particleStyle: 'grid-dots',
+      hudRingStyle: 'minimal-arc',
+      soundProfile: 'warm-bell',
+      introTitle: 'FOCUS WORKSPACE // ONLINE',
+      introSubtitle: 'AMBIENT DESK READY',
+      introChecks: ['LAYOUT', 'CONTRAST', 'AUDIO', 'READY'],
+      voiceWelcome: 'Focus workspace ready. Welcome back.',
+      voiceSwitch: 'Workspace updated.'
+    },
+    'nature-zen': {
+      archetype: 'nature-zen',
+      archetypeLabel: 'Nature Zen',
+      particleStyle: 'leaves',
+      hudRingStyle: 'minimal-arc',
+      soundProfile: 'warm-bell',
+      introTitle: 'SANCTUARY // BREATHE IN',
+      introSubtitle: 'AMBIENT HARMONY RESTORED',
+      introChecks: ['CANOPY', 'BREEZE', 'CHIME', 'CALM'],
+      voiceWelcome: 'Sanctuary ready. Breathe and focus.',
+      voiceSwitch: 'Ambient scene active.'
+    },
+    'retro-arcade': {
+      archetype: 'retro-arcade',
+      archetypeLabel: 'Retro Arcade',
+      particleStyle: 'grid-dots',
+      hudRingStyle: 'pixel-frame',
+      soundProfile: 'retro-blip',
+      introTitle: 'PLAYER 1 // PRESS START',
+      introSubtitle: '8-BIT ENGINE READY',
+      introChecks: ['SPRITES', 'CHIPTUNE', 'CRT', 'READY'],
+      voiceWelcome: 'Player one ready. Press start.',
+      voiceSwitch: 'Stage selected.'
+    },
+    'cosmic-arcane': {
+      archetype: 'cosmic-arcane',
+      archetypeLabel: 'Cosmic Arcane',
+      particleStyle: 'stars',
+      hudRingStyle: 'orbital-halo',
+      soundProfile: 'synth-chime',
+      introTitle: 'ASTRAL OBSERVATORY // SYNC',
+      introSubtitle: 'NEBULA TELEMETRY LOCKED',
+      introChecks: ['NEBULA', 'ORBIT', 'SONIC', 'LOCK'],
+      voiceWelcome: 'Astral observatory online. Welcome back.',
+      voiceSwitch: 'Cosmic alignment complete.'
+    }
+  };
+
+  function inferArchetypeFromTheme(theme) {
+    const t = theme || {};
+    const hay = `${t.name || ''} ${t.concept || ''} ${t.primary || ''}`.toLowerCase();
+    if (/kaiju|mecha|titan|crimson|lava|ember|magma|dragon/.test(hay)) return 'kaiju-mecha';
+    if (/cyber|neon|matrix|sci-fi|tech|synth|radar|hud/.test(hay)) return 'cyberpunk-sci-fi';
+    if (/office|minimal|obsidian|clean|desk|slate|monochrome/.test(hay)) return 'minimal-office';
+    if (/nature|forest|grotto|luminous|zen|garden|leaf|moss|emerald/.test(hay)) return 'nature-zen';
+    if (/retro|pixel|arcade|8-bit|8bit|chiptune/.test(hay)) return 'retro-arcade';
+    if (/anime|celestial|sakura|eclipse|petal|angel|halo/.test(hay)) return 'anime-celestial';
+    if (/rpg|fantasy|sword|knight|dungeon|guild|aether/.test(hay)) return 'rpg-fantasy';
+    return 'cosmic-arcane';
+  }
+
+  function resolveDynamicPack(theme) {
+    const t = theme || {};
+    const raw = (t.dynamicPack && typeof t.dynamicPack === 'object') ? t.dynamicPack : {};
+    const archKey = DYNAMIC_ARCHETYPES[raw.archetype] ? raw.archetype : inferArchetypeFromTheme(t);
+    const base = DYNAMIC_ARCHETYPES[archKey] || DYNAMIC_ARCHETYPES['cosmic-arcane'];
+    const checks = Array.isArray(raw.introChecks) && raw.introChecks.length
+      ? raw.introChecks.slice(0, 4).map(c => String(c).toUpperCase())
+      : base.introChecks;
+    return {
+      archetype: archKey,
+      archetypeLabel: raw.archetypeLabel || base.archetypeLabel,
+      particleStyle: raw.particleStyle || base.particleStyle,
+      hudRingStyle: raw.hudRingStyle || base.hudRingStyle,
+      soundProfile: raw.soundProfile || base.soundProfile,
+      introTitle: raw.introTitle || base.introTitle,
+      introSubtitle: raw.introSubtitle || base.introSubtitle,
+      introChecks: checks,
+      voiceWelcome: raw.voiceWelcome || base.voiceWelcome,
+      voiceSwitch: raw.voiceSwitch || base.voiceSwitch
+    };
+  }
+
+  // ── Sound & Voice Engine ──────────────────────────────────────────────────────
+  // Synthesises genre-tuned UI sounds using Web Audio API & optional Web Speech.
+  // All sounds & speech are Dynamic-mode only and respect mute/volume/voice state.
   let _agySoundCtx = null;
   function getAudioCtx() {
     if (!_agySoundCtx || _agySoundCtx.state === 'closed') {
@@ -53,7 +190,7 @@
   }
 
   function getStateSafe() {
-    try { return getState(); } catch (_) { return { themeMode: 'dynamic' }; }
+    try { return getState(); } catch (_) { return { themeMode: 'dynamic', voiceEnabled: true, introEnabled: true }; }
   }
 
   function playTone(freq, type, duration, vol, attackT, decayT) {
@@ -78,10 +215,15 @@
     } catch (_) {}
   }
 
-  // Chime: pleasant 3-note ascending arpeggio played on theme selection
-  function playThemeSelectSound(primaryColor) {
+  function getActiveSoundProfile(themeOrPack) {
+    if (themeOrPack && themeOrPack.soundProfile) return themeOrPack.soundProfile;
+    const th = themeOrPack || THEMES[getStateSafe().themeName] || THEMES[getDefaultThemeKey()] || {};
+    return resolveDynamicPack(th).soundProfile;
+  }
+
+  // Genre-tuned theme selection chime
+  function playThemeSelectSound(primaryColor, themeOrPack) {
     if (!isSoundEnabled()) return;
-    // Derive a base frequency from the primary color hue for fun variety
     let baseFreq = 440;
     try {
       const hex = (primaryColor || '#38bdf8').replace('#', '');
@@ -89,29 +231,81 @@
       const g = parseInt(hex.substring(2, 4), 16) || 0;
       baseFreq = 300 + (r * 0.4 + g * 0.3) % 220;
     } catch (_) {}
-    setTimeout(() => playTone(baseFreq, 'sine', 0.18, 0.55, 0.01, 0.14), 0);
-    setTimeout(() => playTone(baseFreq * 1.26, 'sine', 0.18, 0.45, 0.01, 0.14), 70);
-    setTimeout(() => playTone(baseFreq * 1.5, 'sine', 0.22, 0.6, 0.01, 0.18), 145);
+    const profile = getActiveSoundProfile(themeOrPack);
+    if (profile === 'retro-blip') {
+      [1, 1.25, 1.5, 2.0].forEach((mult, idx) => {
+        setTimeout(() => playTone(baseFreq * mult, 'square', 0.09, 0.28, 0.004, 0.07), idx * 45);
+      });
+    } else if (profile === 'power-chord') {
+      [0.5, 0.75, 1.0].forEach((mult, idx) => {
+        setTimeout(() => playTone(baseFreq * mult, idx === 0 ? 'sawtooth' : 'triangle', 0.24, idx === 0 ? 0.25 : 0.45, 0.01, 0.2), idx * 55);
+      });
+    } else if (profile === 'synth-chime') {
+      [1, 1.333, 1.5, 1.78].forEach((mult, idx) => {
+        setTimeout(() => playTone(baseFreq * mult, idx % 2 === 0 ? 'triangle' : 'sine', 0.2, 0.45, 0.008, 0.16), idx * 60);
+      });
+    } else if (profile === 'warm-bell') {
+      [1, 1.125, 1.5].forEach((mult, idx) => {
+        setTimeout(() => playTone(baseFreq * mult, 'sine', 0.28, 0.42, 0.018, 0.24), idx * 95);
+      });
+    } else {
+      // crystalline
+      [1, 1.26, 1.5, 2.0].forEach((mult, idx) => {
+        setTimeout(() => playTone(baseFreq * mult, 'sine', 0.2, 0.48, 0.008, 0.16), idx * 65);
+      });
+    }
   }
 
-  // Soft click: played on UI toggle interactions (mute, mode switch)
-  function playClickSound() {
+  // Soft click: played on UI toggle interactions (mute, voice, intro)
+  function playClickSound(themeOrPack) {
     if (!isSoundEnabled()) return;
-    playTone(880, 'sine', 0.09, 0.3, 0.005, 0.07);
-    setTimeout(() => playTone(660, 'triangle', 0.07, 0.18, 0.005, 0.055), 35);
+    const profile = getActiveSoundProfile(themeOrPack);
+    if (profile === 'retro-blip') {
+      playTone(960, 'square', 0.06, 0.18, 0.003, 0.05);
+      setTimeout(() => playTone(1280, 'square', 0.06, 0.14, 0.003, 0.045), 32);
+    } else if (profile === 'power-chord') {
+      playTone(330, 'triangle', 0.1, 0.32, 0.005, 0.08);
+      setTimeout(() => playTone(495, 'triangle', 0.09, 0.22, 0.005, 0.07), 35);
+    } else if (profile === 'warm-bell') {
+      playTone(660, 'sine', 0.12, 0.26, 0.01, 0.1);
+    } else {
+      playTone(880, 'sine', 0.09, 0.3, 0.005, 0.07);
+      setTimeout(() => playTone(660, 'triangle', 0.07, 0.18, 0.005, 0.055), 35);
+    }
   }
 
   // Mode switch chime: quick double-tap indicating Dynamic ↔ Static transition
-  function playModeToggleSound(isDynamic) {
+  function playModeToggleSound(isDynamic, themeOrPack) {
     const vol = getSoundVolume();
     if (vol <= 0) return;
+    const profile = getActiveSoundProfile(themeOrPack);
+    const wave = profile === 'retro-blip' ? 'square' : (profile === 'synth-chime' || profile === 'power-chord' ? 'triangle' : 'sine');
+    const gainScale = wave === 'square' ? 0.3 : 0.6;
     if (isDynamic) {
-      playTone(523, 'sine', 0.15, vol * 0.6, 0.01, 0.12);
-      setTimeout(() => playTone(659, 'sine', 0.18, vol * 0.7, 0.01, 0.14), 80);
+      playTone(523, wave, 0.15, vol * gainScale, 0.01, 0.12);
+      setTimeout(() => playTone(659, wave, 0.18, vol * (gainScale + 0.1), 0.01, 0.14), 80);
     } else {
-      playTone(659, 'sine', 0.1, vol * 0.5, 0.01, 0.08);
-      setTimeout(() => playTone(392, 'sine', 0.15, vol * 0.45, 0.01, 0.12), 70);
+      playTone(659, wave, 0.1, vol * (gainScale * 0.85), 0.01, 0.08);
+      setTimeout(() => playTone(392, wave, 0.15, vol * (gainScale * 0.75), 0.01, 0.12), 70);
     }
+  }
+
+  // Optional Web Speech API voice feedback (Dynamic mode + voiceEnabled + unmuted)
+  function speakThemeVoice(text) {
+    if (!text) return;
+    const st = getStateSafe();
+    if (st.themeMode === 'static' || st.soundMuted || !st.voiceEnabled) return;
+    const vol = getSoundVolume();
+    if (vol <= 0) return;
+    try {
+      if (!window.speechSynthesis || typeof window.SpeechSynthesisUtterance !== 'function') return;
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(String(text));
+      utter.volume = Math.min(1, Math.max(0, vol));
+      utter.rate = 1.03;
+      utter.lang = 'en-US';
+      window.speechSynthesis.speak(utter);
+    } catch (_) {}
   }
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -164,7 +358,15 @@
     const soundMuted = localStorage.getItem(STORAGE_SOUND_MUTED) === 'true';
     const rawVol = localStorage.getItem(STORAGE_SOUND_VOLUME);
     const soundVolume = rawVol !== null ? Math.min(1, Math.max(0, parseFloat(rawVol))) : 0.38;
-    return { themeName, bubbleName, inputStyle, dimming, wpEnabled, customWp, userAvatar, agentAvatar, glassBlur, avatarSize, avatarRadius, themeMode, soundMuted, soundVolume };
+    const rawVoice = localStorage.getItem(STORAGE_VOICE_ENABLED);
+    const voiceEnabled = rawVoice !== null
+      ? rawVoice !== 'false'
+      : (init.voiceEnabled !== undefined ? init.voiceEnabled : true);
+    const rawIntro = localStorage.getItem(STORAGE_INTRO_ENABLED);
+    const introEnabled = rawIntro !== null
+      ? rawIntro !== 'false'
+      : (init.introEnabled !== undefined ? init.introEnabled : true);
+    return { themeName, bubbleName, inputStyle, dimming, wpEnabled, customWp, userAvatar, agentAvatar, glassBlur, avatarSize, avatarRadius, themeMode, soundMuted, soundVolume, voiceEnabled, introEnabled };
   }
 
   // Downscale user/agent avatar uploads to 192x192 WebP once so theme_config.json stays tiny
@@ -241,6 +443,189 @@
     img.src = wpUrl;
   }
 
+  function buildHudRingSvg(hudRingStyle, primary, secondary, size = 340) {
+    const c1 = primary || '#38bdf8';
+    const c2 = secondary || c1;
+    if (hudRingStyle === 'none') return '';
+    if (hudRingStyle === 'cyber-radar') {
+      return `<svg width="${size}" height="${size}" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="100" cy="100" r="90" stroke="${c1}" stroke-width="1" stroke-dasharray="10 6" opacity="0.8"/>
+        <circle cx="100" cy="100" r="70" stroke="${c2}" stroke-width="1.2" stroke-dasharray="28 12 4 12" opacity="0.85"/>
+        <circle cx="100" cy="100" r="46" stroke="${c1}" stroke-width="0.9" opacity="0.6"/>
+        <path d="M100 6 V24 M100 176 V194 M6 100 H24 M176 100 H194" stroke="${c1}" stroke-width="1.4"/>
+        <path d="M100 100 L166 56" stroke="${c2}" stroke-width="1" opacity="0.75"/>
+      </svg>`;
+    }
+    if (hudRingStyle === 'pixel-frame') {
+      return `<svg width="${size}" height="${size}" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+        <rect x="18" y="18" width="164" height="164" stroke="${c1}" stroke-width="2" stroke-dasharray="12 8"/>
+        <rect x="38" y="38" width="124" height="124" stroke="${c2}" stroke-width="1.5" stroke-dasharray="6 6"/>
+        <rect x="76" y="76" width="48" height="48" stroke="${c1}" stroke-width="1.5"/>
+        <rect x="96" y="10" width="8" height="8" fill="${c2}"/>
+        <rect x="96" y="182" width="8" height="8" fill="${c2}"/>
+      </svg>`;
+    }
+    if (hudRingStyle === 'minimal-arc') {
+      return `<svg width="${size}" height="${size}" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="100" cy="100" r="88" stroke="${c1}" stroke-width="0.9" stroke-dasharray="90 190" stroke-linecap="round" opacity="0.85"/>
+        <circle cx="100" cy="100" r="68" stroke="${c2}" stroke-width="0.8" stroke-dasharray="55 160" stroke-linecap="round" opacity="0.65"/>
+      </svg>`;
+    }
+    if (hudRingStyle === 'orbital-halo') {
+      return `<svg width="${size}" height="${size}" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="100" cy="100" r="88" stroke="${c1}" stroke-width="1" opacity="0.75"/>
+        <ellipse cx="100" cy="100" rx="92" ry="38" transform="rotate(-24 100 100)" stroke="${c2}" stroke-width="1.1" stroke-dasharray="14 6" opacity="0.85"/>
+        <ellipse cx="100" cy="100" rx="92" ry="38" transform="rotate(24 100 100)" stroke="${c1}" stroke-width="0.9" opacity="0.55"/>
+        <circle cx="164" cy="38" r="3.5" fill="${c2}"/>
+        <circle cx="36" cy="162" r="2.5" fill="${c1}"/>
+      </svg>`;
+    }
+    // magic-circle (default)
+    return `<svg width="${size}" height="${size}" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="100" cy="100" r="90" stroke="${c1}" stroke-width="1.2" opacity="0.85"/>
+      <circle cx="100" cy="100" r="78" stroke="${c2}" stroke-width="0.9" stroke-dasharray="4 4" opacity="0.75"/>
+      <polygon points="100,16 172,142 28,142" stroke="${c1}" stroke-width="1" opacity="0.7"/>
+      <polygon points="100,184 172,58 28,58" stroke="${c2}" stroke-width="1" opacity="0.7"/>
+      <circle cx="100" cy="100" r="36" stroke="${c1}" stroke-width="1" opacity="0.65"/>
+    </svg>`;
+  }
+
+  function buildParticlesHtml(pack, primary, secondary) {
+    const pStyle = pack.particleStyle || 'stars';
+    if (pStyle === 'none') return '';
+    const c1 = primary || '#38bdf8';
+    const c2 = secondary || c1;
+    const count = 11;
+    let out = '';
+    for (let i = 0; i < count; i++) {
+      const left = ((i * 17 + 7) % 92) + 4;
+      const top = ((i * 23 + 11) % 86) + 6;
+      const dur = 9 + (i % 5) * 2.4;
+      const delay = -((i * 1.3) % 8).toFixed(1);
+      const color = i % 2 === 0 ? c1 : c2;
+      const sz = 5 + (i % 4) * 2;
+      let shapeCss = `width:${sz}px;height:${sz}px;border-radius:50%;background:${color};box-shadow:0 0 8px ${color};`;
+      let animName = 'agyParticleFloat';
+      if (pStyle === 'crystals') {
+        shapeCss = `width:${sz + 2}px;height:${sz + 2}px;background:${color};clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%);opacity:0.55;`;
+      } else if (pStyle === 'embers') {
+        shapeCss = `width:${sz - 1}px;height:${sz - 1}px;border-radius:50%;background:${color};box-shadow:0 0 10px ${color};`;
+        animName = 'agyParticleRise';
+      } else if (pStyle === 'petals') {
+        shapeCss = `width:${sz + 3}px;height:${Math.max(4, sz - 1)}px;border-radius:70% 10% 70% 10%;background:${color};opacity:0.45;`;
+        animName = 'agyParticleDrift';
+      } else if (pStyle === 'leaves') {
+        shapeCss = `width:${sz + 4}px;height:${Math.max(5, sz)}px;border-radius:0 75% 0 75%;background:${color};opacity:0.45;`;
+        animName = 'agyParticleDrift';
+      } else if (pStyle === 'sparks') {
+        shapeCss = `width:2px;height:${sz + 5}px;border-radius:2px;background:${color};box-shadow:0 0 8px ${color};`;
+        animName = 'agyParticleRise';
+      } else if (pStyle === 'grid-dots') {
+        shapeCss = `width:${Math.max(3, sz - 2)}px;height:${Math.max(3, sz - 2)}px;border-radius:1px;background:${color};opacity:0.45;`;
+        animName = 'agyParticleTwinkle';
+      } else {
+        // stars
+        animName = 'agyParticleTwinkle';
+      }
+      out += `<span class="agy-fx-particle" style="position:absolute;left:${left}%;top:${top}%;${shapeCss}will-change:transform,opacity;animation:${animName} ${dur}s ease-in-out ${delay}s infinite;"></span>`;
+    }
+    return out;
+  }
+
+  function syncDynamicFxLayer(isDynamic, theme) {
+    const existing = document.getElementById('agy-dynamic-fx-layer');
+    if (!isDynamic) {
+      if (existing) existing.remove();
+      return;
+    }
+    const pack = resolveDynamicPack(theme);
+    const primary = (theme && theme.primary) || '#38bdf8';
+    const secondary = (theme && theme.secondary) || primary;
+    const packKey = `${pack.archetype}|${pack.particleStyle}|${pack.hudRingStyle}|${primary}|${secondary}`;
+    let layer = existing;
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.id = 'agy-dynamic-fx-layer';
+      layer.setAttribute('aria-hidden', 'true');
+      layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;';
+      document.body.appendChild(layer);
+    }
+    if (layer.dataset.packKey !== packKey) {
+      layer.dataset.packKey = packKey;
+      const ringSvg = buildHudRingSvg(pack.hudRingStyle, primary, secondary, 380);
+      const ringHtml = ringSvg
+        ? `<div class="agy-fx-hud-ring" style="position:absolute;right:-70px;bottom:-70px;width:380px;height:380px;opacity:0.18;pointer-events:none;will-change:transform,opacity;animation:agyHudSpin 38s linear infinite;">${ringSvg}</div>`
+        : '';
+      layer.innerHTML = buildParticlesHtml(pack, primary, secondary) + ringHtml;
+    }
+  }
+
+  function dismissThemeIntro() {
+    if (window.__AGY_INTRO_TIMERS__) {
+      window.__AGY_INTRO_TIMERS__.forEach(id => clearTimeout(id));
+    }
+    window.__AGY_INTRO_TIMERS__ = [];
+    if (window.__AGY_INTRO_ESC__) {
+      window.removeEventListener('keydown', window.__AGY_INTRO_ESC__, true);
+      window.__AGY_INTRO_ESC__ = null;
+    }
+    const old = document.getElementById('agy-intro-overlay');
+    if (old) old.remove();
+  }
+
+  function showThemeIntro(theme, force = false) {
+    const st = getStateSafe();
+    if (st.themeMode === 'static') return;
+    if (!force && !st.introEnabled) return;
+    dismissThemeIntro();
+
+    const th = theme || THEMES[st.themeName] || THEMES[getDefaultThemeKey()] || {};
+    const pack = resolveDynamicPack(th);
+    const primary = th.primary || '#38bdf8';
+    const secondary = th.secondary || primary;
+    const ringSvg = buildHudRingSvg(pack.hudRingStyle === 'none' ? 'orbital-halo' : pack.hudRingStyle, primary, secondary, 210);
+
+    const overlay = document.createElement('div');
+    overlay.id = 'agy-intro-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:100001;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(7,9,15,0.82);cursor:pointer;opacity:1;transition:opacity 0.35s ease;font-family:system-ui,-apple-system,sans-serif;';
+    overlay.innerHTML = `
+      <div style="position:relative;display:flex;align-items:center;justify-content:center;width:220px;height:220px;margin-bottom:18px;">
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;will-change:transform;animation:agyHudSpin 14s linear infinite;">${ringSvg}</div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:2px;color:${primary};text-transform:uppercase;text-align:center;">${escHtml(pack.archetypeLabel)}</div>
+      </div>
+      <div style="font-size:20px;font-weight:800;letter-spacing:2.4px;color:#f8fafc;text-align:center;text-shadow:0 0 18px ${primary}66;">${escHtml(pack.introTitle)}</div>
+      <div style="font-size:12px;font-weight:600;letter-spacing:1.6px;color:${secondary};margin-top:6px;margin-bottom:18px;text-align:center;">${escHtml(pack.introSubtitle)}</div>
+      <div style="display:flex;flex-direction:column;gap:6px;min-width:220px;">
+        ${pack.introChecks.map((lbl, idx) => `
+          <div style="display:flex;justify-content:space-between;align-items:center;font-family:monospace;font-size:12px;color:#e2e8f0;opacity:0;animation:agyIntroCheckIn 0.28s ease forwards;animation-delay:${160 + idx * 170}ms;">
+            <span style="color:#94a3b8;">${escHtml(lbl)}</span>
+            <span style="color:${primary};font-weight:700;">[ OK ]</span>
+          </div>
+        `).join('')}
+      </div>
+      <div style="margin-top:20px;font-size:11px;color:#64748b;letter-spacing:0.6px;">Click or press Esc to skip</div>
+    `;
+
+    document.body.appendChild(overlay);
+    speakThemeVoice(pack.voiceWelcome);
+
+    const onEsc = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        dismissThemeIntro();
+      }
+    };
+    window.__AGY_INTRO_ESC__ = onEsc;
+    window.addEventListener('keydown', onEsc, true);
+    overlay.addEventListener('click', () => dismissThemeIntro());
+
+    const t1 = setTimeout(() => {
+      if (overlay.parentNode) overlay.style.opacity = '0';
+    }, 1850);
+    const t2 = setTimeout(() => dismissThemeIntro(), 2220);
+    window.__AGY_INTRO_TIMERS__ = [t1, t2];
+  }
+
   function syncDynamicAuraElement(isDynamic, wpEnabled) {
     const existing = document.getElementById('agy-dynamic-ambient-aura');
     if (!isDynamic || !wpEnabled) {
@@ -296,6 +681,8 @@
       if (overrides.soundVolume !== undefined) {
         localStorage.setItem(STORAGE_SOUND_VOLUME, String(overrides.soundVolume));
       }
+      localStorage.setItem(STORAGE_VOICE_ENABLED, String(st.voiceEnabled));
+      localStorage.setItem(STORAGE_INTRO_ENABLED, String(st.introEnabled));
     } catch (e) {}
 
     if (window.agySaveThemeConfig) {
@@ -1127,6 +1514,32 @@
         80% { opacity: 1; }
         100% { transform: translateX(400%); opacity: 0; }
       }
+      @keyframes agyHudSpin {
+        0% { transform: rotate(0deg) scale(1); }
+        50% { transform: rotate(180deg) scale(1.03); }
+        100% { transform: rotate(360deg) scale(1); }
+      }
+      @keyframes agyParticleFloat {
+        0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.25; }
+        50% { transform: translate3d(14px, -28px, 0) scale(1.15); opacity: 0.65; }
+      }
+      @keyframes agyParticleRise {
+        0% { transform: translate3d(0, 18px, 0) scale(0.9); opacity: 0.15; }
+        50% { transform: translate3d(-10px, -24px, 0) scale(1.1); opacity: 0.7; }
+        100% { transform: translate3d(8px, -54px, 0) scale(0.85); opacity: 0.12; }
+      }
+      @keyframes agyParticleDrift {
+        0%, 100% { transform: translate3d(0, -10px, 0) rotate(0deg); opacity: 0.3; }
+        50% { transform: translate3d(22px, 24px, 0) rotate(24deg); opacity: 0.65; }
+      }
+      @keyframes agyParticleTwinkle {
+        0%, 100% { transform: scale(0.8); opacity: 0.18; }
+        50% { transform: scale(1.25); opacity: 0.72; }
+      }
+      @keyframes agyIntroCheckIn {
+        from { opacity: 0; transform: translate3d(-8px, 0, 0); }
+        to { opacity: 1; transform: translate3d(0, 0, 0); }
+      }
       #agy-dynamic-ambient-aura {
         display: block;
         position: absolute;
@@ -1183,6 +1596,8 @@
     `;
 
     syncDynamicAuraElement(st.themeMode === 'dynamic', st.wpEnabled);
+    syncDynamicFxLayer(st.themeMode === 'dynamic', mainTheme);
+    if (st.themeMode === 'static') dismissThemeIntro();
     syncTitleBarOverlay(st);
     scheduleTitleBarSync(st);
   }
@@ -1237,6 +1652,9 @@
     if (modal) modal.remove();
     const aura = document.getElementById('agy-dynamic-ambient-aura');
     if (aura) aura.remove();
+    const fxLayer = document.getElementById('agy-dynamic-fx-layer');
+    if (fxLayer) fxLayer.remove();
+    dismissThemeIntro();
     const shell = document.querySelector('.agy-shell');
     if (shell) {
       delete shell.dataset.agyHoleActive;
@@ -1255,6 +1673,14 @@
   window.__ANTIGRAVITY_OPEN_THEME_MODAL__ = openCustomThemeModal;
 
   applyTheme();
+  (() => {
+    const st0 = getStateSafe();
+    if (st0.themeMode === 'dynamic' && st0.introEnabled && !window.__AGY_INTRO_SHOWN_ONCE__) {
+      window.__AGY_INTRO_SHOWN_ONCE__ = true;
+      const th0 = THEMES[st0.themeName] || THEMES[getDefaultThemeKey()] || {};
+      setTimeout(() => showThemeIntro(th0, false), 250);
+    }
+  })();
 
   function syncThemeModeToggleBtn(mode, primaryColor) {
     const btn = document.getElementById('agy-theme-mode-toggle');
@@ -1274,6 +1700,30 @@
       statPill.style.background = !isDyn ? 'rgba(255, 255, 255, 0.16)' : 'transparent';
       statPill.style.color = !isDyn ? '#f4f4f5' : '#a1a1aa';
       statPill.style.fontWeight = !isDyn ? '700' : '500';
+    }
+    syncExtraToggleBtns(primaryColor);
+  }
+
+  function syncExtraToggleBtns(primaryColor) {
+    const st = getStateSafe();
+    const accent = primaryColor || '#38bdf8';
+    const voiceBtn = document.getElementById('agy-voice-toggle-btn');
+    if (voiceBtn) {
+      const on = !!st.voiceEnabled;
+      voiceBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      voiceBtn.style.borderColor = on ? accent : 'rgba(255, 255, 255, 0.12)';
+      voiceBtn.style.color = on ? '#f4f4f5' : '#71717a';
+      voiceBtn.style.background = on ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.04)';
+      voiceBtn.innerHTML = on ? '🗣️ Giọng nói' : '🗣️ Tắt giọng';
+    }
+    const introBtn = document.getElementById('agy-intro-toggle-btn');
+    if (introBtn) {
+      const on = !!st.introEnabled;
+      introBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      introBtn.style.borderColor = on ? accent : 'rgba(255, 255, 255, 0.12)';
+      introBtn.style.color = on ? '#f4f4f5' : '#71717a';
+      introBtn.style.background = on ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.04)';
+      introBtn.innerHTML = on ? '✨ Intro' : '✨ Tắt Intro';
     }
   }
 
@@ -1301,15 +1751,24 @@
               <span style="font-size: 17px; font-weight: 600; color: #f4f4f5; letter-spacing: -0.2px;">Custom Theme Studio</span>
               <span id="agy-custom-theme-badge" style="font-size: 11.5px; padding: 2.5px 9px; border-radius: 9999px; background: rgba(224, 142, 85, 0.2); color: #e08e55; font-weight: 500; border: 1px solid rgba(224, 142, 85, 0.3);">${THEME_KEYS.length} Preset${THEME_KEYS.length > 1 ? 's' : ''}</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
               <button id="agy-theme-mode-toggle" type="button" title="Chuyển chế độ Động / Tĩnh (Dynamic / Static)" style="display: inline-flex; align-items: center; gap: 2px; padding: 3px; border-radius: 9999px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); cursor: pointer; font-size: 12px; line-height: 1; user-select: none;">
                 <span data-mode-pill="dynamic" style="padding: 5px 10px; border-radius: 9999px; transition: background-color 0.15s ease, color 0.15s ease;">⚡ Động</span>
                 <span data-mode-pill="static" style="padding: 5px 10px; border-radius: 9999px; transition: background-color 0.15s ease, color 0.15s ease;">🧊 Tĩnh</span>
               </button>
+              <button id="agy-voice-toggle-btn" type="button" title="Bật/tắt giọng nói chào mừng (Web Speech)" style="display: inline-flex; align-items: center; gap: 4px; padding: 5px 9px; border-radius: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); color: #f4f4f5; cursor: pointer; font-size: 11.5px; white-space: nowrap; transition: all 0.15s ease;">
+                🗣️ Giọng nói
+              </button>
+              <button id="agy-intro-toggle-btn" type="button" title="Bật/tắt Intro khởi động khi đổi theme" style="display: inline-flex; align-items: center; gap: 4px; padding: 5px 9px; border-radius: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); color: #f4f4f5; cursor: pointer; font-size: 11.5px; white-space: nowrap; transition: all 0.15s ease;">
+                ✨ Intro
+              </button>
+              <button id="agy-intro-preview-btn" type="button" title="Xem thử hiệu ứng Intro của theme hiện tại" style="display: inline-flex; align-items: center; gap: 4px; padding: 5px 9px; border-radius: 8px; background: rgba(56, 189, 248, 0.16); border: 1px solid rgba(56, 189, 248, 0.35); color: #e0f2fe; cursor: pointer; font-size: 11.5px; font-weight: 600; white-space: nowrap; transition: all 0.15s ease;">
+                ▶ Thử Intro
+              </button>
               <button id="agy-sound-mute-btn" type="button" title="Bật/tắt âm thanh (Sound on/off)" style="display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #d4d4d8; cursor: pointer; font-size: 12px; white-space: nowrap; transition: all 0.15s ease;">
                 🔊 <span id="agy-sound-mute-label">Âm thanh</span>
               </button>
-              <input id="agy-sound-vol-slider" type="range" min="0" max="100" value="38" title="Âm lượng (Volume)" style="width: 64px; cursor: pointer; accent-color: #38bdf8; height: 4px; vertical-align: middle;" />
+              <input id="agy-sound-vol-slider" type="range" min="0" max="100" value="38" title="Âm lượng (Volume)" style="width: 60px; cursor: pointer; accent-color: #38bdf8; height: 4px; vertical-align: middle;" />
               <button id="agy-theme-modal-close-btn" type="button" style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); color: #d4d4d8; cursor: pointer; width: 30px; height: 30px; border-radius: 8px; font-size: 15px; display: flex; align-items: center; justify-content: center; transition: all 0.15s ease;">✕</button>
             </div>
           </div>
@@ -1336,6 +1795,44 @@
         const body = backdrop.querySelector('#agy-theme-modal-body');
         if (body) renderThemePanels(body);
       });
+      const voiceToggleBtn = backdrop.querySelector('#agy-voice-toggle-btn');
+      if (voiceToggleBtn) {
+        voiceToggleBtn.addEventListener('click', () => {
+          const cur = getState();
+          const next = !cur.voiceEnabled;
+          const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
+          applyTheme({ voiceEnabled: next });
+          syncExtraToggleBtns(th.primary);
+          playClickSound(th);
+          if (next) speakThemeVoice('Voice feedback enabled.');
+        });
+      }
+      const introToggleBtn = backdrop.querySelector('#agy-intro-toggle-btn');
+      if (introToggleBtn) {
+        introToggleBtn.addEventListener('click', () => {
+          const cur = getState();
+          const next = !cur.introEnabled;
+          const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
+          applyTheme({ introEnabled: next });
+          syncExtraToggleBtns(th.primary);
+          playClickSound(th);
+        });
+      }
+      const introPreviewBtn = backdrop.querySelector('#agy-intro-preview-btn');
+      if (introPreviewBtn) {
+        introPreviewBtn.addEventListener('click', () => {
+          const cur = getState();
+          const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
+          if (cur.themeMode === 'static') {
+            applyTheme({ themeMode: 'dynamic' });
+            syncThemeModeToggleBtn('dynamic', th.primary);
+            const body = backdrop.querySelector('#agy-theme-modal-body');
+            if (body) renderThemePanels(body);
+          }
+          playThemeSelectSound(th.primary, th);
+          showThemeIntro(th, true);
+        });
+      }
       // Wire up sound mute button
       const soundMuteBtn = backdrop.querySelector('#agy-sound-mute-btn');
       const soundVolSlider = backdrop.querySelector('#agy-sound-vol-slider');
@@ -1599,24 +2096,28 @@
           </div>
 
           <!-- Live Preview Strip: visually different in Dynamic vs Static -->
-          ${st.themeMode === 'dynamic' ? `
+          ${(() => {
+            const activePack = resolveDynamicPack(mainTheme);
+            return st.themeMode === 'dynamic' ? `
           <div id="agy-live-preview-strip" style="position: relative; overflow: hidden; border-radius: 10px; height: 36px; margin-bottom: 14px; background: linear-gradient(90deg, ${mainTheme.glow}, ${mainTheme.secondaryGlow || mainTheme.primary}, ${mainTheme.glow}); background-size: 300% 100%; animation: agyPreviewStripFlow 4s ease-in-out infinite; display: flex; align-items: center; padding: 0 16px; gap: 10px; border: 1px solid ${mainTheme.borderColor};">
             <span style="position: absolute; left: 0; top: 0; bottom: 0; width: 25%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent); animation: agyLiveStripScan 2.4s ease-in-out infinite; pointer-events: none;"></span>
-            <span style="font-size: 12px; font-weight: 700; color: #090d16; letter-spacing: 0.5px; text-shadow: 0 1px 3px rgba(0,0,0,0.3);">⚡ Chế độ Động · LIVE</span>
-            <span style="font-size: 11px; color: rgba(0,0,0,0.65); margin-left: 4px;">Thẻ preset có hiệu ứng shimmer &amp; pulse · Âm thanh tích hợp</span>
-            <span style="margin-left: auto; font-size: 11px; font-weight: 600; color: rgba(0,0,0,0.6); background: rgba(255,255,255,0.3); border-radius: 999px; padding: 2px 8px;">ANIMATE ON</span>
+            <span style="font-size: 12px; font-weight: 700; color: #090d16; letter-spacing: 0.5px; text-shadow: 0 1px 3px rgba(0,0,0,0.3);">⚡ ${escHtml(activePack.archetypeLabel)}</span>
+            <span style="font-size: 11px; color: rgba(0,0,0,0.7); margin-left: 4px;">${escHtml(activePack.particleStyle)} · ${escHtml(activePack.hudRingStyle)} · ${escHtml(activePack.soundProfile)}</span>
+            <span style="margin-left: auto; font-size: 11px; font-weight: 600; color: rgba(0,0,0,0.65); background: rgba(255,255,255,0.32); border-radius: 999px; padding: 2px 8px;">ANIMATE ON</span>
           </div>
           ` : `
           <div id="agy-live-preview-strip" style="border-radius: 10px; height: 36px; margin-bottom: 14px; background: rgba(30, 30, 35, 0.72); border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; padding: 0 16px; gap: 10px;">
-            <span style="font-size: 12px; font-weight: 700; color: #94a3b8; letter-spacing: 0.5px;">🧊 Chế độ Tĩnh</span>
+            <span style="font-size: 12px; font-weight: 700; color: #94a3b8; letter-spacing: 0.5px;">🧊 Static</span>
             <span style="font-size: 11px; color: #64748b; margin-left: 4px;">Tắt mọi hiệu ứng · Tiết kiệm pin &amp; GPU</span>
             <span style="margin-left: auto; font-size: 11px; font-weight: 600; color: #64748b; background: rgba(255,255,255,0.06); border-radius: 999px; padding: 2px 8px; border: 1px solid rgba(255,255,255,0.1);">MOTION OFF</span>
           </div>
-          `}
+          `;
+          })()}
 
           <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
             ${THEME_KEYS.map(name => {
               const th = THEMES[name];
+              const cardPack = resolveDynamicPack(th);
               const isSelected = name === st.themeName;
               const canDelete = THEME_KEYS.length > 1;
               const isBuiltin = BUILTIN_KEYS.has(name);
@@ -1634,8 +2135,11 @@
                 ? `<div style="position: absolute; inset: 0; background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,0.08) 50%, transparent 80%); background-size: 200% 100%; animation: agyPreviewCardShimmer 2.5s linear infinite; animation-delay: ${(THEME_KEYS.indexOf(name) % 4) * 0.4}s; pointer-events: none;"></div>`
                 : '';
               const modeIndicator = st.themeMode === 'dynamic'
-                ? `<span style="position: absolute; bottom: 8px; left: 10px; z-index: 2; font-size: 10px; font-weight: 700; color: ${th.primary || '#38bdf8'}; background: rgba(0,0,0,0.6); border-radius: 999px; padding: 1px 7px; border: 1px solid ${th.glow || 'rgba(56,189,248,0.4)'}; letter-spacing: 0.3px;">⚡ Dynamic</span>`
+                ? `<span style="position: absolute; bottom: 8px; left: 10px; z-index: 2; font-size: 10px; font-weight: 700; color: ${th.primary || '#38bdf8'}; background: rgba(0,0,0,0.65); border-radius: 999px; padding: 1px 7px; border: 1px solid ${th.glow || 'rgba(56,189,248,0.4)'}; letter-spacing: 0.3px;">⚡ ${escHtml(cardPack.archetypeLabel)}</span>`
                 : `<span style="position: absolute; bottom: 8px; left: 10px; z-index: 2; font-size: 10px; font-weight: 700; color: #94a3b8; background: rgba(0,0,0,0.65); border-radius: 999px; padding: 1px 7px; border: 1px solid rgba(148,163,184,0.3); letter-spacing: 0.3px;">🧊 Static</span>`;
+              const packTags = st.themeMode === 'dynamic'
+                ? `<div style="font-size: 10.5px; color: #71717a; margin-top: 2px;">${escHtml(cardPack.particleStyle)} · ${escHtml(cardPack.soundProfile)}</div>`
+                : '';
               return `
                 <div class="agy-preset-card" data-name="${escHtml(name)}" style="position: relative; border-radius: 12px; border: ${isSelected ? '1.5px solid #f4f4f5' : '1px solid rgba(255, 255, 255, 0.12)'}; background: rgba(14, 12, 12, 0.82); overflow: hidden; cursor: pointer; display: flex; flex-direction: column; transition: border-color 0.15s ease; ${dynCardStyle}">
                   ${canDelete ? `<button class="agy-delete-preset-btn" data-del-preset="${escHtml(name)}" type="button" title="${isBuiltin ? 'Ẩn preset gốc' : 'Xóa preset'}" style="position: absolute; top: 8px; right: 8px; z-index: 3; width: 26px; height: 26px; border-radius: 7px; border: 1px solid rgba(255, 255, 255, 0.22); background: rgba(10, 12, 18, 0.72); color: #fca5a5; font-size: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease;">🗑️</button>` : ''}
@@ -1646,7 +2150,10 @@
                     <span style="font-size: 13.5px; font-weight: 600; color: #fff; position: relative; z-index: 1;">${escHtml(name)}</span>
                   </div>
                   <div style="padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 12px; color: #a1a1aa;">${escHtml(th.concept || '')}</span>
+                    <div>
+                      <span style="font-size: 12px; color: #a1a1aa;">${escHtml(th.concept || '')}</span>
+                      ${packTags}
+                    </div>
                     <div class="agy-card-check-slot">${isSelected ? CHECK_SVG : ''}</div>
                   </div>
                 </div>
@@ -1898,7 +2405,7 @@
             throw new Error('Config must be a JSON object');
           }
           const allowed = {};
-          const keys = ['themeName', 'bubbleName', 'inputStyle', 'dimming', 'wpEnabled', 'customWp', 'userAvatar', 'agentAvatar', 'glassBlur', 'avatarSize', 'avatarRadius', 'themeMode', 'soundMuted', 'soundVolume'];
+          const keys = ['themeName', 'bubbleName', 'inputStyle', 'dimming', 'wpEnabled', 'customWp', 'userAvatar', 'agentAvatar', 'glassBlur', 'avatarSize', 'avatarRadius', 'themeMode', 'soundMuted', 'soundVolume', 'voiceEnabled', 'introEnabled'];
           keys.forEach((k) => {
             if (parsed[k] !== undefined) allowed[k] = parsed[k];
           });
@@ -1926,6 +2433,8 @@
       localStorage.removeItem(STORAGE_THEME_MODE);
       localStorage.removeItem(STORAGE_SOUND_MUTED);
       localStorage.removeItem(STORAGE_SOUND_VOLUME);
+      localStorage.removeItem(STORAGE_VOICE_ENABLED);
+      localStorage.removeItem(STORAGE_INTRO_ENABLED);
       const resetDefKey = getDefaultThemeKey();
       applyTheme({
         themeName: resetDefKey,
@@ -1939,7 +2448,9 @@
         glassBlur: 3,
         avatarSize: 32,
         avatarRadius: 50,
-        themeMode: 'dynamic'
+        themeMode: 'dynamic',
+        voiceEnabled: true,
+        introEnabled: true
       });
       const defTh = THEMES[resetDefKey] || {};
       syncThemeModeToggleBtn('dynamic', defTh.primary);
@@ -2020,8 +2531,17 @@
       card.addEventListener('click', () => {
         const name = card.dataset.name;
         const th = THEMES[name] || {};
-        playThemeSelectSound(th.primary);
+        const curSt = getState();
+        playThemeSelectSound(th.primary, th);
         applyTheme({ themeName: name, bubbleName: name, customWp: '' });
+        if (curSt.themeMode !== 'static') {
+          const pack = resolveDynamicPack(th);
+          if (curSt.introEnabled) {
+            showThemeIntro(th, false);
+          } else {
+            speakThemeVoice(pack.voiceSwitch);
+          }
+        }
 
         container.querySelectorAll('.agy-preset-card').forEach(c => {
           const isSel = c.dataset.name === name;
@@ -2508,6 +3028,7 @@
     t.pillTextColor = ensureReadableInk(t.pillTextColor, t.pillBg, 9.0, L, '#f8fafc');
     t.textColor = ensureReadableInk(t.textColor, t.bg, 9.0, L, '#f8fafc');
     t.sidebarEnhanceText = true;
+    t.dynamicPack = resolveDynamicPack(t);
     return t;
   }
 
