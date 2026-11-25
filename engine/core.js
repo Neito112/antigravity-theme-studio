@@ -529,23 +529,123 @@
   }
 
   // Optional Web Speech API voice feedback (Dynamic mode + voiceEnabled + unmuted)
-  function speakThemeVoice(text, themeOrPack) {
-    if (!text) return;
+  let _agyTechVoiceCache = null;
+  let _agyTechVoiceHooked = false;
+  let _agySpeechSeqId = 0;
+
+  function pickTechVoice() {
+    try {
+      if (!window.speechSynthesis || typeof window.speechSynthesis.getVoices !== 'function') return null;
+      if (!_agyTechVoiceHooked && 'onvoiceschanged' in window.speechSynthesis) {
+        _agyTechVoiceHooked = true;
+        window.speechSynthesis.onvoiceschanged = () => { _agyTechVoiceCache = null; };
+      }
+      if (_agyTechVoiceCache) return _agyTechVoiceCache;
+      const voices = window.speechSynthesis.getVoices() || [];
+      if (!voices.length) return null;
+
+      const priorities = [
+        'aria',
+        'jenny',
+        'guy',
+        'sonya',
+        'google us english',
+        'microsoft zira',
+        'samantha'
+      ];
+      for (const kw of priorities) {
+        const hit = voices.find((v) => (v.name || '').toLowerCase().includes(kw));
+        if (hit) {
+          _agyTechVoiceCache = hit;
+          return hit;
+        }
+      }
+      const naturalEn = voices.find((v) =>
+        /^en[-_](us|gb)/i.test(v.lang || '') && /(natural|online)/i.test(v.name || '')
+      );
+      if (naturalEn) {
+        _agyTechVoiceCache = naturalEn;
+        return naturalEn;
+      }
+      const fallbackEn = voices.find((v) => /^en\b/i.test(v.lang || ''));
+      _agyTechVoiceCache = fallbackEn || null;
+      return _agyTechVoiceCache;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function playVoiceTelemetry(kind) {
+    if (!isSoundEnabled()) return;
+    if (kind === 'open') {
+      playTone(1320, 'sine', 0.045, 0.26, 0.004, 0.036);
+      setTimeout(() => playTone(1760, 'triangle', 0.055, 0.28, 0.004, 0.044), 48);
+    } else if (kind === 'close') {
+      playTone(980, 'sine', 0.05, 0.22, 0.004, 0.04);
+    }
+  }
+
+  function speakSystemSequence(lines, themeOrPack, opts) {
+    const rawList = Array.isArray(lines) ? lines : [lines];
+    const segments = [];
+    for (const item of rawList) {
+      if (!item) continue;
+      const parts = String(item).split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+      segments.push(...parts);
+    }
+    if (!segments.length) return;
+
     const st = getStateSafe();
     if (st.themeMode === 'static' || st.soundMuted || !st.voiceEnabled) return;
     const vol = getSoundVolume();
     if (vol <= 0) return;
+
     const pack = resolvePackFromArg(themeOrPack);
     try {
       if (!window.speechSynthesis || typeof window.SpeechSynthesisUtterance !== 'function') return;
+      const seqId = ++_agySpeechSeqId;
       window.speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(String(text));
-      utter.volume = Math.min(1, Math.max(0, vol));
-      utter.pitch = Number.isFinite(pack.voicePitch) ? pack.voicePitch : 1;
-      utter.rate = Number.isFinite(pack.voiceRate) ? pack.voiceRate : 1.03;
-      utter.lang = 'en-US';
-      window.speechSynthesis.speak(utter);
+
+      const voice = pickTechVoice();
+      const basePitch = Number.isFinite(pack.voicePitch) ? pack.voicePitch : 1.02;
+      const baseRate = Number.isFinite(pack.voiceRate) ? pack.voiceRate : 1.06;
+      const clampedPitch = Math.min(1.10, Math.max(0.95, basePitch));
+      const clampedRate = Math.min(1.14, Math.max(1.02, baseRate));
+      const volScale = (opts && Number.isFinite(opts.volumeScale)) ? opts.volumeScale : 1;
+      const utterVol = Math.min(1, Math.max(0, vol * volScale));
+
+      const speakAt = (idx) => {
+        if (seqId !== _agySpeechSeqId) return;
+        if (idx >= segments.length) {
+          playVoiceTelemetry('close');
+          return;
+        }
+        const utter = new SpeechSynthesisUtterance(segments[idx]);
+        utter.volume = utterVol;
+        utter.pitch = clampedPitch;
+        utter.rate = clampedRate;
+        utter.lang = (voice && voice.lang) ? voice.lang : 'en-US';
+        if (voice) utter.voice = voice;
+        utter.onend = () => {
+          if (seqId !== _agySpeechSeqId) return;
+          if (idx + 1 < segments.length) {
+            setTimeout(() => speakAt(idx + 1), 65);
+          } else {
+            playVoiceTelemetry('close');
+          }
+        };
+        utter.onerror = () => { /* ignore aborted/error speech */ };
+        window.speechSynthesis.speak(utter);
+      };
+
+      playVoiceTelemetry('open');
+      setTimeout(() => speakAt(0), 95);
     } catch (_) {}
+  }
+
+  function speakThemeVoice(text, themeOrPack, opts) {
+    if (!text) return;
+    speakSystemSequence([text], themeOrPack, opts);
   }
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1061,7 +1161,7 @@
     `;
 
     document.body.appendChild(overlay);
-    speakThemeVoice(pack.voiceWelcome, pack);
+    speakSystemSequence([pack.introSubtitle, pack.voiceWelcome].filter(Boolean), pack);
 
     const onEsc = (e) => {
       if (e.key === 'Escape') {
@@ -2493,6 +2593,9 @@
         // Re-render panels to refresh Dynamic/Static preview card indicators
         const body = backdrop.querySelector('#agy-theme-modal-body');
         if (body) renderThemePanels(body);
+        if (nextMode === 'dynamic') {
+          speakThemeVoice('Dynamic protocol engaged.', th);
+        }
       });
       const voiceToggleBtn = backdrop.querySelector('#agy-voice-toggle-btn');
       if (voiceToggleBtn) {
@@ -2585,11 +2688,21 @@
       }, { signal: sig });
     }
 
+    const wasOpen = backdrop.style.display === 'flex';
     backdrop.style.display = 'flex';
     const body = backdrop.querySelector('#agy-theme-modal-body');
     renderThemePanels(body);
     if (initialFile && typeof backdrop._handleAiFile === 'function') {
       backdrop._handleAiFile(initialFile);
+    }
+    if (!wasOpen) {
+      const st = getStateSafe();
+      if (st.themeMode !== 'static' && st.voiceEnabled) {
+        const th = THEMES[st.themeName] || THEMES[getDefaultThemeKey()] || {};
+        const pack = resolveDynamicPack(th);
+        const line = pack.archetypeLabel ? `${pack.archetypeLabel} console accessed.` : 'System menu accessed.';
+        speakThemeVoice(line, pack, { volumeScale: 0.7 });
+      }
     }
   }
 
