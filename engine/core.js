@@ -20,8 +20,100 @@
   const STORAGE_AVATAR_SIZE = 'agy_avatar_size_v3';
   const STORAGE_AVATAR_RADIUS = 'agy_avatar_radius_v3';
   const STORAGE_THEME_MODE = 'agy_theme_mode_v1';
+  const STORAGE_SOUND_MUTED = 'agy_sound_muted_v1';
+  const STORAGE_SOUND_VOLUME = 'agy_sound_volume_v1';
 
   const CHECK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+  // ── Sound Engine ──────────────────────────────────────────────────────────────
+  // Synthesises UI sounds using the Web Audio API — zero external files needed.
+  // All sounds are opt-in (Dynamic mode only) and respect the mute/volume state.
+  let _agySoundCtx = null;
+  function getAudioCtx() {
+    if (!_agySoundCtx || _agySoundCtx.state === 'closed') {
+      try { _agySoundCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) {}
+    }
+    if (_agySoundCtx && _agySoundCtx.state === 'suspended') {
+      try { _agySoundCtx.resume(); } catch (_) {}
+    }
+    return _agySoundCtx;
+  }
+
+  function getSoundVolume() {
+    const rawMuted = localStorage.getItem(STORAGE_SOUND_MUTED);
+    const isMuted = rawMuted === 'true';
+    if (isMuted) return 0;
+    const rawVol = localStorage.getItem(STORAGE_SOUND_VOLUME);
+    return rawVol !== null ? Math.min(1, Math.max(0, parseFloat(rawVol))) : 0.38;
+  }
+
+  function isSoundEnabled() {
+    const st = getStateSafe();
+    return st.themeMode !== 'static' && getSoundVolume() > 0;
+  }
+
+  function getStateSafe() {
+    try { return getState(); } catch (_) { return { themeMode: 'dynamic' }; }
+  }
+
+  function playTone(freq, type, duration, vol, attackT, decayT) {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    const v = (vol !== undefined ? vol : 1) * getSoundVolume();
+    if (v <= 0) return;
+    try {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = type || 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      const att = attackT || 0.01;
+      const dec = decayT || duration * 0.7;
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(v, ctx.currentTime + att);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + att + dec);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + duration);
+    } catch (_) {}
+  }
+
+  // Chime: pleasant 3-note ascending arpeggio played on theme selection
+  function playThemeSelectSound(primaryColor) {
+    if (!isSoundEnabled()) return;
+    // Derive a base frequency from the primary color hue for fun variety
+    let baseFreq = 440;
+    try {
+      const hex = (primaryColor || '#38bdf8').replace('#', '');
+      const r = parseInt(hex.substring(0, 2), 16) || 0;
+      const g = parseInt(hex.substring(2, 4), 16) || 0;
+      baseFreq = 300 + (r * 0.4 + g * 0.3) % 220;
+    } catch (_) {}
+    setTimeout(() => playTone(baseFreq, 'sine', 0.18, 0.55, 0.01, 0.14), 0);
+    setTimeout(() => playTone(baseFreq * 1.26, 'sine', 0.18, 0.45, 0.01, 0.14), 70);
+    setTimeout(() => playTone(baseFreq * 1.5, 'sine', 0.22, 0.6, 0.01, 0.18), 145);
+  }
+
+  // Soft click: played on UI toggle interactions (mute, mode switch)
+  function playClickSound() {
+    if (!isSoundEnabled()) return;
+    playTone(880, 'sine', 0.09, 0.3, 0.005, 0.07);
+    setTimeout(() => playTone(660, 'triangle', 0.07, 0.18, 0.005, 0.055), 35);
+  }
+
+  // Mode switch chime: quick double-tap indicating Dynamic ↔ Static transition
+  function playModeToggleSound(isDynamic) {
+    const vol = getSoundVolume();
+    if (vol <= 0) return;
+    if (isDynamic) {
+      playTone(523, 'sine', 0.15, vol * 0.6, 0.01, 0.12);
+      setTimeout(() => playTone(659, 'sine', 0.18, vol * 0.7, 0.01, 0.14), 80);
+    } else {
+      playTone(659, 'sine', 0.1, vol * 0.5, 0.01, 0.08);
+      setTimeout(() => playTone(392, 'sine', 0.15, vol * 0.45, 0.01, 0.12), 70);
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
 
   const INPUT_STYLES = {
     'sync': {
@@ -69,7 +161,10 @@
     const avatarRadius = rawAvRad !== undefined && rawAvRad !== null && rawAvRad !== '' ? parseInt(rawAvRad, 10) : 50;
     const rawMode = localStorage.getItem(STORAGE_THEME_MODE) || init.themeMode || 'dynamic';
     const themeMode = rawMode === 'static' ? 'static' : 'dynamic';
-    return { themeName, bubbleName, inputStyle, dimming, wpEnabled, customWp, userAvatar, agentAvatar, glassBlur, avatarSize, avatarRadius, themeMode };
+    const soundMuted = localStorage.getItem(STORAGE_SOUND_MUTED) === 'true';
+    const rawVol = localStorage.getItem(STORAGE_SOUND_VOLUME);
+    const soundVolume = rawVol !== null ? Math.min(1, Math.max(0, parseFloat(rawVol))) : 0.38;
+    return { themeName, bubbleName, inputStyle, dimming, wpEnabled, customWp, userAvatar, agentAvatar, glassBlur, avatarSize, avatarRadius, themeMode, soundMuted, soundVolume };
   }
 
   // Downscale user/agent avatar uploads to 192x192 WebP once so theme_config.json stays tiny
@@ -191,6 +286,15 @@
       }
       if (overrides.avatarRadius !== undefined) {
         localStorage.setItem(STORAGE_AVATAR_RADIUS, String(overrides.avatarRadius));
+      }
+      // Persist sound settings; auto-mute when switching to Static mode
+      if (overrides.soundMuted !== undefined) {
+        localStorage.setItem(STORAGE_SOUND_MUTED, String(overrides.soundMuted));
+      } else if (overrides.themeMode === 'static') {
+        // Don't auto-mute, but mark mode so isSoundEnabled() returns false
+      }
+      if (overrides.soundVolume !== undefined) {
+        localStorage.setItem(STORAGE_SOUND_VOLUME, String(overrides.soundVolume));
       }
     } catch (e) {}
 
@@ -996,6 +1100,33 @@
           transform: scale(1.06);
         }
       }
+      @keyframes agyPreviewCardShimmer {
+        0% {
+          background-position: -200% 0;
+        }
+        100% {
+          background-position: 200% 0;
+        }
+      }
+      @keyframes agyPreviewCardPulse {
+        0%, 100% {
+          box-shadow: 0 0 0 0 transparent;
+        }
+        50% {
+          box-shadow: 0 0 0 2px ${mainTheme.glow}, 0 0 12px 2px ${mainTheme.glow}44;
+        }
+      }
+      @keyframes agyPreviewStripFlow {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+      @keyframes agyLiveStripScan {
+        0% { transform: translateX(-100%); opacity: 0; }
+        20% { opacity: 1; }
+        80% { opacity: 1; }
+        100% { transform: translateX(400%); opacity: 0; }
+      }
       #agy-dynamic-ambient-aura {
         display: block;
         position: absolute;
@@ -1175,6 +1306,10 @@
                 <span data-mode-pill="dynamic" style="padding: 5px 10px; border-radius: 9999px; transition: background-color 0.15s ease, color 0.15s ease;">⚡ Động</span>
                 <span data-mode-pill="static" style="padding: 5px 10px; border-radius: 9999px; transition: background-color 0.15s ease, color 0.15s ease;">🧊 Tĩnh</span>
               </button>
+              <button id="agy-sound-mute-btn" type="button" title="Bật/tắt âm thanh (Sound on/off)" style="display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #d4d4d8; cursor: pointer; font-size: 12px; white-space: nowrap; transition: all 0.15s ease;">
+                🔊 <span id="agy-sound-mute-label">Âm thanh</span>
+              </button>
+              <input id="agy-sound-vol-slider" type="range" min="0" max="100" value="38" title="Âm lượng (Volume)" style="width: 64px; cursor: pointer; accent-color: #38bdf8; height: 4px; vertical-align: middle;" />
               <button id="agy-theme-modal-close-btn" type="button" style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); color: #d4d4d8; cursor: pointer; width: 30px; height: 30px; border-radius: 8px; font-size: 15px; display: flex; align-items: center; justify-content: center; transition: all 0.15s ease;">✕</button>
             </div>
           </div>
@@ -1193,10 +1328,48 @@
       backdrop.querySelector('#agy-theme-mode-toggle').addEventListener('click', () => {
         const cur = getState();
         const nextMode = cur.themeMode === 'static' ? 'dynamic' : 'static';
+        playModeToggleSound(nextMode === 'dynamic');
         applyTheme({ themeMode: nextMode });
         const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
         syncThemeModeToggleBtn(nextMode, th.primary);
+        // Re-render panels to refresh Dynamic/Static preview card indicators
+        const body = backdrop.querySelector('#agy-theme-modal-body');
+        if (body) renderThemePanels(body);
       });
+      // Wire up sound mute button
+      const soundMuteBtn = backdrop.querySelector('#agy-sound-mute-btn');
+      const soundVolSlider = backdrop.querySelector('#agy-sound-vol-slider');
+      if (soundMuteBtn) {
+        // Initialize from storage
+        const initMuted = localStorage.getItem(STORAGE_SOUND_MUTED) === 'true';
+        const initVol = localStorage.getItem(STORAGE_SOUND_VOLUME);
+        if (initMuted) {
+          soundMuteBtn.innerHTML = '🔇 <span id="agy-sound-mute-label">Tắt tiếng</span>';
+        }
+        if (soundVolSlider && initVol !== null) {
+          soundVolSlider.value = Math.round(parseFloat(initVol) * 100);
+        }
+        soundMuteBtn.addEventListener('click', () => {
+          const curMuted = localStorage.getItem(STORAGE_SOUND_MUTED) === 'true';
+          const nextMuted = !curMuted;
+          localStorage.setItem(STORAGE_SOUND_MUTED, String(nextMuted));
+          soundMuteBtn.innerHTML = nextMuted
+            ? '🔇 <span id="agy-sound-mute-label">Tắt tiếng</span>'
+            : '🔊 <span id="agy-sound-mute-label">Âm thanh</span>';
+          if (!nextMuted) playClickSound();
+        });
+      }
+      if (soundVolSlider) {
+        soundVolSlider.addEventListener('input', (e) => {
+          const vol = parseInt(e.target.value, 10) / 100;
+          localStorage.setItem(STORAGE_SOUND_VOLUME, String(vol));
+          if (vol > 0) localStorage.setItem(STORAGE_SOUND_MUTED, 'false');
+          if (soundMuteBtn && vol > 0) {
+            soundMuteBtn.innerHTML = '🔊 <span id="agy-sound-mute-label">Âm thanh</span>';
+          }
+          playClickSound();
+        });
+      }
       const sig = window.__AGY_SCROLL_AC__ ? window.__AGY_SCROLL_AC__.signal : undefined;
       window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && backdrop.style.display !== 'none') {
@@ -1350,8 +1523,16 @@
               const stickerTop = th.isOrnament ? Math.round((th.stickerTop || 0) * 0.85) : Math.round((th.stickerTop || 0) * 0.74);
               const stickerW = Math.round((th.stickerW || 0) * 0.78);
               const stickerH = th.isOrnament ? Math.round((th.stickerH || 0) * 0.8) : Math.round((th.stickerH || 0) * 0.78);
+              const bubbleIdx = THEME_KEYS.indexOf(name);
+              const dynBubbleAnim = st.themeMode === 'dynamic'
+                ? `animation: agyPreviewCardPulse 4s ease-in-out infinite; animation-delay: ${(bubbleIdx % 4) * 0.55}s;`
+                : 'animation: none;';
+              const bubbleModeTag = st.themeMode === 'dynamic'
+                ? `<span style="position: absolute; top: 8px; left: 8px; font-size: 9px; font-weight: 700; color: ${th.primary || '#38bdf8'}; background: rgba(0,0,0,0.55); border-radius: 999px; padding: 1px 6px; border: 1px solid ${th.glow || 'rgba(56,189,248,0.4)'}; letter-spacing: 0.3px; pointer-events:none;">⚡</span>`
+                : `<span style="position: absolute; top: 8px; left: 8px; font-size: 9px; font-weight: 700; color: #94a3b8; background: rgba(0,0,0,0.55); border-radius: 999px; padding: 1px 6px; border: 1px solid rgba(148,163,184,0.3); letter-spacing: 0.3px; pointer-events:none;">🧊</span>`;
               return `
-                <div class="agy-bubble-card" data-name="${name}" style="position: relative; border-radius: 12px; border: ${isSelected ? '1.5px solid #f4f4f5' : '1px solid rgba(255, 255, 255, 0.12)'}; background: ${isSelected ? 'rgba(42, 34, 30, 0.68)' : 'rgba(14, 12, 12, 0.78)'}; padding: 24px 18px 14px 18px; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; min-height: 112px; transition: border-color 0.15s ease, background-color 0.15s ease;">
+                <div class="agy-bubble-card" data-name="${name}" style="position: relative; border-radius: 12px; border: ${isSelected ? '1.5px solid #f4f4f5' : '1px solid rgba(255, 255, 255, 0.12)'}; background: ${isSelected ? 'rgba(42, 34, 30, 0.68)' : 'rgba(14, 12, 12, 0.78)'}; padding: 24px 18px 14px 18px; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; min-height: 112px; transition: border-color 0.15s ease, background-color 0.15s ease; ${dynBubbleAnim}">
+                  ${bubbleModeTag}
                   <div style="display: flex; justify-content: center; align-items: center; width: 100%; margin-top: 6px; margin-bottom: 10px;">
                     <div style="position: relative; width: 192px; height: 46px; padding: 1.2px; border-radius: ${th.isScroll ? '6px' : '12px'}; background: ${th.frameBg}; box-shadow: 0 4px 14px rgba(0,0,0,0.45), 0 0 10px ${th.glow};">
                       <div style="position: relative; width: 100%; height: 100%; background: ${th.bg}; border: ${th.innerBorder || '1px solid ' + th.borderColor}; border-radius: ${th.isScroll ? '4px' : '11px'}; display: flex; align-items: center; padding: 0 16px;">
@@ -1416,6 +1597,23 @@
               ${customCount ? `<button id="agy-clear-custom-btn" type="button" style="padding: 5px 10px; border-radius: 8px; background: rgba(239, 68, 68, 0.14); border: 1px solid rgba(239, 68, 68, 0.35); color: #fca5a5; font-size: 12px; cursor: pointer; white-space: nowrap;">🗑️ Xóa tất cả tự tạo (${customCount})</button>` : ''}
             </div>
           </div>
+
+          <!-- Live Preview Strip: visually different in Dynamic vs Static -->
+          ${st.themeMode === 'dynamic' ? `
+          <div id="agy-live-preview-strip" style="position: relative; overflow: hidden; border-radius: 10px; height: 36px; margin-bottom: 14px; background: linear-gradient(90deg, ${mainTheme.glow}, ${mainTheme.secondaryGlow || mainTheme.primary}, ${mainTheme.glow}); background-size: 300% 100%; animation: agyPreviewStripFlow 4s ease-in-out infinite; display: flex; align-items: center; padding: 0 16px; gap: 10px; border: 1px solid ${mainTheme.borderColor};">
+            <span style="position: absolute; left: 0; top: 0; bottom: 0; width: 25%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent); animation: agyLiveStripScan 2.4s ease-in-out infinite; pointer-events: none;"></span>
+            <span style="font-size: 12px; font-weight: 700; color: #090d16; letter-spacing: 0.5px; text-shadow: 0 1px 3px rgba(0,0,0,0.3);">⚡ Chế độ Động · LIVE</span>
+            <span style="font-size: 11px; color: rgba(0,0,0,0.65); margin-left: 4px;">Thẻ preset có hiệu ứng shimmer &amp; pulse · Âm thanh tích hợp</span>
+            <span style="margin-left: auto; font-size: 11px; font-weight: 600; color: rgba(0,0,0,0.6); background: rgba(255,255,255,0.3); border-radius: 999px; padding: 2px 8px;">ANIMATE ON</span>
+          </div>
+          ` : `
+          <div id="agy-live-preview-strip" style="border-radius: 10px; height: 36px; margin-bottom: 14px; background: rgba(30, 30, 35, 0.72); border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; padding: 0 16px; gap: 10px;">
+            <span style="font-size: 12px; font-weight: 700; color: #94a3b8; letter-spacing: 0.5px;">🧊 Chế độ Tĩnh</span>
+            <span style="font-size: 11px; color: #64748b; margin-left: 4px;">Tắt mọi hiệu ứng · Tiết kiệm pin &amp; GPU</span>
+            <span style="margin-left: auto; font-size: 11px; font-weight: 600; color: #64748b; background: rgba(255,255,255,0.06); border-radius: 999px; padding: 2px 8px; border: 1px solid rgba(255,255,255,0.1);">MOTION OFF</span>
+          </div>
+          `}
+
           <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
             ${THEME_KEYS.map(name => {
               const th = THEMES[name];
@@ -1428,12 +1626,24 @@
               const thumbOrnamentStyle = th.isOrnament
                 ? 'right: 10px; bottom: 8px; width: 76px; height: 24px; background-position: center;'
                 : 'right: 12px; bottom: 4px; width: 42px; height: 38px; background-position: bottom center;';
+              // Dynamic mode: shimmer + pulse border animation on cards
+              const dynCardStyle = st.themeMode === 'dynamic'
+                ? `animation: agyPreviewCardPulse 3.5s ease-in-out infinite; animation-delay: ${(THEME_KEYS.indexOf(name) % 4) * 0.6}s;`
+                : 'animation: none;';
+              const dynThumbExtra = st.themeMode === 'dynamic'
+                ? `<div style="position: absolute; inset: 0; background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,0.08) 50%, transparent 80%); background-size: 200% 100%; animation: agyPreviewCardShimmer 2.5s linear infinite; animation-delay: ${(THEME_KEYS.indexOf(name) % 4) * 0.4}s; pointer-events: none;"></div>`
+                : '';
+              const modeIndicator = st.themeMode === 'dynamic'
+                ? `<span style="position: absolute; bottom: 8px; left: 10px; z-index: 2; font-size: 10px; font-weight: 700; color: ${th.primary || '#38bdf8'}; background: rgba(0,0,0,0.6); border-radius: 999px; padding: 1px 7px; border: 1px solid ${th.glow || 'rgba(56,189,248,0.4)'}; letter-spacing: 0.3px;">⚡ Dynamic</span>`
+                : `<span style="position: absolute; bottom: 8px; left: 10px; z-index: 2; font-size: 10px; font-weight: 700; color: #94a3b8; background: rgba(0,0,0,0.65); border-radius: 999px; padding: 1px 7px; border: 1px solid rgba(148,163,184,0.3); letter-spacing: 0.3px;">🧊 Static</span>`;
               return `
-                <div class="agy-preset-card" data-name="${escHtml(name)}" style="position: relative; border-radius: 12px; border: ${isSelected ? '1.5px solid #f4f4f5' : '1px solid rgba(255, 255, 255, 0.12)'}; background: rgba(14, 12, 12, 0.82); overflow: hidden; cursor: pointer; display: flex; flex-direction: column; transition: border-color 0.15s ease;">
+                <div class="agy-preset-card" data-name="${escHtml(name)}" style="position: relative; border-radius: 12px; border: ${isSelected ? '1.5px solid #f4f4f5' : '1px solid rgba(255, 255, 255, 0.12)'}; background: rgba(14, 12, 12, 0.82); overflow: hidden; cursor: pointer; display: flex; flex-direction: column; transition: border-color 0.15s ease; ${dynCardStyle}">
                   ${canDelete ? `<button class="agy-delete-preset-btn" data-del-preset="${escHtml(name)}" type="button" title="${isBuiltin ? 'Ẩn preset gốc' : 'Xóa preset'}" style="position: absolute; top: 8px; right: 8px; z-index: 3; width: 26px; height: 26px; border-radius: 7px; border: 1px solid rgba(255, 255, 255, 0.22); background: rgba(10, 12, 18, 0.72); color: #fca5a5; font-size: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease;">🗑️</button>` : ''}
                   <div style="height: 68px; width: 100%; background-image: ${thumbBg}; background-size: cover; background-position: ${th.bgPosition || 'center'}; position: relative; display: flex; align-items: flex-end; padding: 8px 14px;">
+                    ${dynThumbExtra}
                     ${th.sticker ? `<div style="position: absolute; ${thumbOrnamentStyle} background-image: url('${th.sticker}'); background-size: contain; background-repeat: no-repeat; pointer-events: none;"></div>` : ''}
-                    <span style="font-size: 13.5px; font-weight: 600; color: #fff;">${escHtml(name)}</span>
+                    ${modeIndicator}
+                    <span style="font-size: 13.5px; font-weight: 600; color: #fff; position: relative; z-index: 1;">${escHtml(name)}</span>
                   </div>
                   <div style="padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-size: 12px; color: #a1a1aa;">${escHtml(th.concept || '')}</span>
@@ -1688,7 +1898,7 @@
             throw new Error('Config must be a JSON object');
           }
           const allowed = {};
-          const keys = ['themeName', 'bubbleName', 'inputStyle', 'dimming', 'wpEnabled', 'customWp', 'userAvatar', 'agentAvatar', 'glassBlur', 'avatarSize', 'avatarRadius', 'themeMode'];
+          const keys = ['themeName', 'bubbleName', 'inputStyle', 'dimming', 'wpEnabled', 'customWp', 'userAvatar', 'agentAvatar', 'glassBlur', 'avatarSize', 'avatarRadius', 'themeMode', 'soundMuted', 'soundVolume'];
           keys.forEach((k) => {
             if (parsed[k] !== undefined) allowed[k] = parsed[k];
           });
@@ -1714,6 +1924,8 @@
       localStorage.removeItem(STORAGE_DIMMING);
       localStorage.removeItem(STORAGE_WP_ENABLED);
       localStorage.removeItem(STORAGE_THEME_MODE);
+      localStorage.removeItem(STORAGE_SOUND_MUTED);
+      localStorage.removeItem(STORAGE_SOUND_VOLUME);
       const resetDefKey = getDefaultThemeKey();
       applyTheme({
         themeName: resetDefKey,
@@ -1807,6 +2019,8 @@
     container.querySelectorAll('.agy-preset-card').forEach(card => {
       card.addEventListener('click', () => {
         const name = card.dataset.name;
+        const th = THEMES[name] || {};
+        playThemeSelectSound(th.primary);
         applyTheme({ themeName: name, bubbleName: name, customWp: '' });
 
         container.querySelectorAll('.agy-preset-card').forEach(c => {
@@ -1831,6 +2045,8 @@
     container.querySelectorAll('.agy-bubble-card').forEach(card => {
       card.addEventListener('click', () => {
         const name = card.dataset.name;
+        const th = THEMES[name] || {};
+        playClickSound();
         applyTheme({ bubbleName: name });
 
         container.querySelectorAll('.agy-bubble-card').forEach(b => {
