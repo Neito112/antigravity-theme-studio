@@ -1,8 +1,11 @@
 (() => {
   // Live-code version marker: verify_cdp.js reports this, so an install can
   // be proven live inside Antigravity instead of only on disk.
-  window.__AGY_ENGINE_VERSION__ = 'any-image-fallback-1';
+  window.__AGY_ENGINE_VERSION__ = 'fusion-media-1';
   const THEMES = /*__THEMES_PLACEHOLDER__*/{};
+  const BOOT_ASSETS = /*__BOOT_ASSETS_PLACEHOLDER__*/{};
+  const BUILD_VER = /*__BUILD_VER_PLACEHOLDER__*/"dev";
+  const MEDIA_BASE = 'http://127.0.0.1:47821';
   const BUILTIN_THEMES = { ...THEMES };
   const BUILTIN_KEYS = new Set(Object.keys(BUILTIN_THEMES));
   const THEME_KEYS = Object.keys(THEMES);
@@ -10,12 +13,57 @@
   const STORAGE_CUSTOM_THEMES = 'agy_custom_themes_v1';
   const STORAGE_HIDDEN_BUILTINS = 'agy_hidden_builtins_v1';
 
+  if (window.__AGY_MOD_VER__ !== BUILD_VER) {
+    window.__AGY_MOD_VER__ = BUILD_VER;
+    window.__AGY_LOADED_MODS__ = {};
+  }
+
+  function loadLazyModule(name) {
+    const mods = window.__AGY_LOADED_MODS__ || (window.__AGY_LOADED_MODS__ = {});
+    const globalKey = `__AGY_LAZY_${name.toUpperCase()}__`;
+    if (mods[name] === true && typeof window[globalKey] === 'function') {
+      return Promise.resolve(window[globalKey]);
+    }
+    if (mods[name] && typeof mods[name].then === 'function') {
+      return mods[name];
+    }
+    const base = (typeof window !== 'undefined' && window.__AGY_MEDIA_BASE_URL__)
+      ? String(window.__AGY_MEDIA_BASE_URL__).replace(/\/+$/, '')
+      : MEDIA_BASE;
+    const promise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = `${base}/engine/${name}.js?v=${encodeURIComponent(BUILD_VER)}`;
+      s.async = true;
+      s.onload = () => {
+        s.remove();
+        mods[name] = true;
+        resolve(window[globalKey]);
+      };
+      s.onerror = () => {
+        s.remove();
+        delete mods[name];
+        reject(new Error(`Failed to load lazy module: ${name}`));
+      };
+      (document.head || document.documentElement).appendChild(s);
+    });
+    mods[name] = promise;
+    return promise;
+  }
+
   const STORAGE_THEME = 'agy_theme_v3';
   const STORAGE_BUBBLE = 'agy_bubble_v3';
   const STORAGE_INPUT = 'agy_input_v3';
   const STORAGE_DIMMING = 'agy_dimming_v3';
   const STORAGE_WP_ENABLED = 'agy_wp_enabled_v3';
+  const STORAGE_WP_MODE = 'agy_wp_mode_v3';
   const STORAGE_CUSTOM_WP = 'agy_custom_wp_v3';
+  const STORAGE_CUSTOM_VIDEO = 'agy_custom_video_v3';
+  const STORAGE_SAVED_IMAGES = 'agy_saved_images_v3';
+  const STORAGE_SAVED_VIDEOS = 'agy_saved_videos_v3';
+  const STORAGE_TASK_VOICES = 'agy_task_voices_v3';
+  const STORAGE_TASK_VOICE_ENABLED = 'agy_task_voice_enabled_v3';
+  const STORAGE_TASK_VOICE_VOL = 'agy_task_voice_vol_v3';
+  const STORAGE_CUSTOM_GREETINGS = 'agy_custom_greetings_v3';
   const STORAGE_USER_AVATAR = 'agy_user_avatar_v3';
   const STORAGE_AGENT_AVATAR = 'agy_agent_avatar_v3';
   const STORAGE_GLASS_BLUR = 'agy_glass_blur_v3';
@@ -26,6 +74,10 @@
   const STORAGE_SOUND_VOLUME = 'agy_sound_volume_v1';
   const STORAGE_VOICE_ENABLED = 'agy_voice_enabled_v1';
   const STORAGE_INTRO_ENABLED = 'agy_intro_enabled_v1';
+  const STORAGE_BOOT_INTRO = 'agy_boot_intro_v1';
+  const STORAGE_SKETCH_REVEAL = 'agy_sketch_reveal_v1';
+  const STORAGE_TAWA_GREETING = 'agy_tawa_greeting_v1';
+  const GREETING_RX = /^(?:Hey\s+[^,]{1,40},\s+what\s+should\s+we\s+build\s+today\??|Good\s+to\s+see\s+you,\s+[^.]{1,40}\.\s+What'?s\s+next\??|What\s+(?:should|are)\s+we\s+build(?:ing)?\s+today\??|Welcome\s+back[,.!\s]+[^.!?]{0,40}(?:[.!?]\s*(?:Where\s+should\s+we\s+pick\s+up|What'?s\s+next|What\s+should\s+we\s+build)[^.!?]{0,40}[.!?]?)?|Where\s+should\s+we\s+pick\s+up\??|Ready\s+(?:to\s+build|when\s+you\s+are)[,.!\s]*.*)$/i;
 
   const CHECK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 
@@ -675,6 +727,239 @@
     return (THEMES[DEFAULT_THEME_KEY] ? DEFAULT_THEME_KEY : THEME_KEYS[0]) || DEFAULT_THEME_KEY;
   }
 
+  function resolveMediaUrl(relOrAbs) {
+    if (!relOrAbs) return '';
+    const s = String(relOrAbs).trim();
+    if (!s) return '';
+    const base = (typeof window !== 'undefined' && window.__AGY_MEDIA_BASE_URL__)
+      ? String(window.__AGY_MEDIA_BASE_URL__).replace(/\/+$/, '')
+      : MEDIA_BASE;
+    const localMediaMatch = s.match(/^https?:\/\/127\.0\.0\.1:\d+\/((?:assets|user_media)\/.+)$/i);
+    if (localMediaMatch) {
+      return `${base}/${localMediaMatch[1]}`;
+    }
+    if (/^(https?:|data:|blob:|file:)/i.test(s)) return s;
+    const cleanRel = s.replace(/^\.\//, '').replace(/^\/+/, '');
+    return `${base}/${cleanRel}`;
+  }
+
+  function sanitizeCssUrl(u) {
+    return String(u || '').replace(/["\\()\r\n]/g, (ch) => encodeURIComponent(ch));
+  }
+
+  function findActiveShell() {
+    const shells = document.querySelectorAll('.agy-shell');
+    if (shells.length <= 1) return shells[0] || null;
+    for (let i = 0; i < shells.length; i++) {
+      const r = shells[i].getBoundingClientRect();
+      if (r.width > 120 && r.height > 120) return shells[i];
+    }
+    return shells[0] || null;
+  }
+
+  function canonicalMediaKey(urlStr) {
+    if (!urlStr) return '';
+    const s = String(urlStr).trim();
+    if (!s) return '';
+    const match = s.match(/(?:^|\/)(user_media\/[^?#]+)/i);
+    if (match) {
+      try {
+        return 'user_media/' + decodeURIComponent(match[1].slice('user_media/'.length));
+      } catch (e) {
+        return match[1];
+      }
+    }
+    return s;
+  }
+
+  function isSameMediaUrl(a, b) {
+    const ka = canonicalMediaKey(a);
+    const kb = canonicalMediaKey(b);
+    return Boolean(ka && kb && ka === kb);
+  }
+
+  function deriveMediaName(urlStr, fallback = 'Media') {
+    const s = String(urlStr || '').trim();
+    if (!s) return fallback;
+    if (s.startsWith('data:')) return fallback;
+    const clean = s.split('#')[0].split('?')[0];
+    const seg = clean.split('/').pop() || '';
+    try {
+      return decodeURIComponent(seg) || fallback;
+    } catch (e) {
+      return seg || fallback;
+    }
+  }
+
+  function normalizeSavedMediaList(rawList, fallbackLabel) {
+    if (!Array.isArray(rawList)) return [];
+    const seen = new Set();
+    const out = [];
+    for (const item of rawList) {
+      const url = typeof item === 'string' ? item : (item && item.url ? String(item.url) : '');
+      const key = canonicalMediaKey(url);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        url,
+        name: (item && item.name && String(item.name).trim()) || deriveMediaName(url, fallbackLabel),
+        addedAt: (item && Number.isFinite(Number(item.addedAt))) ? Number(item.addedAt) : 0
+      });
+    }
+    return out;
+  }
+
+  function readStoredMediaList(storageKey, initList, fallbackLabel) {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw !== null) {
+        return normalizeSavedMediaList(JSON.parse(raw), fallbackLabel);
+      }
+    } catch (e) {}
+    return normalizeSavedMediaList(initList, fallbackLabel);
+  }
+
+  function mediaKindMeta(kind) {
+    if (kind === 'video') {
+      return {
+        bucket: 'videos',
+        storageKey: STORAGE_SAVED_VIDEOS,
+        initListKey: 'savedVideos',
+        activeStorageKey: STORAGE_CUSTOM_VIDEO,
+        activeInitKey: 'customVideo',
+        fallbackLabel: 'Custom Video'
+      };
+    }
+    if (kind === 'audio') {
+      return {
+        bucket: 'audios',
+        storageKey: STORAGE_TASK_VOICES,
+        initListKey: 'taskVoices',
+        activeStorageKey: '',
+        activeInitKey: '',
+        fallbackLabel: 'Task Voice'
+      };
+    }
+    return {
+      bucket: 'images',
+      storageKey: STORAGE_SAVED_IMAGES,
+      initListKey: 'savedImages',
+      activeStorageKey: STORAGE_CUSTOM_WP,
+      activeInitKey: 'customWp',
+      fallbackLabel: 'Custom Image'
+    };
+  }
+
+  function getMediaLibrary(kind, initOverride, activeCustomOverride) {
+    const meta = mediaKindMeta(kind);
+    const init = initOverride || window.__AGY_INITIAL_CONFIG__ || {};
+    const stored = readStoredMediaList(meta.storageKey, init[meta.initListKey], meta.fallbackLabel);
+    const serverMedia = window.__AGY_USER_MEDIA__;
+    const hasServerList = Boolean(serverMedia && Array.isArray(serverMedia[meta.bucket]));
+    const diskList = hasServerList ? normalizeSavedMediaList(serverMedia[meta.bucket], meta.fallbackLabel) : [];
+    const byKey = new Map();
+    if (hasServerList) {
+      const diskByKey = new Map();
+      diskList.forEach((it) => diskByKey.set(canonicalMediaKey(it.url), it));
+      stored.forEach((it) => {
+        const key = canonicalMediaKey(it.url);
+        if (key.startsWith('user_media/')) {
+          const diskMatch = diskByKey.get(key);
+          if (diskMatch) {
+            byKey.set(key, {
+              url: diskMatch.url,
+              name: it.name || diskMatch.name,
+              addedAt: Math.max(it.addedAt || 0, diskMatch.addedAt || 0)
+            });
+          }
+        } else {
+          byKey.set(key, it);
+        }
+      });
+      diskList.forEach((it) => {
+        const key = canonicalMediaKey(it.url);
+        if (!byKey.has(key)) byKey.set(key, it);
+      });
+    } else {
+      stored.forEach((it) => byKey.set(canonicalMediaKey(it.url), it));
+    }
+    const activeUrl = activeCustomOverride !== undefined
+      ? activeCustomOverride
+      : (meta.activeStorageKey ? (localStorage.getItem(meta.activeStorageKey) ?? init[meta.activeInitKey] ?? '') : '');
+    if (activeUrl) {
+      const activeKey = canonicalMediaKey(activeUrl);
+      if (activeKey && !byKey.has(activeKey)) {
+        if (!hasServerList || !activeKey.startsWith('user_media/')) {
+          byKey.set(activeKey, {
+            url: activeUrl,
+            name: deriveMediaName(activeUrl, meta.fallbackLabel),
+            addedAt: Date.now()
+          });
+        }
+      }
+    }
+    return Array.from(byKey.values()).sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+  }
+
+  function upsertSavedMedia(kind, item) {
+    if (!item || !item.url) return getMediaLibrary(kind);
+    const meta = mediaKindMeta(kind);
+    const current = getMediaLibrary(kind);
+    const key = canonicalMediaKey(item.url);
+    const filtered = current.filter((it) => canonicalMediaKey(it.url) !== key);
+    const nextItem = {
+      url: item.url,
+      name: (item.name && String(item.name).trim()) || deriveMediaName(item.url, meta.fallbackLabel),
+      addedAt: item.addedAt || Date.now()
+    };
+    const next = [nextItem, ...filtered];
+    try {
+      localStorage.setItem(meta.storageKey, JSON.stringify(next));
+    } catch (e) {}
+    if (window.__AGY_USER_MEDIA__ && key.startsWith('user_media/')) {
+      const arr = Array.isArray(window.__AGY_USER_MEDIA__[meta.bucket]) ? window.__AGY_USER_MEDIA__[meta.bucket] : [];
+      window.__AGY_USER_MEDIA__[meta.bucket] = [nextItem, ...arr.filter((it) => canonicalMediaKey(it.url) !== key)];
+    }
+    return next;
+  }
+
+  function removeSavedMediaFromStore(kind, url) {
+    const meta = mediaKindMeta(kind);
+    const key = canonicalMediaKey(url);
+    const next = getMediaLibrary(kind).filter((it) => canonicalMediaKey(it.url) !== key);
+    try {
+      localStorage.setItem(meta.storageKey, JSON.stringify(next));
+    } catch (e) {}
+    if (window.__AGY_USER_MEDIA__ && Array.isArray(window.__AGY_USER_MEDIA__[meta.bucket])) {
+      window.__AGY_USER_MEDIA__[meta.bucket] = window.__AGY_USER_MEDIA__[meta.bucket].filter((it) => canonicalMediaKey(it.url) !== key);
+    }
+    return next;
+  }
+
+  function normalizeGreetingLines(list) {
+    if (!Array.isArray(list)) return [];
+    const seen = new Set();
+    const out = [];
+    for (const item of list) {
+      const s = String(item || '').trim();
+      if (!s || seen.has(s)) continue;
+      seen.add(s);
+      out.push(s);
+    }
+    return out;
+  }
+
+  function readCustomGreetings(initOverride) {
+    try {
+      const raw = localStorage.getItem(STORAGE_CUSTOM_GREETINGS);
+      if (raw !== null) {
+        return normalizeGreetingLines(JSON.parse(raw));
+      }
+    } catch (e) {}
+    const init = initOverride || window.__AGY_INITIAL_CONFIG__ || {};
+    return normalizeGreetingLines(init.customGreetings);
+  }
+
   function getState() {
     const init = window.__AGY_INITIAL_CONFIG__ || {};
     const defKey = getDefaultThemeKey();
@@ -687,7 +972,26 @@
     const wpEnabled = localStorage.getItem(STORAGE_WP_ENABLED) !== null
       ? localStorage.getItem(STORAGE_WP_ENABLED) !== 'false'
       : (init.wpEnabled !== undefined ? init.wpEnabled : true);
-    const customWp = localStorage.getItem(STORAGE_CUSTOM_WP) || init.customWp || '';
+    const activeThObj = THEMES[themeName] || THEMES[defKey] || {};
+    const storedMode = localStorage.getItem(STORAGE_WP_MODE);
+    const wpMode = (storedMode === 'video' || storedMode === 'image')
+      ? storedMode
+      : ((init.wpMode === 'video' || init.wpMode === 'image') ? init.wpMode : (activeThObj.wallpaperVideo ? 'video' : 'image'));
+    const rawCustomWp = localStorage.getItem(STORAGE_CUSTOM_WP);
+    const customWp = rawCustomWp !== null ? rawCustomWp : (init.customWp || '');
+    const rawCustomVid = localStorage.getItem(STORAGE_CUSTOM_VIDEO);
+    const customVideo = rawCustomVid !== null ? rawCustomVid : (init.customVideo || '');
+    const savedImages = getMediaLibrary('image', init, customWp);
+    const savedVideos = getMediaLibrary('video', init, customVideo);
+    const taskVoices = getMediaLibrary('audio', init, '');
+    const taskVoiceEnabled = localStorage.getItem(STORAGE_TASK_VOICE_ENABLED) !== null
+      ? localStorage.getItem(STORAGE_TASK_VOICE_ENABLED) !== 'false'
+      : (init.taskVoiceEnabled !== undefined ? init.taskVoiceEnabled : true);
+    const rawTaskVol = localStorage.getItem(STORAGE_TASK_VOICE_VOL) ?? init.taskVoiceVol;
+    const taskVoiceVol = rawTaskVol !== undefined && rawTaskVol !== null && rawTaskVol !== ''
+      ? Math.max(0, Math.min(100, parseInt(rawTaskVol, 10)))
+      : 85;
+    const customGreetings = readCustomGreetings(init);
     const userAvatar = localStorage.getItem(STORAGE_USER_AVATAR) ?? init.userAvatar ?? '';
     const agentAvatar = localStorage.getItem(STORAGE_AGENT_AVATAR) ?? init.agentAvatar ?? '';
     const rawBlur = localStorage.getItem(STORAGE_GLASS_BLUR) ?? init.glassBlur;
@@ -709,7 +1013,23 @@
     const introEnabled = rawIntro !== null
       ? rawIntro !== 'false'
       : (init.introEnabled !== undefined ? init.introEnabled : true);
-    return { themeName, bubbleName, inputStyle, dimming, wpEnabled, customWp, userAvatar, agentAvatar, glassBlur, avatarSize, avatarRadius, themeMode, soundMuted, soundVolume, voiceEnabled, introEnabled };
+    const bootIntro = localStorage.getItem(STORAGE_BOOT_INTRO) !== null
+      ? localStorage.getItem(STORAGE_BOOT_INTRO) !== 'false'
+      : (init.bootIntro !== undefined ? init.bootIntro : true);
+    const sketchReveal = localStorage.getItem(STORAGE_SKETCH_REVEAL) !== null
+      ? localStorage.getItem(STORAGE_SKETCH_REVEAL) !== 'false'
+      : (init.sketchReveal !== undefined ? init.sketchReveal : true);
+    const tawaGreeting = localStorage.getItem(STORAGE_TAWA_GREETING) !== null
+      ? localStorage.getItem(STORAGE_TAWA_GREETING) !== 'false'
+      : (init.tawaGreeting !== undefined ? init.tawaGreeting : true);
+    return {
+      themeName, bubbleName, inputStyle, dimming, wpEnabled, wpMode,
+      customWp, customVideo, savedImages, savedVideos,
+      taskVoices, taskVoiceEnabled, taskVoiceVol, customGreetings,
+      userAvatar, agentAvatar, glassBlur, avatarSize, avatarRadius,
+      themeMode, soundMuted, soundVolume, voiceEnabled, introEnabled,
+      bootIntro, sketchReveal, tawaGreeting
+    };
   }
 
   // Downscale user/agent avatar uploads to 192x192 WebP once so theme_config.json stays tiny
@@ -1201,18 +1521,390 @@
     }
   }
 
+  function clearRevealRaf() {
+    if (window.__AGY_REVEAL_RAF__) {
+      cancelAnimationFrame(window.__AGY_REVEAL_RAF__);
+      window.__AGY_REVEAL_RAF__ = 0;
+    }
+  }
+
+  function triggerSketchBloomReveal(instant = false) {
+    const st = getState();
+    if (st.themeMode === 'static') {
+      clearRevealRaf();
+      return;
+    }
+    const shouldInstant = instant || !st.sketchReveal;
+    loadLazyModule('reveal')
+      .then((fn) => { if (typeof fn === 'function') fn(window.__AGY_INTERNAL__, shouldInstant); })
+      .catch(() => {
+        clearRevealRaf();
+        const layer = document.getElementById('agy-live-bg-layer');
+        const mediaWrap = document.getElementById('agy-live-media-wrap');
+        if (mediaWrap) {
+          mediaWrap.style.webkitMaskImage = 'none';
+          mediaWrap.style.maskImage = 'none';
+        }
+        if (layer && st.wpMode !== 'video') {
+          layer.classList.add('agy-bg-hidden');
+        }
+      });
+  }
+  window.__ANTIGRAVITY_REPLAY_REVEAL__ = () => triggerSketchBloomReveal(false);
+
+  function scheduleRevealWhenReady(allowInstant = false) {
+    window.__AGY_BOOT_FINISHED__ = true;
+    const st = getState();
+    if (st.themeMode === 'static') {
+      clearRevealRaf();
+      return;
+    }
+    const shouldInstant = allowInstant || !st.sketchReveal;
+    if (shouldInstant) {
+      window.__AGY_REVEAL_DONE_ONCE__ = true;
+      triggerSketchBloomReveal(true);
+      return;
+    }
+    const vidEl = document.getElementById('agy-live-bg-video');
+    const imgEl = document.getElementById('agy-live-bg-img');
+    const isVideoMode = st.wpMode === 'video' && Boolean(vidEl && vidEl.getAttribute('data-src'));
+    if (isVideoMode && vidEl && vidEl.readyState < 2) {
+      let fired = false;
+      const fire = () => {
+        if (fired) return;
+        fired = true;
+        window.__AGY_REVEAL_DONE_ONCE__ = true;
+        triggerSketchBloomReveal(false);
+      };
+      vidEl.addEventListener('loadeddata', fire, { once: true });
+      setTimeout(fire, 650);
+    } else if (!isVideoMode && imgEl && imgEl.getAttribute('data-src') && !imgEl.complete) {
+      let fired = false;
+      const fire = () => {
+        if (fired) return;
+        fired = true;
+        window.__AGY_REVEAL_DONE_ONCE__ = true;
+        triggerSketchBloomReveal(false);
+      };
+      imgEl.addEventListener('load', fire, { once: true });
+      setTimeout(fire, 500);
+    } else {
+      window.__AGY_REVEAL_DONE_ONCE__ = true;
+      triggerSketchBloomReveal(false);
+    }
+  }
+
+  function releaseVideoDecoder(videoEl) {
+    if (!videoEl) return;
+    try { videoEl.pause(); } catch (e) {}
+    videoEl.style.opacity = '0';
+    videoEl.style.display = 'none';
+    if (videoEl.getAttribute('src') || videoEl.getAttribute('data-src')) {
+      videoEl.removeAttribute('src');
+      videoEl.removeAttribute('data-src');
+      videoEl.removeAttribute('poster');
+      try { videoEl.load(); } catch (e) {}
+    }
+  }
+
+  function syncVideoAndRevealLayer(st, mainTheme, wpImageUrl, wpVideoUrl, isVideoMode, overlayRgb, overlayAlpha, bgPosition, blurStr) {
+    const shell = findActiveShell();
+    if (!shell) return;
+
+    let layer = document.getElementById('agy-live-bg-layer');
+    if (layer && (layer.tagName !== 'AGY-LIVE-BG' || layer.parentElement !== shell)) {
+      layer.remove();
+      layer = null;
+    }
+    if (!st.wpEnabled || st.themeMode === 'static') {
+      clearRevealRaf();
+      releaseVideoDecoder(document.getElementById('agy-live-bg-video'));
+      if (layer) layer.remove();
+      return;
+    }
+
+    if (!layer) {
+      layer = document.createElement('agy-live-bg');
+      layer.id = 'agy-live-bg-layer';
+      layer.style.cssText = 'display:block;position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;overflow:hidden;background:transparent;';
+      layer.innerHTML = `
+        <div id="agy-live-media-wrap" style="position:absolute;inset:0;overflow:hidden;">
+          <video id="agy-live-bg-video" autoplay muted loop playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;opacity:0;transition:opacity 0.3s ease;"></video>
+          <img id="agy-live-bg-img" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;" />
+          <div id="agy-live-scrim" style="position:absolute;inset:0;pointer-events:none;z-index:2;opacity:0;transition:opacity 0.25s ease;"></div>
+        </div>
+        <canvas id="agy-sketch-reveal-canvas" style="position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none;display:none;"></canvas>
+      `;
+      shell.insertBefore(layer, shell.firstChild);
+    }
+
+    const mediaWrap = document.getElementById('agy-live-media-wrap');
+    const videoEl = document.getElementById('agy-live-bg-video');
+    const imgEl = document.getElementById('agy-live-bg-img');
+    const scrimEl = document.getElementById('agy-live-scrim');
+
+    const secondaryGlowStop = mainTheme.secondaryGlow
+      ? `, radial-gradient(circle at 22% 72%, ${mainTheme.secondaryGlow} 0%, transparent 55%)`
+      : '';
+    if (scrimEl) {
+      scrimEl.style.background = mainTheme.clearBackdrop
+        ? `linear-gradient(180deg, rgba(${overlayRgb}, ${overlayAlpha}) 0%, rgba(${overlayRgb}, ${overlayAlpha}) 100%)`
+        : `radial-gradient(circle at 75% 40%, ${mainTheme.glow} 0%, transparent 65%)${secondaryGlowStop}, linear-gradient(180deg, rgba(${overlayRgb}, ${overlayAlpha * 0.85}) 0%, rgba(${overlayRgb}, ${overlayAlpha}) 100%)`;
+    }
+
+    if (videoEl) videoEl.style.objectPosition = bgPosition || 'center center';
+    if (imgEl) imgEl.style.objectPosition = bgPosition || 'center center';
+
+    if (isVideoMode && wpVideoUrl) {
+      layer.classList.remove('agy-bg-hidden');
+      if (imgEl) imgEl.style.display = 'none';
+      if (videoEl) {
+        videoEl.style.display = 'block';
+        if (!/^(?:data|blob|file):/i.test(wpVideoUrl)) {
+          videoEl.crossOrigin = 'anonymous';
+        } else {
+          videoEl.removeAttribute('crossorigin');
+        }
+        if (!st.customVideo && wpImageUrl) {
+          videoEl.poster = wpImageUrl;
+        } else {
+          videoEl.removeAttribute('poster');
+        }
+        const markVideoReady = () => {
+          videoEl.style.opacity = '1';
+          if (scrimEl) scrimEl.style.opacity = '1';
+        };
+        if (videoEl.readyState >= 2) markVideoReady();
+        if (videoEl.getAttribute('data-src') !== wpVideoUrl) {
+          videoEl.removeAttribute('data-fallback-tried');
+          videoEl.style.opacity = '0';
+          if (scrimEl) scrimEl.style.opacity = '0';
+          videoEl.setAttribute('data-src', wpVideoUrl);
+          videoEl.onloadeddata = () => {
+            markVideoReady();
+            if ((!wpImageUrl || Boolean(st.customVideo)) && mainTheme.unifiedGlass) {
+              try {
+                const c = document.createElement('canvas');
+                c.width = 480;
+                c.height = Math.max(240, Math.round(480 * ((videoEl.videoHeight || 1080) / Math.max(1, videoEl.videoWidth || 1920))));
+                const gctx = c.getContext('2d');
+                if (gctx) {
+                  gctx.drawImage(videoEl, 0, 0, c.width, c.height);
+                  const frameUrl = c.toDataURL('image/webp', 0.82);
+                  c.width = 0; c.height = 0;
+                  syncPrebakedGlass(frameUrl, overlayRgb, overlayAlpha, mainTheme.headerBg || '', blurStr);
+                } else {
+                  c.width = 0; c.height = 0;
+                }
+              } catch (e) {}
+            }
+          };
+          videoEl.onplaying = markVideoReady;
+          videoEl.onerror = () => {
+            const fallbackVid = resolveMediaUrl(mainTheme.wallpaperVideo || mainTheme.videoUrl || '');
+            if (fallbackVid && wpVideoUrl !== fallbackVid && !videoEl.getAttribute('data-fallback-tried')) {
+              videoEl.setAttribute('data-fallback-tried', '1');
+              videoEl.removeAttribute('crossorigin');
+              videoEl.setAttribute('data-src', fallbackVid);
+              videoEl.src = fallbackVid;
+              videoEl.load();
+              if (!document.hidden) {
+                delete videoEl.dataset.agyPausedByHidden;
+                videoEl.play().catch(() => {});
+              } else {
+                videoEl.dataset.agyPausedByHidden = '1';
+              }
+              return;
+            }
+            videoEl.style.opacity = '0';
+            if (scrimEl) scrimEl.style.opacity = '0';
+          };
+          videoEl.src = wpVideoUrl;
+          videoEl.load();
+          if (!document.hidden) {
+            delete videoEl.dataset.agyPausedByHidden;
+            videoEl.play().catch(() => {});
+          } else {
+            videoEl.dataset.agyPausedByHidden = '1';
+          }
+        } else if (videoEl.paused) {
+          if (!document.hidden) {
+            delete videoEl.dataset.agyPausedByHidden;
+            videoEl.play().catch(() => {});
+          } else {
+            videoEl.dataset.agyPausedByHidden = '1';
+          }
+        }
+      }
+      if (!window.__AGY_REVEAL_DONE_ONCE__ && (!st.bootIntro || window.__AGY_BOOT_FINISHED__)) {
+        scheduleRevealWhenReady(false);
+      } else if (!window.__AGY_REVEAL_RAF__ && mediaWrap) {
+        mediaWrap.style.webkitMaskImage = 'none';
+        mediaWrap.style.maskImage = 'none';
+      }
+    } else {
+      if (scrimEl) scrimEl.style.opacity = '0';
+      releaseVideoDecoder(videoEl);
+      if (imgEl && wpImageUrl) {
+        if (!/^(?:data|blob|file):/i.test(wpImageUrl)) {
+          imgEl.crossOrigin = 'anonymous';
+        } else {
+          imgEl.removeAttribute('crossorigin');
+        }
+        imgEl.style.display = 'block';
+        if (imgEl.getAttribute('data-src') !== wpImageUrl) {
+          imgEl.setAttribute('data-src', wpImageUrl);
+          imgEl.src = wpImageUrl;
+        }
+      }
+      if (!window.__AGY_REVEAL_DONE_ONCE__ && (!st.bootIntro || window.__AGY_BOOT_FINISHED__)) {
+        scheduleRevealWhenReady(false);
+      } else if (!window.__AGY_REVEAL_RAF__) {
+        layer.classList.add('agy-bg-hidden');
+      }
+    }
+  }
+
+  function clearBootTimers() {
+    if (Array.isArray(window.__AGY_BOOT_TIMERS__)) {
+      window.__AGY_BOOT_TIMERS__.forEach((id) => clearTimeout(id));
+    }
+    window.__AGY_BOOT_TIMERS__ = [];
+    if (window.__AGY_BOOT_CLOCK__) {
+      clearInterval(window.__AGY_BOOT_CLOCK__);
+      window.__AGY_BOOT_CLOCK__ = null;
+    }
+    if (window.__AGY_BOOT_HEX__) {
+      clearInterval(window.__AGY_BOOT_HEX__);
+      window.__AGY_BOOT_HEX__ = null;
+    }
+    if (window.__AGY_BOOT_KEYDOWN__) {
+      window.removeEventListener('keydown', window.__AGY_BOOT_KEYDOWN__, true);
+      window.__AGY_BOOT_KEYDOWN__ = null;
+    }
+  }
+
+  function stopBootAudio() {
+    if (window.__AGY_BOOT_AUDIO__) {
+      try {
+        window.__AGY_BOOT_AUDIO__.pause();
+        window.__AGY_BOOT_AUDIO__.currentTime = 0;
+      } catch (e) {}
+      window.__AGY_BOOT_AUDIO__ = null;
+    }
+    try {
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+    } catch (e) {}
+  }
+
+  function teardownBootOverlay() {
+    clearBootTimers();
+    stopBootAudio();
+    const ov = document.getElementById('agy-boot-overlay');
+    if (ov) ov.remove();
+    const fl = document.getElementById('agy-flash-curtain');
+    if (fl) fl.remove();
+    const st = document.getElementById('agy-boot-styles');
+    if (st) st.remove();
+  }
+
+  function mountBootSequence(forceReplay = false) {
+    const st = getState();
+    if (!forceReplay && (st.themeMode === 'static' || !st.bootIntro || window.__AGY_BOOT_PLAYED__)) {
+      return;
+    }
+    if (st.themeMode === 'static' && forceReplay) {
+      applyTheme({ themeMode: 'dynamic' });
+    }
+    window.__AGY_BOOT_PLAYED__ = true;
+    loadLazyModule('boot')
+      .then((fn) => { if (typeof fn === 'function') fn(window.__AGY_INTERNAL__, forceReplay); })
+      .catch(() => {
+        window.__AGY_BOOT_FINISHED__ = true;
+        const cur = getState();
+        const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
+        showThemeIntro(th, forceReplay);
+        scheduleRevealWhenReady(true);
+      });
+  }
+  window.__ANTIGRAVITY_REPLAY_BOOT__ = () => mountBootSequence(true);
+
+  function ensureGreetingFonts() {
+    if (document.getElementById('agy-greeting-font-style')) return;
+    const host = document.head || document.documentElement;
+    if (!host) return;
+    const subsets = [
+      {
+        src: resolveMediaUrl(BOOT_ASSETS.greetingFontVi || 'assets/fonts/mali-500-vi.woff2'),
+        range: 'U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB'
+      },
+      {
+        src: resolveMediaUrl(BOOT_ASSETS.greetingFontLatinExt || 'assets/fonts/mali-500-latin-ext.woff2'),
+        range: 'U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF'
+      },
+      {
+        src: resolveMediaUrl(BOOT_ASSETS.greetingFontLatin || 'assets/fonts/mali-500-latin.woff2'),
+        range: 'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD'
+      }
+    ];
+    const fontEl = document.createElement('style');
+    fontEl.id = 'agy-greeting-font-style';
+    fontEl.textContent = subsets.map((s) => `
+      @font-face {
+        font-family: 'AgyTawaMali';
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+        src: url("${sanitizeCssUrl(s.src)}") format('woff2');
+        unicode-range: ${s.range};
+      }`).join('\n');
+    host.appendChild(fontEl);
+  }
+
   function applyTheme(overrides = {}) {
     const st = { ...getState(), ...overrides };
     st.themeMode = st.themeMode === 'static' ? 'static' : 'dynamic';
+    if (st.tawaGreeting) ensureGreetingFonts();
     try {
       localStorage.setItem(STORAGE_THEME, st.themeName);
       localStorage.setItem(STORAGE_BUBBLE, st.bubbleName);
       localStorage.setItem(STORAGE_INPUT, st.inputStyle);
       localStorage.setItem(STORAGE_DIMMING, String(st.dimming));
       localStorage.setItem(STORAGE_WP_ENABLED, String(st.wpEnabled));
+      localStorage.setItem(STORAGE_WP_MODE, st.wpMode);
       localStorage.setItem(STORAGE_THEME_MODE, st.themeMode);
       if (overrides.customWp !== undefined) {
         localStorage.setItem(STORAGE_CUSTOM_WP, overrides.customWp);
+      }
+      if (overrides.customVideo !== undefined) {
+        localStorage.setItem(STORAGE_CUSTOM_VIDEO, overrides.customVideo);
+      }
+      if (overrides.savedImages !== undefined) {
+        localStorage.setItem(STORAGE_SAVED_IMAGES, JSON.stringify(st.savedImages));
+      }
+      if (overrides.savedVideos !== undefined) {
+        localStorage.setItem(STORAGE_SAVED_VIDEOS, JSON.stringify(st.savedVideos));
+      }
+      if (overrides.taskVoices !== undefined) {
+        localStorage.setItem(STORAGE_TASK_VOICES, JSON.stringify(st.taskVoices));
+      }
+      if (overrides.taskVoiceEnabled !== undefined) {
+        localStorage.setItem(STORAGE_TASK_VOICE_ENABLED, String(st.taskVoiceEnabled));
+      }
+      if (overrides.taskVoiceVol !== undefined) {
+        localStorage.setItem(STORAGE_TASK_VOICE_VOL, String(st.taskVoiceVol));
+      }
+      if (overrides.customGreetings !== undefined) {
+        localStorage.setItem(STORAGE_CUSTOM_GREETINGS, JSON.stringify(st.customGreetings));
+      }
+      if (overrides.bootIntro !== undefined) {
+        localStorage.setItem(STORAGE_BOOT_INTRO, String(st.bootIntro));
+      }
+      if (overrides.sketchReveal !== undefined) {
+        localStorage.setItem(STORAGE_SKETCH_REVEAL, String(st.sketchReveal));
+      }
+      if (overrides.tawaGreeting !== undefined) {
+        localStorage.setItem(STORAGE_TAWA_GREETING, String(st.tawaGreeting));
       }
       if (overrides.userAvatar !== undefined) {
         localStorage.setItem(STORAGE_USER_AVATAR, overrides.userAvatar);
@@ -1221,13 +1913,13 @@
         localStorage.setItem(STORAGE_AGENT_AVATAR, overrides.agentAvatar);
       }
       if (overrides.glassBlur !== undefined) {
-        localStorage.setItem(STORAGE_GLASS_BLUR, String(overrides.glassBlur));
+        localStorage.setItem(STORAGE_GLASS_BLUR, String(st.glassBlur));
       }
       if (overrides.avatarSize !== undefined) {
-        localStorage.setItem(STORAGE_AVATAR_SIZE, String(overrides.avatarSize));
+        localStorage.setItem(STORAGE_AVATAR_SIZE, String(st.avatarSize));
       }
       if (overrides.avatarRadius !== undefined) {
-        localStorage.setItem(STORAGE_AVATAR_RADIUS, String(overrides.avatarRadius));
+        localStorage.setItem(STORAGE_AVATAR_RADIUS, String(st.avatarRadius));
       }
       // Persist sound settings; auto-mute when switching to Static mode
       if (overrides.soundMuted !== undefined) {
@@ -1248,9 +1940,20 @@
       } catch (e) {}
     }
 
+    if (
+      overrides.themeName !== undefined ||
+      overrides.customWp !== undefined ||
+      overrides.customVideo !== undefined ||
+      overrides.wpMode !== undefined
+    ) {
+      window.__AGY_REVEAL_DONE_ONCE__ = false;
+    }
+
     const mainTheme = THEMES[st.themeName] || THEMES[getDefaultThemeKey()] || {};
     const bubbleTheme = THEMES[st.bubbleName] || mainTheme;
-    const wpUrl = st.customWp || mainTheme.wallpaper || '';
+    const wpUrl = resolveMediaUrl(st.customWp || mainTheme.wallpaper || mainTheme.posterUrl || '');
+    const wpVideoUrl = resolveMediaUrl(st.customVideo || mainTheme.wallpaperVideo || mainTheme.videoUrl || '');
+    const isVideoMode = st.themeMode === 'dynamic' && Boolean(wpVideoUrl) && st.wpMode !== 'image';
 
     const oldLegacy = document.getElementById('antigravity-ho-ly-chibi-theme');
     if (oldLegacy) oldLegacy.remove();
@@ -2393,12 +3096,66 @@
         transition: none !important;
       }
       `}
+      .agy-shell > #agy-live-bg-layer,
+      #agy-live-bg-layer {
+        display: block !important;
+        position: absolute !important;
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 0 !important;
+        pointer-events: none !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      #agy-live-bg-layer.agy-bg-hidden {
+        display: none !important;
+      }
+      body[data-has-browser-hole="true"] .agy-shell[data-agy-hole-active="1"] > #agy-live-bg-layer {
+        clip-path: var(--agy-hole-clip, none) !important;
+      }
+      .agy-shell [data-agy-greeting] {
+        font-size: 0 !important;
+        line-height: 0 !important;
+        color: transparent !important;
+        text-shadow: none !important;
+      }
+      .agy-shell [data-agy-greeting]::after {
+        content: attr(data-agy-greeting);
+        font-family: 'AgyTawaMali', 'Mali', 'Segoe Print', 'Comic Sans MS', cursive !important;
+        font-size: clamp(22px, 2.15vw, 29px) !important;
+        line-height: 1.44 !important;
+        font-weight: 500 !important;
+        color: ${isLight ? '#0f172a' : '#f8fafc'} !important;
+        text-shadow: ${isLight ? '0 1px 2px rgba(255, 255, 255, 0.55)' : '0 2px 15px rgba(0, 0, 0, 0.85), 0 1px 4px rgba(0, 0, 0, 0.65)'} !important;
+        display: block !important;
+        text-align: center !important;
+        letter-spacing: 0.01em !important;
+        max-width: 820px;
+        margin: 0 auto;
+        white-space: normal !important;
+      }
     `;
+
+    const effectiveBlur = Number.isFinite(st.glassBlur) ? `${st.glassBlur}px` : (mainTheme.headerBlur || '3px');
+    if (st.themeMode === 'dynamic' && st.wpEnabled) {
+      syncVideoAndRevealLayer(st, mainTheme, wpUrl, wpVideoUrl, isVideoMode, overlayRgb, overlayAlpha, bgPosition, effectiveBlur);
+    } else {
+      clearRevealRaf();
+      releaseVideoDecoder(document.getElementById('agy-live-bg-video'));
+      const liveLayer = document.getElementById('agy-live-bg-layer');
+      if (liveLayer) liveLayer.remove();
+    }
 
     syncDynamicAuraElement(st.themeMode === 'dynamic', st.wpEnabled);
     syncDynamicFxLayer(st.themeMode === 'dynamic', mainTheme);
     syncDynamicHudWidgets(st.themeMode === 'dynamic', mainTheme);
-    if (st.themeMode === 'static') dismissThemeIntro();
+    if (st.themeMode === 'static') {
+      dismissThemeIntro();
+      teardownBootOverlay();
+    }
+    syncEmptyGreeting(st);
     syncTitleBarOverlay(st);
     scheduleTitleBarSync(st);
   }
@@ -2457,6 +3214,15 @@
     if (fxLayer) fxLayer.remove();
     removeDynamicHudWidgets();
     dismissThemeIntro();
+    teardownBootOverlay();
+    clearRevealRaf();
+    releaseVideoDecoder(document.getElementById('agy-live-bg-video'));
+    const liveBgLayer = document.getElementById('agy-live-bg-layer');
+    if (liveBgLayer) liveBgLayer.remove();
+    document.querySelectorAll('[data-agy-greeting]').forEach((el) => {
+      el.removeAttribute('data-agy-greeting');
+      delete el.dataset.agyGreetingOrig;
+    });
     const shell = document.querySelector('.agy-shell');
     if (shell) {
       delete shell.dataset.agyHoleActive;
@@ -2477,10 +3243,14 @@
   applyTheme();
   (() => {
     const st0 = getStateSafe();
-    if (st0.themeMode === 'dynamic' && st0.introEnabled && !window.__AGY_INTRO_SHOWN_ONCE__) {
-      window.__AGY_INTRO_SHOWN_ONCE__ = true;
-      const th0 = THEMES[st0.themeName] || THEMES[getDefaultThemeKey()] || {};
-      setTimeout(() => showThemeIntro(th0, false), 250);
+    if (st0.themeMode === 'dynamic') {
+      if (st0.bootIntro && !window.__AGY_BOOT_PLAYED__) {
+        setTimeout(() => mountBootSequence(false), 120);
+      } else if (st0.introEnabled && !window.__AGY_INTRO_SHOWN_ONCE__) {
+        window.__AGY_INTRO_SHOWN_ONCE__ = true;
+        const th0 = THEMES[st0.themeName] || THEMES[getDefaultThemeKey()] || {};
+        setTimeout(() => showThemeIntro(th0, false), 250);
+      }
     }
   })();
 
@@ -2567,6 +3337,9 @@
               <button id="agy-intro-preview-btn" type="button" title="Xem thử hiệu ứng Intro của theme hiện tại" style="display: inline-flex; align-items: center; gap: 4px; padding: 5px 9px; border-radius: 8px; background: rgba(56, 189, 248, 0.16); border: 1px solid rgba(56, 189, 248, 0.35); color: #e0f2fe; cursor: pointer; font-size: 11.5px; font-weight: 600; white-space: nowrap; transition: all 0.15s ease;">
                 ▶ Thử Intro
               </button>
+              <button id="agy-boot-hud-btn" type="button" title="Chạy thử Starfield Boot HUD (boot.js)" style="display: inline-flex; align-items: center; gap: 4px; padding: 5px 9px; border-radius: 8px; background: rgba(168, 85, 247, 0.18); border: 1px solid rgba(168, 85, 247, 0.38); color: #f3e8ff; cursor: pointer; font-size: 11.5px; font-weight: 600; white-space: nowrap; transition: all 0.15s ease;">
+                ▶ Boot HUD
+              </button>
               <button id="agy-sound-mute-btn" type="button" title="Bật/tắt âm thanh (Sound on/off)" style="display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #d4d4d8; cursor: pointer; font-size: 12px; white-space: nowrap; transition: all 0.15s ease;">
                 🔊 <span id="agy-sound-mute-label">Âm thanh</span>
               </button>
@@ -2636,6 +3409,21 @@
           }
           playThemeSelectSound(th.primary, th);
           showThemeIntro(th, true);
+        });
+      }
+      const bootHudBtn = backdrop.querySelector('#agy-boot-hud-btn');
+      if (bootHudBtn) {
+        bootHudBtn.addEventListener('click', () => {
+          const cur = getState();
+          const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
+          if (cur.themeMode === 'static') {
+            applyTheme({ themeMode: 'dynamic' });
+            syncThemeModeToggleBtn('dynamic', th.primary);
+            const body = backdrop.querySelector('#agy-theme-modal-body');
+            if (body) renderThemePanels(body);
+          }
+          backdrop.style.display = 'none';
+          mountBootSequence(true);
         });
       }
       // Wire up sound mute button
@@ -2752,6 +3540,13 @@
                 <input id="agy-wp-toggle" type="checkbox" ${st.wpEnabled ? 'checked' : ''} style="accent-color: ${mainTheme.primary}; cursor: pointer;" />
                 Backdrop
               </label>
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #d4d4d8; cursor: pointer;">
+                <input id="agy-sketch-reveal-toggle" type="checkbox" ${st.sketchReveal ? 'checked' : ''} style="accent-color: ${mainTheme.primary}; cursor: pointer;" />
+                Sketch Reveal
+              </label>
+              <button id="agy-wp-mode-btn" type="button" title="Chuyển Video MP4 / Ảnh tĩnh" style="padding: 4px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid ${mainTheme.borderColor}; color: #f4f4f5; font-size: 12px; cursor: pointer; white-space: nowrap;">
+                ${st.wpMode === 'video' ? '🎬 Video' : '🖼️ Image'}
+              </button>
               <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #a1a1aa;">
                 Dim
                 <input id="agy-dim-slider" type="range" min="15" max="92" value="${st.dimming}" style="width: 96px; cursor: pointer; accent-color: #ffffff; height: 5px;" />
@@ -2765,6 +3560,10 @@
               <label style="padding: 5px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid ${mainTheme.borderColor}; color: #f4f4f5; font-size: 12px; cursor: pointer; white-space: nowrap;">
                 Custom Image
                 <input id="agy-wp-upload" type="file" accept="image/*" style="display: none;" />
+              </label>
+              <label style="padding: 5px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid ${mainTheme.borderColor}; color: #f4f4f5; font-size: 12px; cursor: pointer; white-space: nowrap;">
+                Custom Video
+                <input id="agy-video-upload" type="file" accept="video/mp4,video/webm,.mp4,.webm" style="display: none;" />
               </label>
               <button id="agy-export-btn" type="button" style="padding: 5px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.16); color: #f4f4f5; font-size: 12px; cursor: pointer; white-space: nowrap;">
                 Export JSON
@@ -2822,6 +3621,49 @@
               <input id="agy-av-rad" type="range" min="0" max="50" value="${st.avatarRadius}" style="width: 100px; cursor: pointer; accent-color: ${mainTheme.primary}; height: 5px;" />
               <span id="agy-av-rad-val" style="min-width: 34px;">${st.avatarRadius}%</span>
             </label>
+          </div>
+        </div>
+
+        <div style="border: 1px solid ${mainTheme.borderColor}; background: ${mainTheme.cardBg || 'rgba(22, 16, 14, 0.72)'}; border-radius: 12px; padding: 14px 20px; margin-bottom: 24px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <div style="font-size: 14px; font-weight: 600; color: #f4f4f5; margin-bottom: 2px;">Task Voice &amp; Custom Greeting (Mali Font)</div>
+              <div style="font-size: 12px; color: #a1a1aa;">Play random voice clips on task completion and customize empty-chat greetings.</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #d4d4d8; cursor: pointer;">
+                <input id="agy-task-voice-toggle" type="checkbox" ${st.taskVoiceEnabled ? 'checked' : ''} style="accent-color: ${mainTheme.primary}; cursor: pointer;" />
+                Task Voice
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #a1a1aa;">
+                Vol
+                <input id="agy-task-voice-vol" type="range" min="0" max="100" value="${st.taskVoiceVol}" style="width: 72px; cursor: pointer; accent-color: ${mainTheme.primary}; height: 5px;" />
+                <span id="agy-task-voice-vol-val" style="min-width: 30px;">${st.taskVoiceVol}%</span>
+              </label>
+              <button id="agy-task-voice-test" type="button" style="padding: 4px 10px; border-radius: 7px; background: rgba(255,255,255,0.08); border: 1px solid ${mainTheme.borderColor}; color: #f4f4f5; font-size: 12px; cursor: pointer;">▶ Test Voice</button>
+              <label style="padding: 4px 10px; border-radius: 7px; background: rgba(255,255,255,0.08); border: 1px solid ${mainTheme.borderColor}; color: #f4f4f5; font-size: 12px; cursor: pointer; white-space: nowrap;">
+                + Audio (.mp3/.wav/.ogg)
+                <input id="agy-task-voice-upload" type="file" accept="audio/*,.mp3,.wav,.ogg" style="display: none;" />
+              </label>
+            </div>
+          </div>
+          <div id="agy-task-voice-list" style="display: flex; flex-wrap: wrap; gap: 6px;">
+            ${st.taskVoices.length ? st.taskVoices.map((v) => `
+              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14); font-size: 11.5px; color: #e4e4e7;">
+                <span>🎵 ${escHtml(v.name)}</span>
+                <button class="agy-task-voice-play-one" data-url="${escHtml(v.url)}" type="button" style="background:none;border:none;color:${mainTheme.primary};cursor:pointer;font-size:11px;padding:0;">▶</button>
+              </span>
+            `).join('') : '<span style="font-size:11.5px;color:#71717a;">No task voice clips yet — upload .mp3/.wav/.ogg or drop into themes/user_media/.</span>'}
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.07);">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #d4d4d8; cursor: pointer;">
+                <input id="agy-tawa-greeting-toggle" type="checkbox" ${st.tawaGreeting ? 'checked' : ''} style="accent-color: ${mainTheme.primary}; cursor: pointer;" />
+                Custom Greeting (AgyTawaMali font)
+              </label>
+              <button id="agy-custom-greetings-save" type="button" style="padding: 4px 12px; border-radius: 7px; background: ${mainTheme.primary}; color: #090d16; font-weight: 600; font-size: 12px; border: none; cursor: pointer;">Save Greetings</button>
+            </div>
+            <textarea id="agy-custom-greetings-input" rows="2" placeholder="One greeting per line (e.g. Chào buổi sáng! Hôm nay mình build gì nào?)" style="width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.32); color: #f4f4f5; border: 1px solid ${mainTheme.borderColor}; border-radius: 8px; padding: 7px 10px; font-size: 12.5px; resize: vertical;">${escHtml((st.customGreetings || []).join('\n'))}</textarea>
           </div>
         </div>
 
@@ -2936,8 +3778,10 @@
               const isSelected = name === st.themeName;
               const canDelete = THEME_KEYS.length > 1;
               const isBuiltin = BUILTIN_KEYS.has(name);
-              const thumbBg = th.wallpaper
-                ? `linear-gradient(180deg, rgba(0,0,0,0.15), rgba(14,12,12,0.85)), url('${th.wallpaper}')`
+              const thumbRaw = th.wallpaper || th.posterUrl || '';
+              const thumbUrl = thumbRaw ? resolveMediaUrl(thumbRaw) : '';
+              const thumbBg = thumbUrl
+                ? `linear-gradient(180deg, rgba(0,0,0,0.15), rgba(14,12,12,0.85)), url('${thumbUrl}')`
                 : (th.pureBg || th.bg);
               const thumbOrnamentStyle = th.isOrnament
                 ? 'right: 10px; bottom: 8px; width: 76px; height: 24px; background-position: center;'
@@ -3089,18 +3933,131 @@
       applyTheme({ wpEnabled: e.target.checked });
     });
 
+    const sketchRevealToggle = container.querySelector('#agy-sketch-reveal-toggle');
+    if (sketchRevealToggle) {
+      sketchRevealToggle.addEventListener('change', (e) => {
+        applyTheme({ sketchReveal: e.target.checked });
+      });
+    }
+
+    const wpModeBtn = container.querySelector('#agy-wp-mode-btn');
+    if (wpModeBtn) {
+      wpModeBtn.addEventListener('click', () => {
+        const cur = getState();
+        const nextMode = cur.wpMode === 'video' ? 'image' : 'video';
+        applyTheme({ wpMode: nextMode });
+        wpModeBtn.textContent = nextMode === 'video' ? '🎬 Video' : '🖼️ Image';
+      });
+    }
+
     const wpUpload = container.querySelector('#agy-wp-upload');
     wpUpload.addEventListener('change', (e) => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
       reader.onload = () => {
-        applyTheme({ customWp: reader.result, wpEnabled: true });
+        applyTheme({ customWp: reader.result, wpEnabled: true, wpMode: 'image' });
         const toggle = container.querySelector('#agy-wp-toggle');
         if (toggle) toggle.checked = true;
+        if (wpModeBtn) wpModeBtn.textContent = '🖼️ Image';
       };
       reader.readAsDataURL(file);
     });
+
+    const videoUpload = container.querySelector('#agy-video-upload');
+    if (videoUpload) {
+      videoUpload.addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const base = (typeof window !== 'undefined' && window.__AGY_MEDIA_BASE_URL__)
+          ? String(window.__AGY_MEDIA_BASE_URL__).replace(/\/+$/, '')
+          : MEDIA_BASE;
+        try {
+          const resp = await fetch(`${base}/upload?kind=video&name=${encodeURIComponent(file.name)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': file.type || 'video/mp4' },
+            body: file
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data && data.url) {
+              const savedVideos = upsertSavedMedia('video', { url: data.url, name: file.name, addedAt: Date.now() });
+              applyTheme({ customVideo: data.url, savedVideos, wpEnabled: true, wpMode: 'video', themeMode: 'dynamic' });
+              if (wpModeBtn) wpModeBtn.textContent = '🎬 Video';
+              return;
+            }
+          }
+        } catch (err) {}
+      });
+    }
+
+    const taskVoiceToggle = container.querySelector('#agy-task-voice-toggle');
+    if (taskVoiceToggle) {
+      taskVoiceToggle.addEventListener('change', (e) => {
+        applyTheme({ taskVoiceEnabled: e.target.checked });
+      });
+    }
+    const taskVoiceVol = container.querySelector('#agy-task-voice-vol');
+    const taskVoiceVolVal = container.querySelector('#agy-task-voice-vol-val');
+    if (taskVoiceVol) {
+      taskVoiceVol.addEventListener('input', (e) => {
+        const v = parseInt(e.target.value, 10);
+        if (taskVoiceVolVal) taskVoiceVolVal.textContent = v + '%';
+        applyTheme({ taskVoiceVol: v });
+      });
+    }
+    const taskVoiceTest = container.querySelector('#agy-task-voice-test');
+    if (taskVoiceTest) {
+      taskVoiceTest.addEventListener('click', () => playRandomTaskVoice(true));
+    }
+    container.querySelectorAll('.agy-task-voice-play-one').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const stCur = getState();
+        playOneShotTaskAudio(btn.dataset.url, stCur.taskVoiceVol);
+      });
+    });
+    const taskVoiceUpload = container.querySelector('#agy-task-voice-upload');
+    if (taskVoiceUpload) {
+      taskVoiceUpload.addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const base = (typeof window !== 'undefined' && window.__AGY_MEDIA_BASE_URL__)
+          ? String(window.__AGY_MEDIA_BASE_URL__).replace(/\/+$/, '')
+          : MEDIA_BASE;
+        try {
+          const resp = await fetch(`${base}/upload?kind=audio&name=${encodeURIComponent(file.name)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': file.type || 'audio/mpeg' },
+            body: file
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data && data.url) {
+              const taskVoices = upsertSavedMedia('audio', { url: data.url, name: file.name, addedAt: Date.now() });
+              applyTheme({ taskVoices, taskVoiceEnabled: true });
+              renderThemePanels(container);
+              return;
+            }
+          }
+        } catch (err) {}
+      });
+    }
+    const tawaGreetingToggle = container.querySelector('#agy-tawa-greeting-toggle');
+    if (tawaGreetingToggle) {
+      tawaGreetingToggle.addEventListener('change', (e) => {
+        applyTheme({ tawaGreeting: e.target.checked });
+      });
+    }
+    const customGreetingsSave = container.querySelector('#agy-custom-greetings-save');
+    const customGreetingsInput = container.querySelector('#agy-custom-greetings-input');
+    if (customGreetingsSave && customGreetingsInput) {
+      customGreetingsSave.addEventListener('click', () => {
+        const lines = normalizeGreetingLines(String(customGreetingsInput.value || '').split(/\r?\n/));
+        window.__AGY_GREETING_NEED_FRESH__ = true;
+        applyTheme({ customGreetings: lines, tawaGreeting: true });
+        if (tawaGreetingToggle) tawaGreetingToggle.checked = true;
+      });
+    }
 
     const userAvUpload = container.querySelector('#agy-user-av-upload');
     const userAvPreview = container.querySelector('#agy-user-av-preview');
@@ -3357,7 +4314,9 @@
         const th = THEMES[name] || {};
         const curSt = getState();
         playThemeSelectSound(th.primary, th);
-        applyTheme({ themeName: name, bubbleName: name, customWp: '' });
+        const nextWpMode = (th.wallpaperVideo || th.videoUrl) ? 'video' : 'image';
+        applyTheme({ themeName: name, bubbleName: name, customWp: '', customVideo: '', wpMode: nextWpMode });
+        if (wpModeBtn) wpModeBtn.textContent = nextWpMode === 'video' ? '🎬 Video' : '🖼️ Image';
         if (curSt.themeMode !== 'static') {
           const pack = resolveDynamicPack(th);
           if (curSt.introEnabled) {
@@ -4563,12 +5522,182 @@
     }
   }
 
+  function pickTawaGreeting() {
+    const st = getState();
+    const pool = Array.isArray(st.customGreetings) ? st.customGreetings.filter(Boolean) : [];
+    if (!pool.length) return '';
+    const prev = window.__AGY_LAST_GREETING__;
+    const choices = pool.length > 1 ? pool.filter(s => s !== prev) : pool;
+    const picked = choices[Math.floor(Math.random() * choices.length)] || pool[0];
+    window.__AGY_LAST_GREETING__ = picked;
+    return picked;
+  }
+
+  function syncEmptyGreeting(stOverride) {
+    const st = stOverride || getState();
+    const hasCustom = Array.isArray(st.customGreetings) && st.customGreetings.some(Boolean);
+    if (!st.tawaGreeting || !hasCustom) {
+      if (window.__AGY_GREETING_ACTIVE__) {
+        window.__AGY_GREETING_ACTIVE__ = false;
+        document.querySelectorAll('[data-agy-greeting]').forEach((el) => {
+          el.removeAttribute('data-agy-greeting');
+          delete el.dataset.agyGreetingOrig;
+        });
+      }
+      return;
+    }
+    const shell = findActiveShell();
+    if (!shell) return;
+    const root = shell.querySelector('[data-main-content-body="true"]') || shell;
+    const hasChat = Boolean(root.querySelector('[data-testid="agent-response"], .agy-user-bubble-frame'));
+    if (hasChat) {
+      window.__AGY_GREETING_NEED_FRESH__ = true;
+      return;
+    }
+    const candidates = root.querySelectorAll('h1, h2, h3, p, div, span');
+    for (let i = 0; i < candidates.length; i++) {
+      const el = candidates[i];
+      if (el.children.length > 0) continue;
+      if (el.closest('.surface-composer, [data-testid="agent-response"], .agy-user-bubble-frame, .settings-modal-container, #agy-custom-theme-modal-backdrop, .bg-sidebar, [class*="@container/titlebar"], pre, code, button, input, textarea')) {
+        continue;
+      }
+      const txt = (el.textContent || '').trim();
+      if (!txt || txt.length > 85) continue;
+      if (!GREETING_RX.test(txt)) continue;
+      if (!el.hasAttribute('data-agy-greeting') || window.__AGY_GREETING_NEED_FRESH__ || el.dataset.agyGreetingOrig !== txt) {
+        el.dataset.agyGreetingOrig = txt;
+        el.setAttribute('data-agy-greeting', pickTawaGreeting());
+        window.__AGY_GREETING_NEED_FRESH__ = false;
+      }
+      window.__AGY_GREETING_ACTIVE__ = true;
+      break;
+    }
+  }
+
+  const taskVoiceState = {
+    wasRunning: false,
+    lastUrl: location.href,
+    urlChangedAt: 0,
+    userCancelledAt: 0,
+    lastPlayedUrl: ''
+  };
+
+  function stopTaskAudio() {
+    const audio = window.__AGY_TASK_AUDIO__;
+    if (audio) {
+      try {
+        audio.pause();
+        audio.removeAttribute('src');
+        audio.load();
+      } catch (e) {}
+      window.__AGY_TASK_AUDIO__ = null;
+    }
+  }
+
+  function playOneShotTaskAudio(rawUrl, volPercent = 85) {
+    const resolved = resolveMediaUrl(rawUrl);
+    if (!resolved) return;
+    stopTaskAudio();
+    try {
+      const audio = new Audio(resolved);
+      audio.volume = Math.max(0, Math.min(1, (Number.isFinite(Number(volPercent)) ? Number(volPercent) : 85) / 100));
+      window.__AGY_TASK_AUDIO__ = audio;
+      const cleanup = () => {
+        try {
+          audio.pause();
+          audio.removeAttribute('src');
+          audio.load();
+        } catch (e) {}
+        if (window.__AGY_TASK_AUDIO__ === audio) {
+          window.__AGY_TASK_AUDIO__ = null;
+        }
+      };
+      audio.addEventListener('ended', cleanup, { once: true });
+      audio.addEventListener('error', cleanup, { once: true });
+      audio.play().catch(cleanup);
+    } catch (e) {}
+  }
+
+  function playRandomTaskVoice(ignoreEnabled = false) {
+    const st = getState();
+    if (!ignoreEnabled && !st.taskVoiceEnabled) return;
+    const pool = getMediaLibrary('audio');
+    if (pool.length === 0) return;
+    const choices = pool.length > 1
+      ? pool.filter((item) => !isSameMediaUrl(item.url, taskVoiceState.lastPlayedUrl))
+      : pool;
+    const picked = choices[Math.floor(Math.random() * choices.length)] || pool[0];
+    if (!picked || !picked.url) return;
+    taskVoiceState.lastPlayedUrl = picked.url;
+    playOneShotTaskAudio(picked.url, st.taskVoiceVol);
+  }
+  window.__ANTIGRAVITY_TEST_TASK_VOICE__ = () => playRandomTaskVoice(true);
+
+  function syncTaskCompletionVoice() {
+    if (location.href !== taskVoiceState.lastUrl) {
+      taskVoiceState.lastUrl = location.href;
+      taskVoiceState.urlChangedAt = Date.now();
+      taskVoiceState.wasRunning = false;
+      if (window.__AGY_TASK_COMPLETE_TIMER__) {
+        clearTimeout(window.__AGY_TASK_COMPLETE_TIMER__);
+        window.__AGY_TASK_COMPLETE_TIMER__ = null;
+      }
+      return;
+    }
+    const shell = findActiveShell();
+    if (!shell) return;
+    const isRunning = Boolean(shell.querySelector('[data-testid="input-cancel-button"]'));
+    if (isRunning) {
+      if (window.__AGY_TASK_COMPLETE_TIMER__) {
+        clearTimeout(window.__AGY_TASK_COMPLETE_TIMER__);
+        window.__AGY_TASK_COMPLETE_TIMER__ = null;
+      }
+      taskVoiceState.wasRunning = true;
+      return;
+    }
+    if (!taskVoiceState.wasRunning || window.__AGY_TASK_COMPLETE_TIMER__) return;
+    window.__AGY_TASK_COMPLETE_TIMER__ = setTimeout(() => {
+      window.__AGY_TASK_COMPLETE_TIMER__ = null;
+      const curShell = findActiveShell();
+      if (!curShell || curShell.querySelector('[data-testid="input-cancel-button"]')) {
+        return;
+      }
+      taskVoiceState.wasRunning = false;
+      const now = Date.now();
+      if (location.href !== taskVoiceState.lastUrl) return;
+      if (now - taskVoiceState.urlChangedAt < 1200) return;
+      if (now - taskVoiceState.userCancelledAt < 1800) return;
+      if (!curShell.querySelector('[data-testid="agent-response"]')) return;
+      playRandomTaskVoice(false);
+    }, 450);
+  }
+
+  window.__AGY_INTERNAL__ = {
+    THEMES, BOOT_ASSETS, THEME_KEYS, DEFAULT_THEME_KEY,
+    STORAGE_THEME, STORAGE_BUBBLE, STORAGE_INPUT, STORAGE_DIMMING,
+    STORAGE_WP_ENABLED, STORAGE_WP_MODE, STORAGE_CUSTOM_WP, STORAGE_CUSTOM_VIDEO,
+    STORAGE_TASK_VOICE_ENABLED, STORAGE_TASK_VOICE_VOL, STORAGE_CUSTOM_GREETINGS,
+    STORAGE_USER_AVATAR, STORAGE_AGENT_AVATAR, STORAGE_GLASS_BLUR,
+    STORAGE_AVATAR_SIZE, STORAGE_AVATAR_RADIUS, STORAGE_BOOT_INTRO,
+    STORAGE_SKETCH_REVEAL, STORAGE_TAWA_GREETING,
+    CHECK_SVG,
+    escapeHtml: escHtml, canonicalMediaKey, isSameMediaUrl, deriveMediaName,
+    getMediaLibrary, upsertSavedMedia, removeSavedMediaFromStore,
+    normalizeGreetingLines, getState, resolveMediaUrl, sanitizeCssUrl,
+    findActiveShell, clearRevealRaf, clearBootTimers, stopBootAudio,
+    teardownBootOverlay, scheduleRevealWhenReady, applyTheme,
+    syncEmptyGreeting, playOneShotTaskAudio, playRandomTaskVoice,
+    mountBootSequence, triggerSketchBloomReveal
+  };
+
   function tick() {
     injectTopbarButton();
     injectMainSidebarButton();
     injectSettingsModalButton();
     hookSidebarScroll();
     hookShellMetrics();
+    syncEmptyGreeting();
+    syncTaskCompletionVoice();
   }
 
   function scheduleTick() {
@@ -4595,13 +5724,43 @@
   if (window.__AGY_SCROLL_AC__) {
     try { window.__AGY_SCROLL_AC__.abort(); } catch (e) {}
   }
+  if (window.__AGY_TASK_COMPLETE_TIMER__) {
+    clearTimeout(window.__AGY_TASK_COMPLETE_TIMER__);
+    window.__AGY_TASK_COMPLETE_TIMER__ = null;
+  }
   window.__AGY_SCROLL_AC__ = new AbortController();
+  document.addEventListener('click', (e) => {
+    if (e.target && typeof e.target.closest === 'function' && e.target.closest('[data-testid="input-cancel-button"]')) {
+      taskVoiceState.userCancelledAt = Date.now();
+    }
+  }, { capture: true, signal: window.__AGY_SCROLL_AC__.signal });
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && String(e.key || '').toLowerCase() === 'd') {
+      taskVoiceState.userCancelledAt = Date.now();
+    }
+  }, { capture: true, signal: window.__AGY_SCROLL_AC__.signal });
   window.addEventListener('load', () => { scheduleTitleBarSync(); injectTopbarButton(); }, { signal: window.__AGY_SCROLL_AC__.signal });
   window.addEventListener('focus', () => { syncTitleBarOverlay(); injectTopbarButton(); }, { signal: window.__AGY_SCROLL_AC__.signal });
   window.addEventListener('popstate', () => scheduleTick(), { signal: window.__AGY_SCROLL_AC__.signal });
   window.addEventListener('hashchange', () => scheduleTick(), { signal: window.__AGY_SCROLL_AC__.signal });
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) { syncTitleBarOverlay(); injectTopbarButton(); }
+    const vid = document.getElementById('agy-live-bg-video');
+    if (document.hidden) {
+      if (vid && !vid.paused) {
+        vid.dataset.agyPausedByHidden = '1';
+        try { vid.pause(); } catch (e) {}
+      }
+      return;
+    }
+    syncTitleBarOverlay();
+    injectTopbarButton();
+    if (vid && vid.dataset.agyPausedByHidden === '1') {
+      delete vid.dataset.agyPausedByHidden;
+      const cur = getState();
+      if (cur.themeMode === 'dynamic' && cur.wpEnabled && cur.wpMode !== 'image' && vid.getAttribute('data-src')) {
+        vid.play().catch(() => {});
+      }
+    }
   }, { signal: window.__AGY_SCROLL_AC__.signal });
   document.querySelectorAll('[data-agy-scroll-bound]').forEach(el => delete el.dataset.agyScrollBound);
   document.querySelectorAll('[data-agy-tbo-mounted]').forEach(el => delete el.dataset.agyTboMounted);

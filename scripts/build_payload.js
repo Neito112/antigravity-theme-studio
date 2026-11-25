@@ -3,14 +3,29 @@
 
 /**
  * Pure Node.js (>= 22) compiler: themes/themes.json + engine/core.js -> dist/theme_payload.js.
- * Inlines local SVG and raster wallpaper/avatar assets as data URIs without requiring Python.
+ * Keeps assets/... and user_media/... as relative paths for Lazy HTTP Media Server
+ * instead of inlining large .mp4/.mp3/.webp/.jpg files into theme_payload.js.
  */
 
 const fs = require('fs');
 const path = require('path');
 
-const ASSET_KEYS = ['wallpaper', 'sticker', 'cornerSvg', 'userAvatar', 'agentAvatar'];
+const ASSET_KEYS = ['wallpaper', 'wallpaperVideo', 'posterUrl', 'sticker', 'cornerSvg', 'userAvatar', 'agentAvatar'];
 const PLACEHOLDER = '/*__THEMES_PLACEHOLDER__*/{}';
+const BOOT_ASSETS_PLACEHOLDER = '/*__BOOT_ASSETS_PLACEHOLDER__*/{}';
+const BUILD_VER_PLACEHOLDER = '/*__BUILD_VER_PLACEHOLDER__*/"dev"';
+
+const DEFAULT_BOOT_ASSETS = {
+    starfieldBg: 'assets/starfield-boot-bg.jpg',
+    agyColorIcon: 'assets/agy-icon-color.png',
+    voice1: 'assets/voice/tawa_voice1.mp3',
+    voice2: 'assets/voice/tawa_voice2.mp3',
+    voice3: 'assets/voice/tawa_voice3.mp3',
+    voice4: 'assets/voice/tawa_voice4.mp3',
+    greetingFontVi: 'assets/fonts/mali-500-vi.woff2',
+    greetingFontLatinExt: 'assets/fonts/mali-500-latin-ext.woff2',
+    greetingFontLatin: 'assets/fonts/mali-500-latin.woff2',
+};
 
 const MIME_MAP = {
     '.webp': 'image/webp',
@@ -33,7 +48,7 @@ function encodeRaster(imgPath) {
     return `data:${mime};base64,${raw.toString('base64')}`;
 }
 
-function resolveAssetValue(value, themesDir) {
+function resolveAssetValue(value, themesDir, repoRoot) {
     if (typeof value !== 'string') return value;
     const trimmed = value.trim();
     if (
@@ -43,6 +58,15 @@ function resolveAssetValue(value, themesDir) {
         trimmed.startsWith('https://')
     ) {
         return trimmed;
+    }
+
+    const cleanRel = trimmed.replace(/^\.\//, '').replace(/^\/+/, '');
+    if (cleanRel.startsWith('assets/') || cleanRel.startsWith('user_media/')) {
+        const repoAssetPath = path.resolve(repoRoot, cleanRel);
+        if (path.extname(repoAssetPath).toLowerCase() === '.svg' && fs.existsSync(repoAssetPath) && fs.statSync(repoAssetPath).isFile()) {
+            return encodeSvg(repoAssetPath);
+        }
+        return cleanRel;
     }
 
     const assetPath = path.isAbsolute(trimmed)
@@ -73,6 +97,7 @@ function buildPayload(themesPath, enginePath, outPath) {
     }
 
     const themesDir = path.dirname(themesPath);
+    const repoRoot = path.resolve(themesDir, '..');
     const resolvedThemes = {};
     for (const [name, cfg] of Object.entries(themesRaw)) {
         if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) {
@@ -81,7 +106,7 @@ function buildPayload(themesPath, enginePath, outPath) {
         const copied = { ...cfg };
         for (const key of ASSET_KEYS) {
             if (Object.prototype.hasOwnProperty.call(copied, key)) {
-                copied[key] = resolveAssetValue(copied[key], themesDir);
+                copied[key] = resolveAssetValue(copied[key], themesDir, repoRoot);
             }
         }
         resolvedThemes[name] = copied;
@@ -93,7 +118,13 @@ function buildPayload(themesPath, enginePath, outPath) {
         throw new Error(`Expected exactly 1 '${PLACEHOLDER}' placeholder in ${enginePath}, found ${parts.length - 1}.`);
     }
 
-    const compiled = parts[0] + JSON.stringify(resolvedThemes) + parts[1];
+    let compiled = parts[0] + JSON.stringify(resolvedThemes) + parts[1];
+    if (compiled.includes(BOOT_ASSETS_PLACEHOLDER)) {
+        compiled = compiled.split(BOOT_ASSETS_PLACEHOLDER).join(JSON.stringify(DEFAULT_BOOT_ASSETS));
+    }
+    if (compiled.includes(BUILD_VER_PLACEHOLDER)) {
+        compiled = compiled.split(BUILD_VER_PLACEHOLDER).join(JSON.stringify(String(Date.now())));
+    }
     fs.mkdirSync(path.dirname(outPath), { recursive: true });
     fs.writeFileSync(outPath, compiled, 'utf8');
 

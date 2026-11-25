@@ -23,8 +23,15 @@ const PID_FILE = path.join(ROOT_DIR, 'daemon.pid');
 const { designTheme } = require('./theme_designer');
 const CONFIG_FILE = process.env.AGY_CONFIG_PATH || path.join(ROOT_DIR, 'theme_config.json');
 const DIST_DIR = path.join(ROOT_DIR, 'dist');
+const ENGINE_DIR = path.join(ROOT_DIR, 'engine');
+const THEMES_DIR = path.join(ROOT_DIR, 'themes');
+const ASSETS_DIR = path.join(THEMES_DIR, 'assets');
+const USER_MEDIA_DIR = path.join(THEMES_DIR, 'user_media');
 const PAYLOAD_PATH = path.join(DIST_DIR, 'theme_payload.js');
 const LOG_FILE = path.join(ROOT_DIR, 'daemon.log');
+const MEDIA_HOST = '127.0.0.1';
+const MEDIA_PORT = parseInt(process.env.AGY_MEDIA_PORT || '', 10) || 47821;
+const MEDIA_BASE_URL = `http://${MEDIA_HOST}:${MEDIA_PORT}`;
 const DEFAULT_CONFIG = {};
 
 function resolvePortFile() {
@@ -139,7 +146,7 @@ function buildInjectedSource() {
 
     const cfgJson = JSON.stringify(readConfig());
     const payloadCode = fs.readFileSync(PAYLOAD_PATH, 'utf8');
-    return `window.__AGY_INITIAL_CONFIG__ = ${cfgJson};\n${payloadCode}`;
+    return `window.__AGY_MEDIA_BASE_URL__ = ${JSON.stringify(MEDIA_BASE_URL)};\nwindow.__AGY_INITIAL_CONFIG__ = ${cfgJson};\n${payloadCode}`;
 }
 
 function getPortInfo() {
@@ -553,8 +560,350 @@ function startAutoUpdater() {
     setInterval(() => { checkForUpdates(); }, intervalMs);
 }
 
+const MEDIA_MIME_TYPES = {
+    '.mp4': 'video/mp4',
+    '.webp': 'image/webp',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.svg': 'image/svg+xml',
+    '.gif': 'image/gif',
+    '.avif': 'image/avif',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.ogg': 'audio/ogg',
+    '.woff2': 'font/woff2',
+    '.js': 'application/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.json': 'application/json; charset=utf-8',
+};
+
+const MAX_UPLOAD_BYTES = 150 * 1024 * 1024;
+let mediaServer = null;
+
+function setCorsHeaders(res) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+
+function sendJson(res, statusCode, data) {
+    const body = Buffer.from(JSON.stringify(data), 'utf8');
+    res.writeHead(statusCode, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Length': body.length,
+        'Cache-Control': 'no-store',
+    });
+    res.end(body);
+}
+
+function resolveSafeSubpath(baseDir, relPath) {
+    let decoded;
+    try {
+        decoded = decodeURIComponent(String(relPath || ''));
+    } catch (_) {
+        return null;
+    }
+    const normalized = decoded.replace(/\\/g, '/').replace(/^\/+/, '');
+    if (!normalized || normalized.includes('\0')) return null;
+    const resolvedBase = path.resolve(baseDir);
+    const resolvedTarget = path.resolve(resolvedBase, normalized);
+    const rel = path.relative(resolvedBase, resolvedTarget);
+    if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) {
+        return null;
+    }
+    return resolvedTarget;
+}
+
+function serveStaticFile(req, res, filePath, cacheControl) {
+    let stat;
+    try {
+        stat = fs.statSync(filePath);
+    } catch (_) {
+        sendJson(res, 404, { ok: false, error: 'Not found' });
+        return;
+    }
+    if (!stat.isFile()) {
+        sendJson(res, 404, { ok: false, error: 'Not found' });
+        return;
+    }
+
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = MEDIA_MIME_TYPES[ext] || 'application/octet-stream';
+    const total = stat.size;
+    const baseHeaders = {
+        'Content-Type': contentType,
+        'Accept-Ranges': 'bytes',
+    };
+    if (cacheControl) {
+        baseHeaders['Cache-Control'] = cacheControl;
+    }
+
+    const rangeHeader = req.headers.range;
+    if (rangeHeader && total > 0) {
+        const match = /^bytes=(\d*)-(\d*)$/i.exec(String(rangeHeader).trim());
+        if (!match || (match[1] === '' && match[2] === '')) {
+            res.writeHead(416, { ...baseHeaders, 'Content-Range': `bytes */${total}` });
+            res.end();
+            return;
+        }
+        let start;
+        let end;
+        if (match[1] === '') {
+            const suffix = parseInt(match[2], 10);
+            start = Math.max(0, total - suffix);
+            end = total - 1;
+        } else {
+            start = parseInt(match[1], 10);
+            end = match[2] ? Math.min(total - 1, parseInt(match[2], 10)) : total - 1;
+        }
+        if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || start > end || start >= total) {
+            res.writeHead(416, { ...baseHeaders, 'Content-Range': `bytes */${total}` });
+            res.end();
+            return;
+        }
+        res.writeHead(206, {
+            ...baseHeaders,
+            'Content-Range': `bytes ${start}-${end}/${total}`,
+            'Content-Length': end - start + 1,
+        });
+        fs.createReadStream(filePath, { start, end }).pipe(res);
+        return;
+    }
+
+    res.writeHead(200, {
+        ...baseHeaders,
+        'Content-Length': total,
+    });
+    fs.createReadStream(filePath).pipe(res);
+}
+
+function listUserMedia() {
+    const files = [];
+    const images = [];
+    const videos = [];
+    const audios = [];
+    try {
+        if (!fs.existsSync(USER_MEDIA_DIR)) {
+            return { files, images, videos, audios };
+        }
+        const entries = fs.readdirSync(USER_MEDIA_DIR, { withFileTypes: true });
+        for (const entry of entries) {
+            if (!entry.isFile()) continue;
+            const name = entry.name;
+            files.push(name);
+            const ext = path.extname(name).toLowerCase();
+            const relUrl = `user_media/${name}`;
+            if (['.webp', '.png', '.jpg', '.jpeg', '.gif', '.avif', '.svg'].includes(ext)) {
+                images.push(relUrl);
+            } else if (['.mp4', '.webm', '.mov'].includes(ext)) {
+                videos.push(relUrl);
+            } else if (['.mp3', '.wav', '.ogg', '.m4a', '.aac'].includes(ext)) {
+                audios.push(relUrl);
+            }
+        }
+    } catch (err) {
+        log(`Failed listing user_media: ${err.message}`);
+    }
+    return { files, images, videos, audios };
+}
+
+function readRequestBody(req, maxBytes) {
+    return new Promise((resolve, reject) => {
+        const chunks = [];
+        let total = 0;
+        let settled = false;
+        req.on('data', (chunk) => {
+            if (settled) return;
+            total += chunk.length;
+            if (total > maxBytes) {
+                settled = true;
+                req.destroy();
+                reject(Object.assign(new Error('Payload too large'), { statusCode: 413 }));
+                return;
+            }
+            chunks.push(chunk);
+        });
+        req.on('end', () => {
+            if (!settled) {
+                settled = true;
+                resolve(Buffer.concat(chunks));
+            }
+        });
+        req.on('error', (err) => {
+            if (!settled) {
+                settled = true;
+                reject(err);
+            }
+        });
+    });
+}
+
+function sanitizeUploadFilename(rawName) {
+    let base = '';
+    try {
+        base = path.basename(decodeURIComponent(String(rawName || '')));
+    } catch (_) {
+        base = path.basename(String(rawName || ''));
+    }
+    const cleaned = base.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/^\.+/, '');
+    return cleaned || `upload_${Date.now()}.bin`;
+}
+
+async function handleMediaRequest(req, res) {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') {
+        res.writeHead(204);
+        res.end();
+        return;
+    }
+
+    let reqUrl;
+    try {
+        reqUrl = new URL(req.url || '/', MEDIA_BASE_URL);
+    } catch (_) {
+        sendJson(res, 400, { ok: false, error: 'Invalid URL' });
+        return;
+    }
+
+    const pathname = reqUrl.pathname;
+
+    if (req.method === 'GET' && pathname.startsWith('/assets/')) {
+        const rel = pathname.slice('/assets/'.length);
+        const filePath = resolveSafeSubpath(ASSETS_DIR, rel);
+        if (!filePath) {
+            sendJson(res, 403, { ok: false, error: 'Forbidden' });
+            return;
+        }
+        serveStaticFile(req, res, filePath, 'public, max-age=86400');
+        return;
+    }
+
+    if (req.method === 'GET' && (pathname === '/engine/boot.js' || pathname === '/engine/reveal.js')) {
+        const fileName = pathname.slice('/engine/'.length);
+        const filePath = resolveSafeSubpath(ENGINE_DIR, fileName);
+        if (!filePath) {
+            sendJson(res, 403, { ok: false, error: 'Forbidden' });
+            return;
+        }
+        serveStaticFile(req, res, filePath, 'no-cache');
+        return;
+    }
+
+    if (req.method === 'GET' && pathname.startsWith('/user_media/')) {
+        const rel = pathname.slice('/user_media/'.length);
+        const filePath = resolveSafeSubpath(USER_MEDIA_DIR, rel);
+        if (!filePath) {
+            sendJson(res, 403, { ok: false, error: 'Forbidden' });
+            return;
+        }
+        serveStaticFile(req, res, filePath, 'public, max-age=86400');
+        return;
+    }
+
+    if (req.method === 'GET' && pathname === '/user_media_list') {
+        const media = listUserMedia();
+        sendJson(res, 200, { ok: true, ...media });
+        return;
+    }
+
+    if (req.method === 'POST' && pathname === '/upload') {
+        try {
+            const body = await readRequestBody(req, MAX_UPLOAD_BYTES);
+            const rawName = reqUrl.searchParams.get('name') || req.headers['x-file-name'] || '';
+            const safeName = sanitizeUploadFilename(rawName);
+            fs.mkdirSync(USER_MEDIA_DIR, { recursive: true });
+            const targetPath = resolveSafeSubpath(USER_MEDIA_DIR, safeName);
+            if (!targetPath) {
+                sendJson(res, 403, { ok: false, error: 'Forbidden filename' });
+                return;
+            }
+            fs.writeFileSync(targetPath, body);
+            const media = listUserMedia();
+            sendJson(res, 200, {
+                ok: true,
+                file: safeName,
+                url: `user_media/${safeName}`,
+                media,
+            });
+        } catch (err) {
+            sendJson(res, err.statusCode || 500, { ok: false, error: err.message });
+        }
+        return;
+    }
+
+    if (req.method === 'POST' && pathname === '/delete_media') {
+        try {
+            const raw = await readRequestBody(req, 1024 * 1024);
+            let parsed = {};
+            try {
+                parsed = JSON.parse(raw.toString('utf8') || '{}');
+            } catch (_) {
+                sendJson(res, 400, { ok: false, error: 'Invalid JSON body' });
+                return;
+            }
+            let target = String(parsed.url || parsed.file || parsed.name || '').trim();
+            target = target.replace(/^https?:\/\/[^/]+\//i, '').replace(/^\/+/, '');
+            if (target.startsWith('user_media/')) {
+                target = target.slice('user_media/'.length);
+            }
+            if (!target || target.includes('/') || target.includes('\\')) {
+                sendJson(res, 400, { ok: false, error: 'Invalid media target' });
+                return;
+            }
+            const targetPath = resolveSafeSubpath(USER_MEDIA_DIR, target);
+            if (!targetPath) {
+                sendJson(res, 403, { ok: false, error: 'Forbidden' });
+                return;
+            }
+            if (fs.existsSync(targetPath) && fs.statSync(targetPath).isFile()) {
+                fs.unlinkSync(targetPath);
+            }
+            const media = listUserMedia();
+            sendJson(res, 200, { ok: true, deleted: target, media });
+        } catch (err) {
+            sendJson(res, err.statusCode || 500, { ok: false, error: err.message });
+        }
+        return;
+    }
+
+    sendJson(res, 404, { ok: false, error: 'Not found' });
+}
+
+function startMediaServer() {
+    if (mediaServer) return mediaServer;
+    const server = http.createServer((req, res) => {
+        handleMediaRequest(req, res).catch((err) => {
+            log(`Media server request error: ${err.message}`);
+            if (!res.headersSent) {
+                sendJson(res, 500, { ok: false, error: 'Internal server error' });
+            }
+        });
+    });
+
+    server.on('error', (err) => {
+        if (err && err.code === 'EADDRINUSE') {
+            log(`Media server port ${MEDIA_PORT} already in use (EADDRINUSE); continuing without binding media server.`);
+            return;
+        }
+        log(`Media server error: ${err.message}`);
+    });
+
+    server.listen(MEDIA_PORT, MEDIA_HOST, () => {
+        log(`Media server listening on ${MEDIA_BASE_URL}`);
+    });
+    mediaServer = server;
+    return server;
+}
+
 function shutdown(signal) {
     log(`Shutting down on ${signal}.`);
+    if (mediaServer) {
+        try {
+            mediaServer.close();
+        } catch (_) {}
+        mediaServer = null;
+    }
     for (const s of sessions.values()) {
         try {
             s.ws.close();
@@ -571,6 +920,7 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('exit', removePidLock);
 
 log(`Theme daemon started (PID ${process.pid}, platform=${process.platform}, portFile=${resolvePortFile()}).`);
+startMediaServer();
 watchPayload();
 scanPages();
 setInterval(scanPages, 1500);
