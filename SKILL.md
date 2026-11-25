@@ -3,9 +3,9 @@ name: antigravity-custom-theme
 description: Use when the user wants to design, customize, install, update, or troubleshoot an Antigravity IDE or Manager visual theme from a wallpaper image, color palette, aesthetic mood, or preset.
 ---
 
-# Antigravity Custom Theme Skill
+# Antigravity Theme Studio — Fusion Edition
 
-Creates and applies custom glassmorphic themes (wallpapers, cohesive palettes, custom composer ornaments, pre-baked glass panels, and split-browser-safe overlays) to Antigravity without modifying application binaries.
+Creates and applies custom glassmorphic themes (wallpapers, cohesive palettes, custom composer ornaments, pre-baked glass panels, 4K 16:9 AI outpainting, Dark Smoked Glass WCAG AAA contrast, and split-browser-safe overlays) to Antigravity without modifying application binaries.
 
 ## Repository Layout
 
@@ -55,3 +55,14 @@ Creates and applies custom glassmorphic themes (wallpapers, cohesive palettes, c
 - **Data-Only Theme Authoring:** Add themes in `themes/themes.json` + `themes/assets/`. Leave `engine/core.js` untouched unless Antigravity changes its upstream DOM selectors.
 - **Split Browser Cutout:** Never paint opaque overlays over the right-side browser pane; keep `data-has-browser-hole` + `evenodd` `clip-path` behavior intact so embedded Chromium views stay sharp.
 - **No Personal Data Leakage:** Check modified files for absolute user paths or personal `theme_config.json` state before committing.
+
+## Troubleshooting: Theme Disappeared After Antigravity Update
+
+Antigravity v2.33.0+ no longer opens `DevToolsActivePort` by default when launched without `--remote-debugging-port=0`, and its auto-updater relaunches `Antigravity.exe --updated` directly (which can also reset shortcuts).
+
+- **Windows:**
+  1. Re-run `powershell -ExecutionPolicy Bypass -File scripts/install-win.ps1` — it patches `--remote-debugging-port=0` onto `Antigravity.lnk` shortcuts (Desktop, Start Menu, Startup, Taskbar).
+  2. **Quit Antigravity completely** (System Tray -> Quit, not just closing the window) and reopen from **Start Menu**.
+  3. If you launch from a **Taskbar pin**, unpin the old icon and re-pin it from the Start Menu `Antigravity` shortcut (direct `.exe` pins drop shortcut arguments).
+- **macOS / Linux:**
+  - Launch Antigravity with `--remote-debugging-port=0` (e.g., `open -a Antigravity --args --remote-debugging-port=0` on macOS, or add `--remote-debugging-port=0` to the `Exec=` line in your `.desktop` launcher on Linux).

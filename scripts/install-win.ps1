@@ -78,10 +78,36 @@ WshShell.Run """$EscapedNode"" ""$EscapedDaemon""", 0, False
 "@
 Set-Content -Path $VbsPath -Value $VbsContent -Encoding ASCII
 
+$WshShell = New-Object -ComObject WScript.Shell
+
+# Ensure Antigravity shortcuts include --remote-debugging-port=0 (required on Antigravity v2.33.0+)
+$ShortcutSearchDirs = @(
+    [Environment]::GetFolderPath('DesktopDirectory'),
+    [Environment]::GetFolderPath('Programs'),
+    [Environment]::GetFolderPath('Startup'),
+    (Join-Path $env:APPDATA 'Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar')
+) | Where-Object { $_ -and (Test-Path $_) }
+
+foreach ($SearchDir in $ShortcutSearchDirs) {
+    Get-ChildItem -Path $SearchDir -Recurse -Filter '*.lnk' -ErrorAction SilentlyContinue | ForEach-Object {
+        try {
+            $Sc = $WshShell.CreateShortcut($_.FullName)
+            if ($Sc.TargetPath -and ($Sc.TargetPath -imatch '\\Antigravity\.exe$')) {
+                if ($Sc.Arguments -notmatch '--remote-debugging-port') {
+                    $Sc.Arguments = ("$($Sc.Arguments) --remote-debugging-port=0").Trim()
+                    $Sc.Save()
+                    Write-Host "[install-win] Patched CDP flag on shortcut: $($_.FullName)"
+                }
+            }
+        } catch {
+            # Ignore unreadable or protected shortcuts
+        }
+    }
+}
+
 if (-not $NoStartup) {
     $StartupDir = [Environment]::GetFolderPath('Startup')
     $ShortcutPath = Join-Path $StartupDir 'AntigravityCustomTheme.lnk'
-    $WshShell = New-Object -ComObject WScript.Shell
     $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
     $Shortcut.TargetPath = 'wscript.exe'
     $Shortcut.Arguments = """$VbsPath"""
@@ -109,6 +135,10 @@ for ($i = 0; $i -lt 15; $i++) {
         if ([int]::TryParse(($NewPidText -as [string]), [ref]$NewPid) -and $NewPid -gt 0) {
             if (Get-Process -Id $NewPid -ErrorAction SilentlyContinue) {
                 Write-Host "[install-win] Daemon running silently (PID $NewPid)."
+                $ActivePortFile = @("$env:APPDATA\antigravity\DevToolsActivePort", "$env:APPDATA\Antigravity\DevToolsActivePort") | Where-Object { Test-Path $_ } | Select-Object -First 1
+                if (-not $ActivePortFile) {
+                    Write-Host "[install-win] Note: DevToolsActivePort not found yet. Quit Antigravity completely (System Tray -> Quit) and reopen it from Start Menu (if using a Taskbar pin, unpin and re-pin from Start Menu)."
+                }
                 exit 0
             }
         }

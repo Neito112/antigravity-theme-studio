@@ -1,6 +1,6 @@
-# Antigravity Custom Theme Studio
+# Antigravity Theme Studio — Fusion Edition
 
-Turn any wallpaper, aesthetic mood, or color palette into a live, 60fps custom theme inside **Antigravity** — featuring **Custom Theme Studio V2**, a **Topbar ✨ One-Click AI Theme Generator** (powered by `agy` CLI using your own Antigravity quota, zero API key required), **True 4K 16:9 AI Generative Outpainting**, automatic repo updates with hot-reload, and a standalone cross-platform CDP daemon.
+Turn any wallpaper, aesthetic mood, or color palette into a live, 60fps custom theme inside **Antigravity** — uniting **Custom Theme Studio V2**, a **Topbar ✨ One-Click AI Theme Generator** (powered by `agy` CLI using your own Antigravity quota, zero API key required), **True 4K 16:9 AI Generative Outpainting**, **Dark Smoked Glass WCAG AAA contrast**, automatic repo updates with hot-reload, Windows v2.33+ `--remote-debugging-port=0` shortcut/Taskbar resilience, and a standalone cross-platform CDP daemon.
 
 ---
 
@@ -158,7 +158,7 @@ Removes auto-start shortcuts/services (`AntigravityCustomTheme.lnk`, `launchd` p
 
 | Symptom | Cause | Fix |
 | :--- | :--- | :--- |
-| `verify_cdp.js` reports `Cannot connect to Antigravity CDP` or missing `DevToolsActivePort` | Antigravity hasn't exposed CDP yet or uses a custom user-data dir | Restart Antigravity normally, launch with `--remote-debugging-port=9222`, or set `AGY_PORT_FILE` / `AGY_CDP_PORT` |
+| `verify_cdp.js` reports `Cannot connect to Antigravity CDP` or missing `DevToolsActivePort` | Antigravity v2.33.0+ no longer opens `DevToolsActivePort` without `--remote-debugging-port=0`, or uses a custom user-data dir | **Windows:** Re-run `install-win.ps1` (auto-patches `--remote-debugging-port=0` on Desktop/Start Menu/Startup/Taskbar shortcuts), then **Quit Antigravity completely** (System Tray -> **Quit**) and reopen from Start Menu (unpin & re-pin Taskbar icons if needed). **macOS / Linux:** Launch with `--remote-debugging-port=0` (`open -a Antigravity --args --remote-debugging-port=0` or `.desktop` `Exec=`). |
 | `Node.js >= 22 is required` | System Node is older than v22 (lacks native `WebSocket`) | Upgrade Node.js to LTS >= 22 (`node -v`) |
 | `install-win.ps1` succeeds inside an AI agent, then button disappears | Agent runner's Windows Job Object killed the spawned process on exit | Run `node daemon/theme_daemon.js` in persistent daemon mode (`IsDaemon: true`) and run `install-win.ps1` once in a normal PowerShell window |
 | `themeActive: true` but ✨ topbar button is missing | An older daemon from another clone is running | Run `install-win.ps1` or `install-unix.sh` from this repo (cleans up stale TCP-socket daemons and rebuilds) |

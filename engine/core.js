@@ -556,23 +556,41 @@
         transform: none !important;
         box-sizing: border-box !important;
       }
-      .agy-shell [data-testid="agent-response"] .md-table-scroll::-webkit-scrollbar,
-      .agy-shell [data-testid="agent-response"] :has(> table):not(.md-table-frame)::-webkit-scrollbar {
+      .agy-shell [data-testid="agent-response"] :is(.md-math-display, .katex-display) {
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        padding-bottom: 4px !important;
+        box-sizing: border-box !important;
+        scrollbar-width: auto !important;
+        scrollbar-color: auto !important;
+      }
+      .agy-shell [data-testid="agent-response"] :not(.md-math-display):not(.katex-display) > .katex {
+        display: inline-block !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        vertical-align: middle !important;
+        box-sizing: border-box !important;
+        scrollbar-width: auto !important;
+        scrollbar-color: auto !important;
+      }
+      .agy-shell [data-testid="agent-response"] :is(.md-table-scroll, :has(> table):not(.md-table-frame), .md-math-display, .katex-display, :not(.md-math-display):not(.katex-display) > .katex)::-webkit-scrollbar {
         height: 8px !important;
         display: block !important;
       }
-      .agy-shell [data-testid="agent-response"] .md-table-scroll::-webkit-scrollbar-track,
-      .agy-shell [data-testid="agent-response"] :has(> table):not(.md-table-frame)::-webkit-scrollbar-track {
+      .agy-shell [data-testid="agent-response"] :is(.md-table-scroll, :has(> table):not(.md-table-frame), .md-math-display, .katex-display, :not(.md-math-display):not(.katex-display) > .katex)::-webkit-scrollbar-track {
         background: ${isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255, 255, 255, 0.06)'} !important;
         border-radius: 9999px !important;
       }
-      .agy-shell [data-testid="agent-response"] .md-table-scroll::-webkit-scrollbar-thumb,
-      .agy-shell [data-testid="agent-response"] :has(> table):not(.md-table-frame)::-webkit-scrollbar-thumb {
+      .agy-shell [data-testid="agent-response"] :is(.md-table-scroll, :has(> table):not(.md-table-frame), .md-math-display, .katex-display, :not(.md-math-display):not(.katex-display) > .katex)::-webkit-scrollbar-thumb {
         background: ${isLight ? 'rgba(15, 23, 42, 0.34)' : 'rgba(148, 163, 184, 0.48)'} !important;
         border-radius: 9999px !important;
       }
-      .agy-shell [data-testid="agent-response"] .md-table-scroll::-webkit-scrollbar-thumb:hover,
-      .agy-shell [data-testid="agent-response"] :has(> table):not(.md-table-frame)::-webkit-scrollbar-thumb:hover {
+      .agy-shell [data-testid="agent-response"] :is(.md-table-scroll, :has(> table):not(.md-table-frame), .md-math-display, .katex-display, :not(.md-math-display):not(.katex-display) > .katex)::-webkit-scrollbar-thumb:hover {
         background: ${isLight ? 'rgba(15, 23, 42, 0.54)' : 'rgba(148, 163, 184, 0.72)'} !important;
       }
       .agy-shell [data-testid="agent-response"] table {
@@ -717,14 +735,14 @@
     const sidebarOuterCss = useUnifiedGlass ? `
       .agy-shell aside,
       .agy-shell [data-sidebar="true"],
-      .agy-shell .bg-sidebar {
+      .agy-shell .bg-sidebar:not(.surface-opaque) {
         background: transparent !important;
         backdrop-filter: none !important;
       }
     ` : `
       .agy-shell aside,
       .agy-shell [data-sidebar="true"],
-      .agy-shell .bg-sidebar {
+      .agy-shell .bg-sidebar:not(.surface-opaque) {
         background: ${sidebarBg} !important;
         backdrop-filter: none !important;
       }
@@ -733,13 +751,21 @@
     styleEl.textContent = `
       ${wpCss}
 
-      /* Translucent themed sidebar (unified via ::before when unifiedGlass is active) */
+      /* Translucent themed glass sidebar (unified via ::before when unifiedGlass is active) */
       ${sidebarOuterCss}
-      .agy-shell .bg-sidebar .bg-sidebar,
-      .agy-shell [data-sidebar="true"] .bg-sidebar,
-      .agy-shell .bg-sidebar [class*="group/headerbtn"],
-      .agy-shell .bg-sidebar [class*="group/section-header"] {
+      .agy-shell .bg-sidebar:not(.surface-opaque) .bg-sidebar:not(.surface-opaque),
+      .agy-shell [data-sidebar="true"] .bg-sidebar:not(.surface-opaque),
+      .agy-shell .bg-sidebar:not(.surface-opaque) [class*="group/headerbtn"],
+      .agy-shell .bg-sidebar:not(.surface-opaque) [class*="group/section-header"] {
         background: transparent !important;
+        backdrop-filter: none !important;
+      }
+      /* Keep floating menubar dropdowns & opaque popovers readable (never inherit transparent sidebar bg) */
+      .agy-shell .surface-opaque.bg-sidebar,
+      .agy-shell .surface-opaque.border-menu-border {
+        background: ${modalBg} !important;
+        border-color: ${mainTheme.borderColor} !important;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, ${isLight ? '0.18' : '0.65'}) !important;
         backdrop-filter: none !important;
       }
       /* Preserve virtual list positioning; hide sticky headers only while scrolled */
