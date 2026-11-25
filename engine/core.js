@@ -1000,7 +1000,7 @@
     const avatarSize = rawAvSize !== undefined && rawAvSize !== null && rawAvSize !== '' ? parseInt(rawAvSize, 10) : 32;
     const rawAvRad = localStorage.getItem(STORAGE_AVATAR_RADIUS) ?? init.avatarRadius;
     const avatarRadius = rawAvRad !== undefined && rawAvRad !== null && rawAvRad !== '' ? parseInt(rawAvRad, 10) : 50;
-    const rawMode = localStorage.getItem(STORAGE_THEME_MODE) || init.themeMode || 'dynamic';
+    const rawMode = localStorage.getItem(STORAGE_THEME_MODE) || localStorage.getItem('agy_theme_mode_v3') || init.themeMode || 'dynamic';
     const themeMode = rawMode === 'static' ? 'static' : 'dynamic';
     const soundMuted = localStorage.getItem(STORAGE_SOUND_MUTED) === 'true';
     const rawVol = localStorage.getItem(STORAGE_SOUND_VOLUME);
@@ -1225,8 +1225,8 @@
       const dur = 8.5 + (i % 5) * 2.2;
       const delay = -((i * 1.3) % 8).toFixed(1);
       const color = i % 2 === 0 ? c1 : c2;
-      const sz = 8 + (i % 4) * 3;
-      out += `<span class="agy-fx-particle" style="position:absolute;left:${left}%;top:${top}%;width:${sz}px;height:${sz}px;color:${color};will-change:transform,opacity;animation:${animName} ${dur}s ease-in-out ${delay}s infinite;"><svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="currentColor" stroke="currentColor" stroke-width="1.2" style="display:block;overflow:visible;">${svgInner}</svg></span>`;
+      const sz = 10 + (i % 4) * 3;
+      out += `<span class="agy-fx-particle" style="position:absolute;left:${left}%;top:${top}%;width:${sz}px;height:${sz}px;color:${color};filter:drop-shadow(0 0 6px ${color});will-change:transform,opacity;animation:${animName} ${dur}s ease-in-out ${delay}s infinite;"><svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="currentColor" stroke="currentColor" stroke-width="1.2" style="display:block;overflow:visible;">${svgInner}</svg></span>`;
     }
     return out;
   }
@@ -1246,14 +1246,15 @@
       layer = document.createElement('div');
       layer.id = 'agy-dynamic-fx-layer';
       layer.setAttribute('aria-hidden', 'true');
-      layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;';
       document.body.appendChild(layer);
     }
+    // Paint above .agy-shell's wallpaper (z-index:auto/0) and below .agy-inset-shell (z-index:2) so particles & HUD ring are visible without obscuring text or blocking clicks.
+    layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:1;overflow:hidden;';
     if (layer.dataset.packKey !== packKey) {
       layer.dataset.packKey = packKey;
-      const ringSvg = buildHudRingSvg(pack, primary, secondary, 380);
+      const ringSvg = buildHudRingSvg(pack, primary, secondary, 400);
       const ringHtml = ringSvg
-        ? `<div class="agy-fx-hud-ring" style="position:absolute;right:-70px;bottom:-70px;width:380px;height:380px;opacity:0.18;pointer-events:none;will-change:transform,opacity;animation:agyHudSpin 38s linear infinite;">${ringSvg}</div>`
+        ? `<div class="agy-fx-hud-ring" style="position:absolute;right:-64px;bottom:-64px;width:400px;height:400px;opacity:0.32;pointer-events:none;filter:drop-shadow(0 0 12px ${primary});will-change:transform,opacity;animation:agyHudSpin 38s linear infinite;">${ringSvg}</div>`
         : '';
       layer.innerHTML = buildParticlesHtml(pack, primary, secondary) + ringHtml;
     }
@@ -1300,27 +1301,28 @@
     }
     topPill.style.cssText = [
       'position:fixed',
-      'top:42px',
+      'top:40px',
       'left:50%',
       'transform:translateX(-50%)',
-      'z-index:9000',
-      'opacity:0.88',
+      'z-index:9500',
+      'opacity:1',
+      'visibility:visible',
       'pointer-events:auto',
       'cursor:pointer',
       'display:inline-flex',
       'align-items:center',
       'gap:7px',
-      'padding:3px 12px',
+      'padding:4px 14px',
       'border-radius:9999px',
       `background:${bgSurface}`,
-      `border:1px solid ${borderCol}`,
+      `border:1.5px solid ${primary}`,
       `color:${textInk}`,
       `font-family:${fontStack}`,
       'font-size:10.5px',
       'font-weight:700',
       'letter-spacing:0.8px',
       'text-transform:uppercase',
-      `box-shadow:0 4px 14px rgba(0,0,0,0.32), 0 0 10px ${glowCol}`,
+      `box-shadow:0 4px 16px rgba(0,0,0,0.45), 0 0 14px ${glowCol}`,
       'backdrop-filter:none',
       'white-space:nowrap',
       'max-width:340px',
@@ -1342,8 +1344,10 @@
       'position:fixed',
       'top:52px',
       'right:18px',
-      'z-index:9000',
-      isCollapsed ? 'width:auto' : 'width:190px',
+      'z-index:9500',
+      'opacity:1',
+      'visibility:visible',
+      isCollapsed ? 'width:auto' : 'width:196px',
       'pointer-events:none',
       `font-family:${fontStack}`,
       `color:${textInk}`
@@ -1391,7 +1395,7 @@
       : (dockPos === 'top-right'
         ? 'right:18px;top:160px;flex-direction:row;'
         : 'right:16px;top:50%;transform:translateY(-50%);flex-direction:column;');
-    quickDock.style.cssText = `position:fixed;${dockPosCss}z-index:9000;display:flex;gap:7px;pointer-events:none;`;
+    quickDock.style.cssText = `position:fixed;${dockPosCss}z-index:9500;opacity:1;visibility:visible;display:flex;gap:7px;pointer-events:none;`;
 
     const dockShape = ui.dockShape || 'circle';
     const btnShapeCss = dockShape === 'hex'
@@ -2247,64 +2251,101 @@
       const sColor = mainTheme.secondary || pColor;
       const gColor = mainTheme.glow || 'rgba(56, 189, 248, 0.24)';
 
+      const sidebarNavSel = '.agy-shell :is([role="navigation"][aria-label="Sidebar"], aside, [data-sidebar="true"])';
+      const sidebarItemSel = '.agy-shell [role="navigation"][aria-label="Sidebar"] :is([data-testid="new-conversation-button"], [data-testid="automations-button"], [data-testid="conversation-row-sidebar"], .agy-sidebar-row, [data-testid="settings-button"], a, [class*="group/headerbtn"])';
+
       let sidebarLayoutCss = '';
       if (sStyle === 'floating-cards') {
         sidebarLayoutCss = `
-          .agy-shell :is(aside, [data-sidebar="true"], .bg-sidebar:not(.surface-opaque)) {
+          ${sidebarNavSel} {
             margin: 8px 6px 8px 8px !important;
             border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
-            border: 1px solid ${borderAccent} !important;
-            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.36), 0 0 14px ${gColor} !important;
+            border: 1.5px solid ${borderAccent} !important;
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.42), 0 0 18px ${gColor} !important;
             overflow: hidden !important;
             backdrop-filter: none !important;
           }
-          .agy-shell :is(aside, [data-sidebar="true"]) :is(a, [class*="group/headerbtn"]) {
+          ${sidebarNavSel} [data-testid="sidebar-navigation-items"] {
+            padding: 4px 2px !important;
+          }
+          ${sidebarItemSel} {
             border-radius: ${Math.max(6, cardRadiusPx - 4)}px !important;
+            border: 1px solid transparent !important;
             margin: 2px 6px !important;
             padding: 6px 10px !important;
-            transition: background-color 0.15s ease, transform 0.15s ease !important;
+            transition: background-color 0.18s ease, transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease !important;
+          }
+          ${sidebarItemSel}:hover {
+            transform: translateX(3px) !important;
+            border-color: ${pColor} !important;
+            box-shadow: 0 2px 12px ${gColor} !important;
           }
         `;
       } else if (sStyle === 'framed-panel') {
         sidebarLayoutCss = `
-          .agy-shell :is(aside, [data-sidebar="true"], .bg-sidebar:not(.surface-opaque)) {
+          ${sidebarNavSel} {
             margin: 4px 0 4px 4px !important;
             border: 2px solid ${pColor} !important;
-            box-shadow: inset 0 0 0 1px ${sColor}, 0 0 16px ${gColor} !important;
+            box-shadow: inset 0 0 0 1px ${sColor}, 0 0 18px ${gColor} !important;
             clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px)) !important;
             backdrop-filter: none !important;
           }
-          .agy-shell :is(aside, [data-sidebar="true"]) [class*="group/section-header"] {
+          ${sidebarNavSel} [class*="group/section-header"] {
             border-bottom: 1px solid ${mainTheme.borderColor || borderAccent} !important;
+          }
+          ${sidebarItemSel} {
+            border-left: 2px solid transparent !important;
+            transition: background-color 0.18s ease, transform 0.18s ease, border-color 0.18s ease !important;
+          }
+          ${sidebarItemSel}:hover {
+            transform: translateX(3px) !important;
+            border-left-color: ${pColor} !important;
+            box-shadow: inset 3px 0 10px ${gColor} !important;
           }
         `;
       } else if (sStyle === 'sleek-rail') {
         sidebarLayoutCss = `
-          .agy-shell :is(aside, [data-sidebar="true"], .bg-sidebar:not(.surface-opaque)) {
+          ${sidebarNavSel} {
             border-left: 3px solid ${pColor} !important;
-            border-right: 1px solid ${mainTheme.borderColor || 'rgba(255, 255, 255, 0.08)'} !important;
+            border-right: 1px solid ${mainTheme.borderColor || 'rgba(255, 255, 255, 0.12)'} !important;
+            box-shadow: 4px 0 18px ${gColor} !important;
             padding-left: 2px !important;
             backdrop-filter: none !important;
           }
-          .agy-shell :is(aside, [data-sidebar="true"]) :is(a, [class*="group/headerbtn"]) {
+          ${sidebarItemSel} {
             border-left: 2px solid transparent !important;
             border-radius: 6px !important;
+            transition: background-color 0.18s ease, transform 0.18s ease, border-color 0.18s ease !important;
           }
-          .agy-shell :is(aside, [data-sidebar="true"]) :is(a, [class*="group/headerbtn"]):hover {
+          ${sidebarItemSel}:hover {
+            transform: translateX(3px) !important;
             border-left-color: ${pColor} !important;
           }
         `;
       }
 
       let composerLayoutCss = '';
+      const composerCommon = `
+        .agy-shell .surface-composer {
+          padding: 2.5px !important;
+          background: linear-gradient(125deg, ${pColor} 0%, ${sColor} 50%, ${pColor} 100%) !important;
+          background-size: 220% 220% !important;
+          transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+          backdrop-filter: none !important;
+        }
+        .agy-shell .surface-composer:hover,
+        .agy-shell .surface-composer:focus-within {
+          transform: translateY(-2px) !important;
+          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.58), 0 0 26px ${gColor} !important;
+        }
+      `;
       if (cStyle === 'floating-dock') {
         composerLayoutCss = `
+          ${composerCommon}
           .agy-shell .surface-composer {
             margin-bottom: 12px !important;
             border-radius: ${Math.max(16, cardRadiusPx + 4)}px !important;
-            border-top: 2px solid ${pColor} !important;
-            box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 20px ${gColor} !important;
-            backdrop-filter: none !important;
+            box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 22px ${gColor} !important;
           }
           .agy-shell .surface-composer-card {
             border-radius: ${Math.max(14, cardRadiusPx + 2)}px !important;
@@ -2313,79 +2354,112 @@
         `;
       } else if (cStyle === 'hud-console') {
         composerLayoutCss = `
+          ${composerCommon}
           .agy-shell .surface-composer {
-            border: 1.5px solid ${pColor} !important;
-            border-radius: 6px !important;
-            box-shadow: 0 0 18px ${gColor}, inset 0 0 12px ${gColor} !important;
-            background-image: linear-gradient(90deg, ${pColor} 14px, transparent 14px), linear-gradient(90deg, ${pColor} 14px, transparent 14px), linear-gradient(${pColor} 14px, transparent 14px), linear-gradient(${pColor} 14px, transparent 14px) !important;
-            background-position: 0 0, 100% 100%, 0 0, 100% 100% !important;
-            background-size: 100% 2px, 100% 2px, 2px 100%, 2px 100% !important;
-            background-repeat: no-repeat !important;
-            backdrop-filter: none !important;
+            border-radius: 8px !important;
+            box-shadow: 0 0 22px ${gColor}, inset 0 0 12px ${gColor} !important;
           }
           .agy-shell .surface-composer-card {
-            border-radius: 4px !important;
+            border-radius: 6px !important;
             backdrop-filter: none !important;
           }
         `;
       } else if (cStyle === 'command-bar') {
         composerLayoutCss = `
+          ${composerCommon}
           .agy-shell .surface-composer {
-            border-radius: 8px !important;
-            border: 1px solid ${mainTheme.borderColor || 'rgba(255, 255, 255, 0.16)'} !important;
-            border-left: 3px solid ${pColor} !important;
-            border-right: 3px solid ${sColor} !important;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.42) !important;
-            backdrop-filter: none !important;
+            border-radius: 10px !important;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 18px ${gColor} !important;
           }
           .agy-shell .surface-composer-card {
-            border-radius: 6px !important;
+            border-radius: 8px !important;
             backdrop-filter: none !important;
           }
         `;
       }
 
+      const chatCardCommon = `
+        .agy-shell [data-testid="agent-response"] {
+          position: relative !important;
+          transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
+        }
+        .agy-shell [data-testid="agent-response"]:hover {
+          transform: translateY(-2px) !important;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.44), 0 0 22px ${gColor} !important;
+        }
+        .agy-shell [data-testid="agent-response"]::after {
+          content: "";
+          position: absolute;
+          top: 6px;
+          right: 6px;
+          width: 16px;
+          height: 16px;
+          background-image: url("${cornerFiligreeUrl}");
+          background-size: contain;
+          background-repeat: no-repeat;
+          transform: rotate(90deg);
+          pointer-events: none;
+          animation: agyFiligreeShimmer 3.8s ease-in-out infinite;
+        }
+        .agy-shell .agy-user-bubble-frame {
+          padding: 2.5px !important;
+          background: linear-gradient(125deg, ${pColor} 0%, ${sColor} 50%, ${pColor} 100%) !important;
+          background-size: 220% 220% !important;
+          box-shadow: 0 6px 22px rgba(0, 0, 0, 0.48), 0 0 16px ${gColor} !important;
+          transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+        }
+        .agy-shell .agy-user-bubble-frame:hover {
+          transform: translateY(-2px) !important;
+          box-shadow: 0 10px 28px rgba(0, 0, 0, 0.54), 0 0 22px ${gColor} !important;
+        }
+      `;
+
       let chatCardLayoutCss = '';
       if (cardLayout === 'hud-panel') {
         chatCardLayoutCss = `
+          ${chatCardCommon}
           .agy-shell [data-testid="agent-response"] {
-            border-left: 3.5px solid ${pColor} !important;
+            border-left: 4px solid ${pColor} !important;
             border-top: 1px solid ${mainTheme.borderColor || borderAccent} !important;
             border-right: 1px solid ${mainTheme.borderColor || borderAccent} !important;
             border-bottom: 1px solid ${mainTheme.borderColor || borderAccent} !important;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.34), inset 0 1px 0 ${gColor} !important;
+            box-shadow: 0 6px 22px rgba(0, 0, 0, 0.36), 0 0 14px ${gColor}, inset 0 1px 0 ${gColor} !important;
           }
         `;
       } else if (cardLayout === 'terminal-block') {
         chatCardLayoutCss = `
+          ${chatCardCommon}
           .agy-shell [data-testid="agent-response"] {
-            border: 1px solid ${mainTheme.borderColor || 'rgba(255, 255, 255, 0.14)'} !important;
+            border: 1px solid ${mainTheme.borderColor || 'rgba(255, 255, 255, 0.16)'} !important;
             border-left: 4px solid ${sColor} !important;
             border-radius: 6px !important;
             font-family: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace !important;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.38) !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 14px ${gColor} !important;
           }
         `;
       } else if (cardLayout === 'floating-bubble') {
         chatCardLayoutCss = `
+          ${chatCardCommon}
           .agy-shell [data-testid="agent-response"] {
             border-radius: ${Math.max(18, cardRadiusPx + 4)}px !important;
             padding-top: 16px !important;
             padding-bottom: 16px !important;
             padding-right: 20px !important;
-            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32), 0 0 14px ${gColor} !important;
-            border: 1px solid ${mainTheme.aiCardBorder || 'rgba(255, 255, 255, 0.14)'} !important;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34), 0 0 18px ${gColor} !important;
+            border: 1.5px solid ${mainTheme.aiCardBorder || pColor} !important;
           }
         `;
       } else if (cardLayout === 'clean-sheet') {
         chatCardLayoutCss = `
+          ${chatCardCommon}
           .agy-shell [data-testid="agent-response"] {
-            border: 1px solid ${mainTheme.isLight ? 'rgba(15, 23, 42, 0.10)' : 'rgba(255, 255, 255, 0.09)'} !important;
+            border: 1px solid ${mainTheme.isLight ? 'rgba(15, 23, 42, 0.14)' : 'rgba(255, 255, 255, 0.14)'} !important;
+            border-left: 3px solid ${pColor} !important;
             border-radius: ${Math.min(12, cardRadiusPx)}px !important;
             padding-top: 14px !important;
             padding-bottom: 14px !important;
             padding-right: 18px !important;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14) !important;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2), 0 0 12px ${gColor} !important;
           }
         `;
       }
@@ -3009,35 +3083,35 @@
         100% { transform: rotate(360deg) scale(1); }
       }
       @keyframes agyParticleFloat {
-        0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.25; }
-        50% { transform: translate3d(14px, -28px, 0) scale(1.15); opacity: 0.65; }
+        0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.45; }
+        50% { transform: translate3d(14px, -28px, 0) scale(1.16); opacity: 0.75; }
       }
       @keyframes agyParticleFall {
-        0% { transform: translate3d(0, -32px, 0) rotate(0deg); opacity: 0.15; }
-        50% { transform: translate3d(12px, 14px, 0) rotate(90deg); opacity: 0.7; }
-        100% { transform: translate3d(-8px, 56px, 0) rotate(180deg); opacity: 0.12; }
+        0% { transform: translate3d(0, -32px, 0) rotate(0deg); opacity: 0.45; }
+        50% { transform: translate3d(12px, 14px, 0) rotate(90deg); opacity: 0.75; }
+        100% { transform: translate3d(-8px, 56px, 0) rotate(180deg); opacity: 0.45; }
       }
       @keyframes agyParticleRise {
-        0% { transform: translate3d(0, 18px, 0) scale(0.9); opacity: 0.15; }
-        50% { transform: translate3d(-10px, -24px, 0) scale(1.1); opacity: 0.7; }
-        100% { transform: translate3d(8px, -54px, 0) scale(0.85); opacity: 0.12; }
+        0% { transform: translate3d(0, 18px, 0) scale(0.92); opacity: 0.45; }
+        50% { transform: translate3d(-10px, -24px, 0) scale(1.12); opacity: 0.75; }
+        100% { transform: translate3d(8px, -54px, 0) scale(0.9); opacity: 0.45; }
       }
       @keyframes agyParticleOrbit {
-        0% { transform: rotate(0deg) translate3d(18px, 0, 0) rotate(0deg); opacity: 0.28; }
-        50% { transform: rotate(180deg) translate3d(18px, 0, 0) rotate(-180deg) scale(1.12); opacity: 0.72; }
-        100% { transform: rotate(360deg) translate3d(18px, 0, 0) rotate(-360deg); opacity: 0.28; }
+        0% { transform: rotate(0deg) translate3d(18px, 0, 0) rotate(0deg); opacity: 0.45; }
+        50% { transform: rotate(180deg) translate3d(18px, 0, 0) rotate(-180deg) scale(1.12); opacity: 0.75; }
+        100% { transform: rotate(360deg) translate3d(18px, 0, 0) rotate(-360deg); opacity: 0.45; }
       }
       @keyframes agyParticlePulse {
-        0%, 100% { transform: scale(0.78); opacity: 0.2; }
-        50% { transform: scale(1.32); opacity: 0.78; }
+        0%, 100% { transform: scale(0.84); opacity: 0.45; }
+        50% { transform: scale(1.3); opacity: 0.75; }
       }
       @keyframes agyParticleDrift {
-        0%, 100% { transform: translate3d(0, -10px, 0) rotate(0deg); opacity: 0.3; }
-        50% { transform: translate3d(22px, 24px, 0) rotate(24deg); opacity: 0.65; }
+        0%, 100% { transform: translate3d(0, -10px, 0) rotate(0deg); opacity: 0.45; }
+        50% { transform: translate3d(22px, 24px, 0) rotate(24deg); opacity: 0.75; }
       }
       @keyframes agyParticleTwinkle {
-        0%, 100% { transform: scale(0.8); opacity: 0.18; }
-        50% { transform: scale(1.25); opacity: 0.72; }
+        0%, 100% { transform: scale(0.85); opacity: 0.45; }
+        50% { transform: scale(1.25); opacity: 0.75; }
       }
       @keyframes agyIntroCheckIn {
         from { opacity: 0; transform: translate3d(-8px, 0, 0); }
@@ -3053,18 +3127,22 @@
         will-change: opacity, transform;
         animation: agyAmbientAura 10s ease-in-out infinite;
       }
-      .agy-user-bubble-frame,
-      .surface-composer {
+      #agy-hud-quick-dock button:hover {
+        transform: translateY(-2px) scale(1.08);
+        border-color: ${mainTheme.primary || '#38bdf8'} !important;
+      }
+      .agy-shell .agy-user-bubble-frame,
+      .agy-shell .surface-composer {
         background-size: 220% 220% !important;
         animation: agyBorderFlow 7s ease-in-out infinite !important;
       }
-      .agy-user-bubble-frame::before,
-      .surface-composer::before {
+      .agy-shell .agy-user-bubble-frame::before,
+      .agy-shell .surface-composer::before {
         will-change: transform;
         animation: agyOrnamentFloat 4.5s ease-in-out infinite;
       }
-      .agy-user-bubble-frame::after,
-      .surface-composer::after {
+      .agy-shell .agy-user-bubble-frame::after,
+      .agy-shell .surface-composer::after {
         animation: agyFiligreeShimmer 3.8s ease-in-out infinite;
       }
       #agy-custom-theme-topbar-btn {
