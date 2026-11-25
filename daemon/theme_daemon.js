@@ -11,6 +11,7 @@ const fs = require('fs');
 const http = require('http');
 const os = require('os');
 const path = require('path');
+const { execFile, spawn } = require('child_process');
 
 if (typeof globalThis.WebSocket !== 'function') {
     console.error('[theme-daemon] Node.js >= 22 with built-in WebSocket is required.');
@@ -446,6 +447,112 @@ function watchPayload() {
     }
 }
 
+function execAsync(cmd, args, opts = {}) {
+    return new Promise((resolve, reject) => {
+        execFile(cmd, args, {
+            cwd: ROOT_DIR,
+            windowsHide: true,
+            timeout: opts.timeout || 25000,
+            env: {
+                ...process.env,
+                GIT_TERMINAL_PROMPT: '0',
+                GCM_INTERACTIVE: 'never',
+            },
+        }, (err, stdout, stderr) => {
+            if (err) {
+                err.stderr = stderr;
+                err.stdout = stdout;
+                reject(err);
+            } else {
+                resolve({ stdout: String(stdout || '').trim(), stderr: String(stderr || '').trim() });
+            }
+        });
+    });
+}
+
+let updateInProgress = false;
+let lastUpdateErr = '';
+async function checkForUpdates() {
+    if (updateInProgress || process.env.AGY_AUTO_UPDATE === '0') return;
+    if (!fs.existsSync(path.join(ROOT_DIR, '.git'))) return;
+    updateInProgress = true;
+    try {
+        const statusRes = await execAsync('git', ['status', '--porcelain', '--untracked-files=no'], { timeout: 10000 });
+        if (statusRes.stdout) {
+            return; // Skip auto-update when local tracked files are modified
+        }
+
+        await execAsync('git', ['fetch', '--quiet', 'origin'], { timeout: 25000 });
+        const headRes = await execAsync('git', ['rev-parse', 'HEAD'], { timeout: 5000 });
+        let upstreamRef = '@{u}';
+        let remoteRes;
+        try {
+            remoteRes = await execAsync('git', ['rev-parse', upstreamRef], { timeout: 5000 });
+        } catch (_) {
+            upstreamRef = 'origin/main';
+            remoteRes = await execAsync('git', ['rev-parse', upstreamRef], { timeout: 5000 });
+        }
+
+        const oldHead = headRes.stdout;
+        const newHead = remoteRes.stdout;
+        if (!oldHead || !newHead || oldHead === newHead) {
+            lastUpdateErr = '';
+            return;
+        }
+
+        log(`Auto-update: found new commit ${newHead.slice(0, 7)} (current ${oldHead.slice(0, 7)}). Pulling...`);
+        await execAsync('git', ['pull', '--ff-only', '--quiet'], { timeout: 30000 });
+
+        const diffRes = await execAsync('git', ['diff', '--name-only', oldHead, newHead], { timeout: 10000 });
+        const changedFiles = diffRes.stdout.split(/\r?\n/).filter(Boolean);
+        log(`Auto-update: pulled ${changedFiles.length} file(s): ${changedFiles.join(', ')}`);
+
+        const buildScript = path.join(ROOT_DIR, 'scripts', 'build_payload.js');
+        if (fs.existsSync(buildScript)) {
+            await execAsync(process.execPath, [buildScript], { timeout: 30000 });
+            log('Auto-update: rebuilt dist/theme_payload.js.');
+        }
+
+        lastUpdateErr = '';
+        const needsDaemonRestart = changedFiles.some((f) => f === 'daemon/theme_daemon.js' || f === 'daemon/theme_designer.js');
+        if (needsDaemonRestart) {
+            log('Auto-update: daemon code changed; restarting daemon process...');
+            for (const s of sessions.values()) {
+                try { s.ws.close(); } catch (_) {}
+            }
+            sessions.clear();
+            removePidLock();
+            const child = spawn(process.execPath, [__filename], {
+                cwd: ROOT_DIR,
+                detached: true,
+                stdio: 'ignore',
+                windowsHide: true,
+            });
+            child.unref();
+            process.exit(0);
+        }
+    } catch (err) {
+        const msg = (err.stderr || err.message || String(err)).trim().split(/\r?\n/)[0];
+        if (msg !== lastUpdateErr) {
+            lastUpdateErr = msg;
+            log(`Auto-update check skipped: ${msg}`);
+        }
+    } finally {
+        updateInProgress = false;
+    }
+}
+
+function startAutoUpdater() {
+    if (process.env.AGY_AUTO_UPDATE === '0') {
+        log('Auto-update disabled (AGY_AUTO_UPDATE=0).');
+        return;
+    }
+    const rawInterval = parseInt(process.env.AGY_UPDATE_INTERVAL_MS || '', 10);
+    const intervalMs = Number.isFinite(rawInterval) && rawInterval >= 60000 ? rawInterval : 30 * 60 * 1000;
+    setTimeout(() => { checkForUpdates(); }, 10000);
+    setInterval(() => { checkForUpdates(); }, intervalMs);
+}
+
 function shutdown(signal) {
     log(`Shutting down on ${signal}.`);
     for (const s of sessions.values()) {
@@ -467,3 +574,4 @@ log(`Theme daemon started (PID ${process.pid}, platform=${process.platform}, por
 watchPayload();
 scanPages();
 setInterval(scanPages, 1500);
+startAutoUpdater();
