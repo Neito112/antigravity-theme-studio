@@ -77,6 +77,7 @@
   const STORAGE_BOOT_INTRO = 'agy_boot_intro_v1';
   const STORAGE_SKETCH_REVEAL = 'agy_sketch_reveal_v1';
   const STORAGE_TAWA_GREETING = 'agy_tawa_greeting_v1';
+  const STORAGE_PET_ENABLED = 'agy_pet_enabled_v1';
   const GREETING_RX = /^(?:Hey\s+[^,]{1,40},\s+what\s+should\s+we\s+build\s+today\??|Good\s+to\s+see\s+you,\s+[^.]{1,40}\.\s+What'?s\s+next\??|What\s+(?:should|are)\s+we\s+build(?:ing)?\s+today\??|Welcome\s+back[,.!\s]+[^.!?]{0,40}(?:[.!?]\s*(?:Where\s+should\s+we\s+pick\s+up|What'?s\s+next|What\s+should\s+we\s+build)[^.!?]{0,40}[.!?]?)?|Where\s+should\s+we\s+pick\s+up\??|Ready\s+(?:to\s+build|when\s+you\s+are)[,.!\s]*.*)$/i;
 
   const CHECK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
@@ -367,10 +368,16 @@
     const voiceRate = Number.isFinite(Number(raw.voiceRate))
       ? Math.min(2, Math.max(0.5, Number(raw.voiceRate)))
       : 1.03;
+    const workIdentity = (t.workIdentity && typeof t.workIdentity === 'object') ? t.workIdentity : {};
+    const petArchetype = (typeof raw.petArchetype === 'string' && raw.petArchetype.trim())
+      ? raw.petArchetype.trim()
+      : (typeof t.petArchetype === 'string' && t.petArchetype.trim() ? t.petArchetype.trim() : '');
 
     return {
       archetype: archKey,
       archetypeLabel: resolvedArchetypeLabel,
+      petArchetype,
+      workIdentity,
       particleStyle: raw.particleStyle || base.particleStyle,
       particleShape,
       particleSvgInner,
@@ -1022,13 +1029,17 @@
     const tawaGreeting = localStorage.getItem(STORAGE_TAWA_GREETING) !== null
       ? localStorage.getItem(STORAGE_TAWA_GREETING) !== 'false'
       : (init.tawaGreeting !== undefined ? init.tawaGreeting : true);
+    const rawPet = localStorage.getItem(STORAGE_PET_ENABLED);
+    const petEnabled = rawPet !== null
+      ? rawPet !== 'false'
+      : (init.petEnabled !== undefined ? init.petEnabled : true);
     return {
       themeName, bubbleName, inputStyle, dimming, wpEnabled, wpMode,
       customWp, customVideo, savedImages, savedVideos,
       taskVoices, taskVoiceEnabled, taskVoiceVol, customGreetings,
       userAvatar, agentAvatar, glassBlur, avatarSize, avatarRadius,
       themeMode, soundMuted, soundVolume, voiceEnabled, introEnabled,
-      bootIntro, sketchReveal, tawaGreeting
+      bootIntro, sketchReveal, tawaGreeting, petEnabled
     };
   }
 
@@ -1260,11 +1271,244 @@
     }
   }
 
+  function isAiTaskRunning() {
+    const shell = findActiveShell();
+    const root = shell || document;
+    return Boolean(
+      root.querySelector('[data-testid="status-task-running"], [data-agent-state-dot], [data-testid="input-cancel-button"], [data-testid="status-loading-spinner"]')
+    );
+  }
+
+  function buildTelemetryIndicatorHtml(isRunning, primary, secondary, compact = false) {
+    if (isRunning) {
+      const sz = compact ? 10 : 12;
+      const dot = compact ? 3 : 3.5;
+      return `<span class="agy-telemetry-orbit" style="position:relative;display:inline-block;width:${sz}px;height:${sz}px;flex:none;animation:agOrbitSpin 0.9s linear infinite;"><span style="position:absolute;top:0;left:50%;width:${dot}px;height:${dot}px;margin-left:-${dot / 2}px;border-radius:50%;background:#22d3ee;box-shadow:0 0 6px #22d3ee;"></span><span style="position:absolute;bottom:0;left:50%;width:${dot}px;height:${dot}px;margin-left:-${dot / 2}px;border-radius:50%;background:#34d399;box-shadow:0 0 6px #34d399;"></span></span><span class="agy-telemetry-led" style="width:6px;height:6px;border-radius:50%;flex:none;background:#22d3ee;box-shadow:0 0 8px #22d3ee, 0 0 12px #34d399;animation:agyTelemetryPulse 1.1s ease-in-out infinite;"></span>`;
+    }
+    return `<span class="agy-telemetry-led" style="width:6px;height:6px;border-radius:50%;flex:none;background:${primary};box-shadow:0 0 8px ${primary};animation:agyStudioBreath 2.4s ease-in-out infinite;"></span>`;
+  }
+
+  function resolvePetArchetype(theme, pack) {
+    const t = theme || {};
+    const p = pack || {};
+    const wi = p.workIdentity || t.workIdentity || {};
+    const hay = `${p.petArchetype || t.petArchetype || ''} ${wi.franchise || ''} ${wi.archetype || ''} ${p.archetype || ''} ${t.name || ''} ${t.concept || ''}`.toLowerCase();
+    if (/miku|vocaloid|hatsune|cyber-spirit/.test(hay)) return 'miku-spirit';
+    if (/pok[eé]|pikachu|electric|volt|phantom/.test(hay)) return 'poke-spark';
+    if (/sao|sword art|fairy|pixie|aether|rpg|fantasy|celestial|sakura|anime/.test(hay)) return 'fairy-pixie';
+    if (/claude|office|minimal|cozy|cat|neko|warm|charcoal/.test(hay)) return 'cozy-cat';
+    if (/kaiju|mecha|dragon|crimson|ember|lava/.test(hay)) return 'mini-kaiju';
+    if (/codex|orb|cyber|sci-fi|tech|radar|hud|obsidian/.test(hay)) return 'codex-orb';
+    return 'codex-orb';
+  }
+
+  function buildPetSvg(petType, primary, secondary) {
+    const p = primary || '#38bdf8';
+    const s = secondary || '#a855f7';
+    if (petType === 'miku-spirit') {
+      return `<svg width="42" height="42" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+        <rect x="2" y="4" width="2" height="7" fill="${p}"/><rect x="12" y="4" width="2" height="7" fill="${p}"/>
+        <rect x="1" y="9" width="2" height="4" fill="${s}"/><rect x="13" y="9" width="2" height="4" fill="${s}"/>
+        <rect x="4" y="3" width="8" height="7" fill="#f8fafc"/><rect x="4" y="2" width="8" height="3" fill="${p}"/>
+        <rect x="3" y="4" width="1" height="3" fill="#0f172a"/><rect x="12" y="4" width="1" height="3" fill="#0f172a"/>
+        <g class="agy-pet-eyes"><rect class="agy-pet-pupil" x="5" y="6" width="2" height="2" fill="${p}"/><rect class="agy-pet-pupil" x="9" y="6" width="2" height="2" fill="${p}"/></g>
+        <rect x="7" y="8" width="2" height="1" fill="#fb7185"/>
+        <rect x="5" y="10" width="6" height="4" fill="#1e293b"/><rect x="6" y="11" width="4" height="2" fill="${p}"/>
+      </svg>`;
+    }
+    if (petType === 'poke-spark') {
+      return `<svg width="42" height="42" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+        <rect x="3" y="1" width="2" height="3" fill="#facc15"/><rect x="3" y="1" width="2" height="1" fill="#0f172a"/>
+        <rect x="11" y="1" width="2" height="3" fill="#facc15"/><rect x="11" y="1" width="2" height="1" fill="#0f172a"/>
+        <rect x="4" y="4" width="8" height="6" fill="#fde047"/>
+        <g class="agy-pet-eyes"><rect class="agy-pet-pupil" x="5" y="6" width="2" height="2" fill="#0f172a"/><rect class="agy-pet-pupil" x="9" y="6" width="2" height="2" fill="#0f172a"/></g>
+        <rect x="4" y="8" width="1" height="1" fill="#ef4444"/><rect x="11" y="8" width="1" height="1" fill="#ef4444"/>
+        <rect x="5" y="10" width="6" height="4" fill="#facc15"/><rect x="12" y="9" width="3" height="2" fill="${p}"/>
+      </svg>`;
+    }
+    if (petType === 'fairy-pixie') {
+      return `<svg width="42" height="42" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+        <rect x="1" y="5" width="3" height="4" fill="${s}" opacity="0.8"/><rect x="12" y="5" width="3" height="4" fill="${s}" opacity="0.8"/>
+        <rect x="5" y="1" width="6" height="1" fill="#fde047"/>
+        <rect x="4" y="3" width="8" height="7" fill="#fdf2f8"/><rect x="4" y="3" width="8" height="2" fill="${p}"/>
+        <g class="agy-pet-eyes"><rect class="agy-pet-pupil" x="5" y="6" width="2" height="2" fill="#1e293b"/><rect class="agy-pet-pupil" x="9" y="6" width="2" height="2" fill="#1e293b"/></g>
+        <rect x="5" y="10" width="6" height="4" fill="${p}"/>
+      </svg>`;
+    }
+    if (petType === 'cozy-cat') {
+      return `<svg width="42" height="42" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+        <rect x="3" y="2" width="2" height="2" fill="#e2e8f0"/><rect x="11" y="2" width="2" height="2" fill="#e2e8f0"/>
+        <rect x="4" y="4" width="8" height="6" fill="#f1f5f9"/>
+        <g class="agy-pet-eyes"><rect class="agy-pet-pupil" x="5" y="6" width="2" height="2" fill="#0f172a"/><rect class="agy-pet-pupil" x="9" y="6" width="2" height="2" fill="#0f172a"/></g>
+        <rect x="7" y="8" width="2" height="1" fill="#fb7185"/>
+        <rect x="5" y="10" width="6" height="1" fill="${p}"/><rect x="4" y="11" width="8" height="3" fill="#cbd5e1"/>
+      </svg>`;
+    }
+    if (petType === 'mini-kaiju') {
+      return `<svg width="42" height="42" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+        <rect x="6" y="1" width="2" height="2" fill="${p}"/><rect x="8" y="2" width="2" height="2" fill="${s}"/>
+        <rect x="4" y="4" width="8" height="6" fill="#1e293b"/>
+        <g class="agy-pet-eyes"><rect class="agy-pet-pupil" x="5" y="6" width="2" height="2" fill="#f97316"/><rect class="agy-pet-pupil" x="9" y="6" width="2" height="2" fill="#f97316"/></g>
+        <rect x="4" y="10" width="8" height="4" fill="#334155"/><rect x="6" y="11" width="4" height="2" fill="${p}"/>
+      </svg>`;
+    }
+    return `<svg width="42" height="42" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+      <rect x="7" y="1" width="2" height="2" fill="${p}"/>
+      <rect x="4" y="3" width="8" height="8" fill="#0f172a"/>
+      <rect x="3" y="5" width="1" height="4" fill="${p}"/><rect x="12" y="5" width="1" height="4" fill="${p}"/>
+      <rect x="5" y="5" width="6" height="4" fill="#1e293b"/>
+      <g class="agy-pet-eyes"><rect class="agy-pet-pupil" x="5" y="6" width="2" height="2" fill="#22d3ee"/><rect class="agy-pet-pupil" x="9" y="6" width="2" height="2" fill="#22d3ee"/></g>
+      <rect x="5" y="12" width="6" height="2" fill="${s}"/>
+    </svg>`;
+  }
+
+  function removeIdePet() {
+    const pet = document.getElementById('agy-ide-pet');
+    if (pet) pet.remove();
+    if (window.__AGY_PET_BLINK_TIMER__) {
+      clearTimeout(window.__AGY_PET_BLINK_TIMER__);
+      window.__AGY_PET_BLINK_TIMER__ = null;
+    }
+  }
+
+  function touchPetActivity() {
+    window.__AGY_PET_LAST_ACTIVE__ = Date.now();
+    const pet = document.getElementById('agy-ide-pet');
+    if (pet && pet.dataset.petState === 'sleepy') {
+      syncIdePetState();
+    }
+  }
+
+  function syncIdePetState() {
+    const pet = document.getElementById('agy-ide-pet');
+    if (!pet) return;
+    const running = isAiTaskRunning();
+    const lastActive = window.__AGY_PET_LAST_ACTIVE__ || Date.now();
+    const sleepy = !running && (Date.now() - lastActive > 45000);
+    const nextState = running ? 'running' : (sleepy ? 'sleepy' : 'idle');
+    if (pet.dataset.petState !== nextState) {
+      pet.dataset.petState = nextState;
+      const halo = pet.querySelector('.agy-pet-halo');
+      const zzz = pet.querySelector('.agy-pet-zzz');
+      if (halo) halo.style.display = nextState === 'running' ? 'block' : 'none';
+      if (zzz) zzz.style.display = nextState === 'sleepy' ? 'block' : 'none';
+    }
+  }
+
+  function ensurePetListeners() {
+    if (window.__AGY_PET_LISTENERS_BOUND__) return;
+    window.__AGY_PET_LISTENERS_BOUND__ = true;
+    const sig = window.__AGY_SCROLL_AC__ ? window.__AGY_SCROLL_AC__.signal : undefined;
+    window.__AGY_PET_LAST_ACTIVE__ = Date.now();
+    let eyeRaf = 0;
+    window.addEventListener('mousemove', (e) => {
+      window.__AGY_PET_LAST_ACTIVE__ = Date.now();
+      if (eyeRaf) return;
+      eyeRaf = requestAnimationFrame(() => {
+        eyeRaf = 0;
+        const pet = document.getElementById('agy-ide-pet');
+        if (!pet) return;
+        if (pet.dataset.petState === 'sleepy') syncIdePetState();
+        const rect = pet.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dx = Math.max(-1.1, Math.min(1.1, (e.clientX - cx) / 140));
+        const dy = Math.max(-0.9, Math.min(0.9, (e.clientY - cy) / 140));
+        pet.querySelectorAll('.agy-pet-pupil').forEach((pupil) => {
+          pupil.style.transform = `translate(${dx.toFixed(2)}px, ${dy.toFixed(2)}px)`;
+        });
+      });
+    }, { passive: true, signal: sig });
+    window.addEventListener('keydown', touchPetActivity, { passive: true, signal: sig });
+    const scheduleBlink = () => {
+      if (window.__AGY_PET_BLINK_TIMER__) clearTimeout(window.__AGY_PET_BLINK_TIMER__);
+      window.__AGY_PET_BLINK_TIMER__ = setTimeout(() => {
+        const pet = document.getElementById('agy-ide-pet');
+        if (pet && pet.dataset.petState === 'idle') {
+          pet.classList.add('agy-pet-blink');
+          setTimeout(() => { if (pet) pet.classList.remove('agy-pet-blink'); }, 150);
+        }
+        scheduleBlink();
+      }, 3600 + Math.floor(Math.random() * 2600));
+    };
+    scheduleBlink();
+  }
+
+  function syncIdePet(isDynamic, theme, petEnabled) {
+    if (!isDynamic || !petEnabled) {
+      removeIdePet();
+      return;
+    }
+    const th = theme || {};
+    const pack = resolveDynamicPack(th);
+    const primary = th.primary || '#38bdf8';
+    const secondary = th.secondary || primary;
+    const petType = resolvePetArchetype(th, pack);
+    let pet = document.getElementById('agy-ide-pet');
+    if (!pet) {
+      pet = document.createElement('div');
+      pet.id = 'agy-ide-pet';
+      pet.title = 'Click to cheer! (Shift+Click to hide)';
+      pet.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        touchPetActivity();
+        if (e.shiftKey) {
+          applyTheme({ petEnabled: false });
+          return;
+        }
+        const curTh = THEMES[getStateSafe().themeName] || th;
+        playClickSound(curTh);
+        const cheers = ['⚡ Let\'s build!', '✨ Synced!', '🐾 Purr~', '🚀 Full speed!'];
+        const bubble = pet.querySelector('.agy-pet-speech');
+        if (bubble) {
+          bubble.textContent = cheers[Math.floor(Math.random() * cheers.length)];
+          bubble.style.opacity = '1';
+          bubble.style.transform = 'translateY(0)';
+          clearTimeout(pet.__cheerTimer);
+          pet.__cheerTimer = setTimeout(() => {
+            bubble.style.opacity = '0';
+            bubble.style.transform = 'translateY(4px)';
+          }, 1600);
+        }
+        pet.classList.remove('agy-pet-cheer');
+        void pet.offsetWidth;
+        pet.classList.add('agy-pet-cheer');
+      });
+      document.body.appendChild(pet);
+    }
+    pet.dataset.petArchetype = petType;
+    pet.style.cssText = [
+      'position:fixed',
+      'right:22px',
+      'bottom:22px',
+      'z-index:9510',
+      'width:54px',
+      'height:54px',
+      'display:flex',
+      'align-items:center',
+      'justify-content:center',
+      'cursor:pointer',
+      'pointer-events:auto',
+      'user-select:none',
+      `filter:drop-shadow(0 4px 12px ${th.glow || 'rgba(56,189,248,0.4)'})`
+    ].join(';');
+    pet.innerHTML = `
+      <div class="agy-pet-speech" style="position:absolute;bottom:58px;right:0;padding:3px 8px;border-radius:8px;background:${th.modalBg || 'rgba(8,12,22,0.92)'};border:1px solid ${primary};color:${th.isLight ? '#0f172a' : '#f8fafc'};font-size:10px;font-weight:700;white-space:nowrap;opacity:0;transform:translateY(4px);transition:opacity 0.18s ease, transform 0.18s ease;pointer-events:none;">⚡ Ready!</div>
+      <div class="agy-pet-zzz" style="display:none;position:absolute;top:-12px;right:2px;font-size:10px;font-weight:800;color:${primary};text-shadow:0 0 6px ${primary};animation:agyOrnamentFloat 2s ease-in-out infinite;pointer-events:none;">Zzz</div>
+      <div class="agy-pet-halo" style="display:none;position:absolute;inset:-4px;border-radius:50%;border:1.5px dashed ${primary};opacity:0.75;animation:agyHudSpin 4s linear infinite;pointer-events:none;"></div>
+      <div class="agy-pet-sprite">${buildPetSvg(petType, primary, secondary)}</div>
+    `;
+    ensurePetListeners();
+    syncIdePetState();
+  }
+
   function removeDynamicHudWidgets() {
     ['agy-hud-top-pill', 'agy-hud-status-widget', 'agy-hud-quick-dock'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.remove();
     });
+    removeIdePet();
   }
 
   function syncDynamicHudWidgets(isDynamic, theme) {
@@ -1284,6 +1528,8 @@
     const borderCol = th.borderColor || (isLight ? 'rgba(15, 23, 42, 0.18)' : 'rgba(56, 189, 248, 0.32)');
     const glowCol = th.glow || 'rgba(56, 189, 248, 0.28)';
     const fontStack = getFontVibeStack(ui.fontVibe);
+    const aiRunning = isAiTaskRunning();
+    window.__AGY_LAST_AI_RUNNING__ = aiRunning;
 
     // 1. #agy-hud-top-pill
     let topPill = document.getElementById('agy-hud-top-pill');
@@ -1299,6 +1545,7 @@
       });
       document.body.appendChild(topPill);
     }
+    topPill.dataset.telemetryState = aiRunning ? 'running' : 'idle';
     topPill.style.cssText = [
       'position:fixed',
       'top:40px',
@@ -1315,7 +1562,7 @@
       'padding:4px 14px',
       'border-radius:9999px',
       `background:${bgSurface}`,
-      `border:1.5px solid ${primary}`,
+      `border:1.5px solid ${aiRunning ? '#22d3ee' : primary}`,
       `color:${textInk}`,
       `font-family:${fontStack}`,
       'font-size:10.5px',
@@ -1325,11 +1572,12 @@
       `box-shadow:0 4px 16px rgba(0,0,0,0.45), 0 0 14px ${glowCol}`,
       'backdrop-filter:none',
       'white-space:nowrap',
-      'max-width:340px',
+      'max-width:360px',
       'overflow:hidden',
       'text-overflow:ellipsis'
     ].join(';');
-    topPill.innerHTML = `<span style="width:6px;height:6px;border-radius:50%;flex:none;background:${primary};box-shadow:0 0 8px ${primary};animation:agyStudioBreath 2.2s ease-in-out infinite;"></span><span>${escHtml(ui.topBarPillText || pack.archetypeLabel)}</span>`;
+    const pillLabel = aiRunning ? `RUNNING // ${ui.topBarPillText || pack.archetypeLabel}` : (ui.topBarPillText || pack.archetypeLabel);
+    topPill.innerHTML = `${buildTelemetryIndicatorHtml(aiRunning, primary, secondary, false)}<span>${escHtml(pillLabel)}</span>`;
 
     // 2. #agy-hud-status-widget
     const hw = ui.hudWidget || {};
@@ -1339,6 +1587,7 @@
       statusWidget.id = 'agy-hud-status-widget';
       document.body.appendChild(statusWidget);
     }
+    statusWidget.dataset.telemetryState = aiRunning ? 'running' : 'idle';
     const isCollapsed = Boolean(window.__AGY_HUD_WIDGET_COLLAPSED__);
     statusWidget.style.cssText = [
       'position:fixed',
@@ -1353,21 +1602,22 @@
       `color:${textInk}`
     ].join(';');
 
+    const statusLine = aiRunning ? 'RUNNING // STREAMING' : (hw.statusText || 'IDLE // SYNC 100%');
     if (isCollapsed) {
-      statusWidget.innerHTML = `<button type="button" data-hud-widget-toggle="1" title="Expand HUD Status" style="pointer-events:auto;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:9999px;background:${bgSurface};border:1px solid ${borderCol};color:${primary};font-size:10px;font-weight:700;letter-spacing:0.6px;box-shadow:0 4px 14px rgba(0,0,0,0.3);backdrop-filter:none;"><span style="width:5px;height:5px;border-radius:50%;background:${primary};"></span>${escHtml(hw.badge || 'HUD')}</button>`;
+      statusWidget.innerHTML = `<button type="button" data-hud-widget-toggle="1" title="Expand HUD Status" style="pointer-events:auto;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:9999px;background:${bgSurface};border:1px solid ${borderCol};color:${primary};font-size:10px;font-weight:700;letter-spacing:0.6px;box-shadow:0 4px 14px rgba(0,0,0,0.3);backdrop-filter:none;">${buildTelemetryIndicatorHtml(aiRunning, primary, secondary, true)}${escHtml(aiRunning ? 'RUN' : (hw.badge || 'HUD'))}</button>`;
     } else {
       const cardRadius = Math.min(14, Number.isFinite(ui.cardRadiusPx) ? ui.cardRadiusPx : 10);
       statusWidget.innerHTML = `
-        <div style="pointer-events:auto;position:relative;padding:9px 11px;border-radius:${cardRadius}px;background:${bgSurface};border:1px solid ${borderCol};border-left:3px solid ${primary};box-shadow:0 8px 24px rgba(0,0,0,0.38), 0 0 12px ${glowCol};backdrop-filter:none;">
+        <div style="pointer-events:auto;position:relative;padding:9px 11px;border-radius:${cardRadius}px;background:${bgSurface};border:1px solid ${borderCol};border-left:3px solid ${aiRunning ? '#22d3ee' : primary};box-shadow:0 8px 24px rgba(0,0,0,0.38), 0 0 12px ${glowCol};backdrop-filter:none;">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px;">
             <span style="font-size:9.5px;font-weight:800;letter-spacing:0.8px;padding:1px 6px;border-radius:9999px;background:${glowCol};color:${primary};border:1px solid ${borderCol};">${escHtml(hw.badge || 'SYNC')}</span>
             <button type="button" data-hud-widget-toggle="1" title="Collapse HUD Widget" style="pointer-events:auto;cursor:pointer;background:transparent;border:none;color:${mutedInk};font-size:13px;line-height:1;padding:0 2px;">×</button>
           </div>
           <div style="font-size:11.5px;font-weight:700;letter-spacing:0.4px;color:${textInk};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(hw.title || pack.introTitle)}</div>
           <div style="font-size:9.5px;color:${mutedInk};letter-spacing:0.5px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(hw.subtitle || pack.archetypeLabel)}</div>
-          <div style="display:flex;align-items:center;gap:5px;margin-top:6px;padding-top:5px;border-top:1px solid ${isLight ? 'rgba(15,23,42,0.1)' : 'rgba(255,255,255,0.08)'};font-size:9.5px;font-weight:600;color:${secondary};">
-            <span style="width:5px;height:5px;border-radius:50%;background:${primary};box-shadow:0 0 6px ${primary};"></span>
-            <span>${escHtml(hw.statusText || 'SYNC 100%')}</span>
+          <div style="display:flex;align-items:center;gap:5px;margin-top:6px;padding-top:5px;border-top:1px solid ${isLight ? 'rgba(15,23,42,0.1)' : 'rgba(255,255,255,0.08)'};font-size:9.5px;font-weight:600;color:${aiRunning ? '#22d3ee' : secondary};">
+            ${buildTelemetryIndicatorHtml(aiRunning, primary, secondary, true)}
+            <span>${escHtml(statusLine)}</span>
           </div>
         </div>
       `;
@@ -1407,11 +1657,13 @@
           : 'width:32px;height:32px;border-radius:9999px;'));
 
     const isMuted = localStorage.getItem(STORAGE_SOUND_MUTED) === 'true';
+    const petOn = getStateSafe().petEnabled !== false;
     const dockBtnBase = `pointer-events:auto;cursor:pointer;display:flex;align-items:center;justify-content:center;${btnShapeCss}background:${bgSurface};border:1px solid ${borderCol};color:${textInk};font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,0.35), 0 0 8px ${glowCol};backdrop-filter:none;transition:transform 0.14s ease, border-color 0.14s ease;`;
     quickDock.innerHTML = `
       <button type="button" data-hud-action="studio" title="Open Custom Theme Studio" style="${dockBtnBase}">🎨</button>
       <button type="button" data-hud-action="intro" title="Preview Intro" style="${dockBtnBase}">▶</button>
       <button type="button" data-hud-action="mode" title="Toggle Dynamic / Static" style="${dockBtnBase}">⚡</button>
+      <button type="button" data-hud-action="pet" title="${petOn ? 'Hide Companion Pet' : 'Show Companion Pet'}" style="${dockBtnBase}${petOn ? '' : 'opacity:0.5;'}">🐾</button>
       <button type="button" data-hud-action="sound" title="${isMuted ? 'Unmute Sound' : 'Mute Sound'}" style="${dockBtnBase}">${isMuted ? '🔇' : '🔊'}</button>
     `;
     quickDock.querySelectorAll('button[data-hud-action]').forEach(btn => {
@@ -1427,6 +1679,11 @@
           const cur = getStateSafe();
           const nextMode = cur.themeMode === 'static' ? 'dynamic' : 'static';
           applyTheme({ themeMode: nextMode });
+        } else if (act === 'pet') {
+          const cur = getStateSafe();
+          const nextPet = cur.petEnabled === false;
+          applyTheme({ petEnabled: nextPet });
+          syncExtraToggleBtns(th.primary);
         } else if (act === 'sound') {
           const curMuted = localStorage.getItem(STORAGE_SOUND_MUTED) === 'true';
           const nextMuted = !curMuted;
@@ -1437,6 +1694,21 @@
         }
       });
     });
+
+    // 4. #agy-ide-pet
+    syncIdePet(true, th, petOn);
+  }
+
+  function syncTelemetryState() {
+    const st = getStateSafe();
+    if (st.themeMode === 'static') return;
+    const running = isAiTaskRunning();
+    if (running !== window.__AGY_LAST_AI_RUNNING__) {
+      const th = THEMES[st.themeName] || THEMES[getDefaultThemeKey()] || {};
+      syncDynamicHudWidgets(true, th);
+    } else {
+      syncIdePetState();
+    }
   }
 
   function dismissThemeIntro() {
@@ -1936,6 +2208,7 @@
       }
       localStorage.setItem(STORAGE_VOICE_ENABLED, String(st.voiceEnabled));
       localStorage.setItem(STORAGE_INTRO_ENABLED, String(st.introEnabled));
+      localStorage.setItem(STORAGE_PET_ENABLED, String(st.petEnabled));
     } catch (e) {}
 
     if (window.agySaveThemeConfig) {
@@ -2228,6 +2501,29 @@
         --agy-card-radius: ${cardRadiusPx}px;
         --agy-font-vibe: ${fontVibeStack};
         --agy-glow-intensity: ${glowIntensity};
+      }
+      :root,
+      .agy-shell {
+        --primary: ${mainTheme.primary || '#38bdf8'} !important;
+        --focus-ring-color: ${mainTheme.primary || '#38bdf8'} !important;
+        --card-border: ${mainTheme.aiCardBorder || mainTheme.borderColor || 'rgba(255, 255, 255, 0.14)'} !important;
+        --code-foreground: ${mainTheme.isLight ? '#0f172a' : '#e2e8f0'} !important;
+      }
+      .agy-shell [data-step-index] {
+        content-visibility: auto;
+        contain-intrinsic-size: auto 120px;
+      }
+      .agy-shell [data-testid="conversation-row-sidebar"] {
+        content-visibility: auto;
+        contain-intrinsic-size: auto 38px;
+      }
+      .agy-shell [data-markdown-root] :is(p, li) {
+        text-wrap: pretty;
+        line-height: 1.62;
+      }
+      .agy-shell [data-markdown-root] :is(h1, h2, h3, h4, h5, h6),
+      .agy-shell [data-testid="agent-response"] :is(h1, h2, h3, h4, h5, h6) {
+        text-wrap: balance;
       }
       .agy-card-radius {
         border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
@@ -3409,6 +3705,60 @@
         50% { transform: rotate(180deg) scale(1.03); }
         100% { transform: rotate(360deg) scale(1); }
       }
+      @keyframes agOrbitSpin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      @keyframes agyTelemetryPulse {
+        0%, 100% { opacity: 0.65; transform: scale(0.92); }
+        50% { opacity: 1; transform: scale(1.18); }
+      }
+      @keyframes agyPetBreath {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-2.5px) scale(1.04); }
+      }
+      @keyframes agyPetBounce {
+        0%, 100% { transform: translateY(0) scale(1); }
+        40% { transform: translateY(-6px) scale(1.07); }
+        70% { transform: translateY(-2px) scale(0.98); }
+      }
+      @keyframes agyPetCheer {
+        0% { transform: translateY(0) scale(1); }
+        35% { transform: translateY(-10px) scale(1.16) rotate(-4deg); }
+        70% { transform: translateY(-4px) scale(1.08) rotate(4deg); }
+        100% { transform: translateY(0) scale(1); }
+      }
+      body:not([data-has-browser-hole="true"])::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        z-index: 9600;
+        pointer-events: none;
+        background: linear-gradient(90deg, ${mainTheme.primary || '#38bdf8'}, ${mainTheme.secondary || mainTheme.primary || '#e066ff'}, ${mainTheme.primary || '#38bdf8'});
+        background-size: 200% 100%;
+        box-shadow: 0 0 10px ${mainTheme.glow || 'rgba(56, 189, 248, 0.45)'};
+        animation: agyBorderFlow 4s linear infinite;
+      }
+      #agy-ide-pet[data-pet-state="idle"] .agy-pet-sprite {
+        animation: agyPetBreath 3.2s ease-in-out infinite;
+      }
+      #agy-ide-pet[data-pet-state="running"] .agy-pet-sprite {
+        animation: agyPetBounce 0.72s ease-in-out infinite;
+      }
+      #agy-ide-pet[data-pet-state="sleepy"] .agy-pet-sprite {
+        opacity: 0.82;
+        animation: agyPetBreath 4.8s ease-in-out infinite;
+      }
+      #agy-ide-pet.agy-pet-blink .agy-pet-eyes {
+        transform: scaleY(0.15);
+        transform-origin: center 7px;
+      }
+      #agy-ide-pet.agy-pet-cheer .agy-pet-sprite {
+        animation: agyPetCheer 0.52s ease-out !important;
+      }
       @keyframes agyParticleFloat {
         0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.45; }
         50% { transform: translate3d(14px, -28px, 0) scale(1.16); opacity: 0.75; }
@@ -3490,6 +3840,10 @@
         animation: agyWorkingPulse 1.8s ease-in-out infinite !important;
       }
       ` : `
+      body::before {
+        content: none !important;
+        display: none !important;
+      }
       #agy-dynamic-ambient-aura {
         display: none !important;
       }
@@ -3707,6 +4061,15 @@
       introBtn.style.background = on ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.04)';
       introBtn.innerHTML = on ? '✨ Intro' : '✨ Tắt Intro';
     }
+    const petBtn = document.getElementById('agy-pet-toggle-btn');
+    if (petBtn) {
+      const on = st.petEnabled !== false;
+      petBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      petBtn.style.borderColor = on ? accent : 'rgba(255, 255, 255, 0.12)';
+      petBtn.style.color = on ? '#f4f4f5' : '#71717a';
+      petBtn.style.background = on ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.04)';
+      petBtn.innerHTML = on ? '🐾 Pet' : '🐾 Tắt Pet';
+    }
   }
 
   function openCustomThemeModal(initialFile) {
@@ -3743,6 +4106,9 @@
               </button>
               <button id="agy-intro-toggle-btn" type="button" title="Bật/tắt Intro khởi động khi đổi theme" style="display: inline-flex; align-items: center; gap: 4px; padding: 5px 9px; border-radius: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); color: #f4f4f5; cursor: pointer; font-size: 11.5px; white-space: nowrap; transition: all 0.15s ease;">
                 ✨ Intro
+              </button>
+              <button id="agy-pet-toggle-btn" type="button" title="Bật/tắt Pixel Companion Pet" style="display: inline-flex; align-items: center; gap: 4px; padding: 5px 9px; border-radius: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); color: #f4f4f5; cursor: pointer; font-size: 11.5px; white-space: nowrap; transition: all 0.15s ease;">
+                🐾 Pet
               </button>
               <button id="agy-intro-preview-btn" type="button" title="Xem thử hiệu ứng Intro của theme hiện tại" style="display: inline-flex; align-items: center; gap: 4px; padding: 5px 9px; border-radius: 8px; background: rgba(56, 189, 248, 0.16); border: 1px solid rgba(56, 189, 248, 0.35); color: #e0f2fe; cursor: pointer; font-size: 11.5px; font-weight: 600; white-space: nowrap; transition: all 0.15s ease;">
                 ▶ Thử Intro
@@ -3802,6 +4168,17 @@
           const next = !cur.introEnabled;
           const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
           applyTheme({ introEnabled: next });
+          syncExtraToggleBtns(th.primary);
+          playClickSound(th);
+        });
+      }
+      const petToggleBtn = backdrop.querySelector('#agy-pet-toggle-btn');
+      if (petToggleBtn) {
+        petToggleBtn.addEventListener('click', () => {
+          const cur = getState();
+          const next = cur.petEnabled === false;
+          const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
+          applyTheme({ petEnabled: next });
           syncExtraToggleBtns(th.primary);
           playClickSound(th);
         });
@@ -6089,7 +6466,7 @@
     STORAGE_TASK_VOICE_ENABLED, STORAGE_TASK_VOICE_VOL, STORAGE_CUSTOM_GREETINGS,
     STORAGE_USER_AVATAR, STORAGE_AGENT_AVATAR, STORAGE_GLASS_BLUR,
     STORAGE_AVATAR_SIZE, STORAGE_AVATAR_RADIUS, STORAGE_BOOT_INTRO,
-    STORAGE_SKETCH_REVEAL, STORAGE_TAWA_GREETING,
+    STORAGE_SKETCH_REVEAL, STORAGE_TAWA_GREETING, STORAGE_PET_ENABLED,
     CHECK_SVG,
     escapeHtml: escHtml, canonicalMediaKey, isSameMediaUrl, deriveMediaName,
     getMediaLibrary, upsertSavedMedia, removeSavedMediaFromStore,
@@ -6108,6 +6485,7 @@
     hookShellMetrics();
     syncEmptyGreeting();
     syncTaskCompletionVoice();
+    syncTelemetryState();
   }
 
   function scheduleTick() {
@@ -6122,6 +6500,10 @@
   if (window.__AGY_TOPBAR_WATCHDOG__) {
     clearInterval(window.__AGY_TOPBAR_WATCHDOG__);
     window.__AGY_TOPBAR_WATCHDOG__ = null;
+  }
+  if (window.__AGY_VIDEO_WATCHDOG__) {
+    clearInterval(window.__AGY_VIDEO_WATCHDOG__);
+    window.__AGY_VIDEO_WATCHDOG__ = null;
   }
   if (window.__AGY_TICK_RAF__) {
     cancelAnimationFrame(window.__AGY_TICK_RAF__);
@@ -6199,6 +6581,28 @@
   window.__AGY_TOPBAR_WATCHDOG__ = setInterval(() => {
     try { injectTopbarButton(); } catch (e) {}
   }, 2000);
+  window.__AGY_VIDEO_WATCHDOG__ = setInterval(() => {
+    try {
+      if (document.hidden) return;
+      const vid = document.getElementById('agy-live-bg-video');
+      if (!vid || vid.paused || vid.readyState < 2 || !vid.getAttribute('data-src')) return;
+      const curT = vid.currentTime;
+      if (vid.__agyLastTime !== undefined && curT === vid.__agyLastTime) {
+        vid.__agyStallCount = (vid.__agyStallCount || 0) + 1;
+        if (vid.__agyStallCount >= 3) {
+          vid.__agyStallCount = 0;
+          try { vid.load(); } catch (_) {}
+          vid.play().catch(() => {});
+        } else {
+          try { vid.currentTime = Math.max(0, curT + 0.01); } catch (_) {}
+          vid.play().catch(() => {});
+        }
+      } else {
+        vid.__agyStallCount = 0;
+      }
+      vid.__agyLastTime = curT;
+    } catch (e) {}
+  }, 1500);
   tick();
 
   return 'Antigravity Custom Theme Engine Ready!';
