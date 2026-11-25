@@ -1,4 +1,7 @@
 (() => {
+  // Live-code version marker: verify_cdp.js reports this, so an install can
+  // be proven live inside Antigravity instead of only on disk.
+  window.__AGY_ENGINE_VERSION__ = 'any-image-fallback-1';
   const THEMES = /*__THEMES_PLACEHOLDER__*/{};
   const BUILTIN_THEMES = { ...THEMES };
   const BUILTIN_KEYS = new Set(Object.keys(BUILTIN_THEMES));

@@ -118,6 +118,7 @@ const INSPECT_EXPR = `(() => {
         url: location.href,
         viewport: { width: window.innerWidth, height: window.innerHeight },
         themeActive: Boolean(styleEl),
+        engineVersion: window.__AGY_ENGINE_VERSION__ || null,
         activeTheme: localStorage.getItem('agy_theme_v3') || null,
         shellFound: Boolean(shellEl),
         shellBgImagePresent: shellEl ? getComputedStyle(shellEl).backgroundImage !== 'none' : false,
@@ -198,6 +199,10 @@ async function main() {
     }
     if (!themedPages.every((r) => r.topbarButtonPresent && r.topbarButtonVisible)) {
         console.error('[verify-cdp] FAIL: #agy-custom-theme-topbar-btn missing or hidden on themed page(s).');
+        process.exit(1);
+    }
+    if (themedPages.some((r) => !r.engineVersion)) {
+        console.error('[verify-cdp] FAIL: themed page(s) without __AGY_ENGINE_VERSION__ — the running Antigravity still has an old payload injected; restart the daemon (or Antigravity) so it re-injects.');
         process.exit(1);
     }
     console.log(`[verify-cdp] PASS: ${themedPages.length}/${results.length} page(s) themed with topbar button visible and zero live blur.`);
