@@ -2217,9 +2217,22 @@
       }
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      const cw = Math.min(680, Math.max(300, vw - 24));
+      let minLeft = 12;
+      let maxRight = vw - 12;
+      const leftCol = shell.querySelector('[data-agy-left-col="1"]');
+      const rightCol = shell.querySelector('[data-agy-right-col="1"]');
+      if (leftCol && shell.dataset.agyLeftCollapsed !== '1') {
+        const lr = leftCol.getBoundingClientRect();
+        if (lr && lr.width > 12 && lr.right < vw - 320) minLeft = Math.max(minLeft, Math.round(lr.right) + 12);
+      }
+      if (rightCol && shell.dataset.agyRightCollapsed !== '1') {
+        const rr = rightCol.getBoundingClientRect();
+        if (rr && rr.width > 12 && rr.left > minLeft + 320) maxRight = Math.min(maxRight, Math.round(rr.left) - 12);
+      }
+      const availW = Math.max(300, maxRight - minLeft);
+      const cw = Math.min(680, availW);
       const petCenterX = x + PET_WIDTH_PX / 2;
-      const left = Math.min(Math.max(12, Math.round(petCenterX - cw / 2)), Math.max(12, vw - cw - 12));
+      const left = Math.min(Math.max(minLeft, Math.round(petCenterX - cw / 2)), Math.max(minLeft, maxRight - cw));
       const pillRect = pill.getBoundingClientRect();
       const pillHeightOffset = (pillRect && pillRect.height > 0 && pillRect.bottom >= y)
         ? Math.round(pillRect.bottom - y)
@@ -3301,46 +3314,13 @@
     const defaultCornerSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M2 20 L2 6 Q2 2 6 2 L20 2' stroke='%23fbbf24' stroke-width='1.5' fill='none' opacity='0.65'/%3E%3Ccircle cx='6' cy='6' r='2' fill='%23fbbf24' opacity='0.75'/%3E%3C/svg%3E";
     const cornerFiligreeUrl = bubbleTheme.cornerSvg || defaultCornerSvg;
 
-    const bubbleStickerCss = bubbleTheme.sticker ? (bubbleTheme.isOrnament ? `
-      .group\\/user-input-step {
-        padding-top: 18px !important;
+    /* bubbleStickerCss — sticker only on composer, never on user chat bubble */
+    const bubbleStickerCss = `
+      .agy-user-bubble-frame::before,
+      .agy-user-bubble-frame::after {
+        display: none !important;
+        content: none !important;
       }
-      .agy-user-bubble-frame::before {
-        content: "";
-        position: absolute;
-        top: ${bubbleTheme.stickerTop}px;
-        right: ${bubbleTheme.stickerRight}px;
-        width: ${bubbleTheme.stickerW}px;
-        height: ${bubbleTheme.stickerH}px;
-        background-image: url("${bubbleTheme.sticker}");
-        background-size: contain;
-        background-position: center;
-        background-repeat: no-repeat;
-        z-index: 25;
-        pointer-events: none;
-        ${st.themeMode === 'dynamic' ? 'transition: transform 0.2s ease;' : 'transition: none;'}
-      }
-    ` : `
-      .group\\/user-input-step {
-        padding-top: ${Math.max(36, Math.abs(bubbleTheme.stickerTop) + 8)}px !important;
-      }
-      .agy-user-bubble-frame::before {
-        content: "";
-        position: absolute;
-        top: ${bubbleTheme.stickerTop}px;
-        right: ${bubbleTheme.stickerRight}px;
-        width: ${bubbleTheme.stickerW}px;
-        height: ${bubbleTheme.stickerH}px;
-        background-image: url("${bubbleTheme.sticker}");
-        background-size: contain;
-        background-position: bottom center;
-        background-repeat: no-repeat;
-        z-index: 25;
-        pointer-events: none;
-        ${st.themeMode === 'dynamic' ? 'transition: transform 0.2s ease;' : 'transition: none;'}
-      }
-    `) : `
-      .agy-user-bubble-frame::before { display: none !important; }
     `;
 
     const showInputSticker = st.inputStyle !== 'minimal' && bubbleTheme.sticker;
@@ -3535,11 +3515,21 @@
         .agy-shell .agy-user-bubble-frame {
           margin-block: 6px !important;
           padding: 0 !important;
+          border: 0 none !important;
+          box-shadow: none !important;
+          background: transparent !important;
+          outline: none !important;
         }
         .agy-shell .agy-user-bubble-frame::before,
         .agy-shell .agy-user-bubble-frame::after {
           display: none !important;
           content: none !important;
+        }
+        .agy-shell .agy-user-bubble,
+        .agy-user-bubble {
+          border: 0 none !important;
+          box-shadow: none !important;
+          outline: none !important;
         }
         .agy-shell .surface-composer {
           padding: 0 !important;
@@ -4453,17 +4443,26 @@
         background: ${isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.06)'} !important;
       }
 
-      /* Native Antigravity User Chat Bubble (zero glowing border or custom frame override) */
+      /* Native Antigravity User Chat Bubble — zero theme override, fully native */
       .agy-user-bubble-frame {
         position: relative !important;
         overflow: visible !important;
         padding: 0 !important;
+        border: 0 none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        outline: none !important;
       }
-
       .agy-user-bubble-frame::before,
       .agy-user-bubble-frame::after {
         display: none !important;
         content: none !important;
+      }
+      .agy-shell .agy-user-bubble,
+      .agy-user-bubble {
+        border: 0 none !important;
+        box-shadow: none !important;
+        outline: none !important;
       }
 
       /* Composer — matches selected Composer Style & Bubble ornament cleanly (with no thick outer slab) */
@@ -5078,14 +5077,19 @@
         will-change: opacity, transform;
         animation: agyAmbientAura 10s ease-in-out infinite;
       }
-      .agy-shell .agy-user-bubble-frame::before,
       .agy-shell .surface-composer::before {
         will-change: transform;
         animation: agyOrnamentFloat 4.5s ease-in-out infinite;
       }
-      .agy-shell .agy-user-bubble-frame::after,
       .agy-shell .surface-composer::after {
         animation: agyFiligreeShimmer 3.8s ease-in-out infinite;
+      }
+      /* user-bubble-frame pseudo: always off */
+      .agy-shell .agy-user-bubble-frame::before,
+      .agy-shell .agy-user-bubble-frame::after {
+        display: none !important;
+        content: none !important;
+        animation: none !important;
       }
       #agy-custom-theme-topbar-btn {
         position: relative;
