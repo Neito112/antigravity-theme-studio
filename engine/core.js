@@ -3545,12 +3545,16 @@
         .agy-shell .surface-composer {
           padding: 0 !important;
           border-radius: ${csRadius}px !important;
-          background: ${cleanComposerBg} !important;
+          background: ${st.inputStyle === 'glass' ? cleanComposerBg : (bubbleTheme.inputCardBg || cleanComposerBg)} !important;
+          border: 1px solid ${st.inputStyle === 'double_gold' ? 'rgba(245, 158, 11, 0.72)' : (bubbleTheme.borderColor || cleanComposerBorder)} !important;
+          box-shadow: ${glassRimShadow}, 0 0 12px ${bubbleTheme.glow || 'transparent'} !important;
           backdrop-filter: none !important;
           ${transitionCss}
         }
         .agy-shell .surface-composer:focus-within {
-          background: ${cleanComposerBg} !important;
+          background: ${st.inputStyle === 'glass' ? cleanComposerBg : (bubbleTheme.inputCardBg || cleanComposerBg)} !important;
+          border-color: ${st.inputStyle === 'double_gold' ? 'rgba(245, 158, 11, 0.72)' : (bubbleTheme.borderColor || cleanComposerBorder)} !important;
+          box-shadow: ${glassRimShadow}, 0 0 14px ${bubbleTheme.glow || 'transparent'} !important;
           animation: none !important;
         }
         .agy-shell .surface-composer-card {
@@ -4518,15 +4522,19 @@
         outline: none !important;
       }
 
-      /* Composer — giữ nguyên viền & hiệu ứng focus gốc của Antigravity, chỉ bo tròn viền */
+      /* Composer — khôi phục đúng bộ card chuẩn của Theme Studio cũ (inputCardBg + borderColor + glow) */
       .surface-composer {
-        background: ${cleanComposerBg} !important;
+        background: ${st.inputStyle === 'glass' ? cleanComposerBg : (bubbleTheme.inputCardBg || cleanComposerBg)} !important;
+        border: 1px solid ${st.inputStyle === 'double_gold' ? 'rgba(245, 158, 11, 0.72)' : (bubbleTheme.borderColor || cleanComposerBorder)} !important;
         border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
         padding: 0 !important;
+        box-shadow: 0 8px 26px rgba(0, 0, 0, ${isLight ? '0.09' : '0.28'}), 0 0 12px ${bubbleTheme.glow || 'transparent'} !important;
         position: relative !important;
       }
       .surface-composer:focus-within {
-        background: ${cleanComposerBg} !important;
+        background: ${st.inputStyle === 'glass' ? cleanComposerBg : (bubbleTheme.inputCardBg || cleanComposerBg)} !important;
+        border-color: ${st.inputStyle === 'double_gold' ? 'rgba(245, 158, 11, 0.72)' : (bubbleTheme.borderColor || cleanComposerBorder)} !important;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, ${isLight ? '0.11' : '0.32'}), 0 0 14px ${bubbleTheme.glow || 'transparent'} !important;
         animation: none !important;
       }
 
