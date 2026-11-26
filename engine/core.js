@@ -82,6 +82,7 @@
   const STORAGE_TAWA_GREETING = 'agy_tawa_greeting_v1';
   const STORAGE_PET_ENABLED = 'agy_pet_enabled_v1';
   const STORAGE_PET_CHAT_DOCK = 'agy_pet_chat_dock_v1';
+  const STORAGE_DESKTOP_OVERLAY = 'agy_desktop_overlay_mode_v1';
   const STORAGE_PET_POS = 'agy_pet_pos_v1';
   const STORAGE_PET_COMP_W = 'agy_pet_comp_w_v2';
   const STORAGE_COLLAPSE_LEFT = 'agy_collapse_left_v1';
@@ -1073,13 +1074,15 @@
     const petChatDocked = rawPetChatDock !== null
       ? rawPetChatDock !== 'false'
       : (init.petChatDocked !== undefined ? Boolean(init.petChatDocked) : true);
+    const rawDesktopOverlay = localStorage.getItem(STORAGE_DESKTOP_OVERLAY) || init.desktopOverlayMode || 'auto';
+    const desktopOverlayMode = (rawDesktopOverlay === 'always' || rawDesktopOverlay === 'off') ? rawDesktopOverlay : 'auto';
     return {
       themeName, bubbleName, inputStyle, dimming, wpEnabled, wpMode,
       customWp, customVideo, savedImages, savedVideos,
       taskVoices, taskVoiceEnabled, taskVoiceVol, syncPetVoice, petVoiceOverrides, customGreetings,
       userAvatar, agentAvatar, glassBlur, avatarSize, avatarRadius,
       themeMode, soundMuted, soundVolume, voiceEnabled, introEnabled,
-      bootIntro, sketchReveal, tawaGreeting, petEnabled, petChatDocked
+      bootIntro, sketchReveal, tawaGreeting, petEnabled, petChatDocked, desktopOverlayMode
     };
   }
 
@@ -2534,17 +2537,22 @@
     const openMenu = (clientX, clientY) => {
       const stNow = getStateSafe();
       const docked = stNow.petChatDocked !== false;
+      const ovMode = stNow.desktopOverlayMode || 'auto';
+      const ovLabel = ovMode === 'always'
+        ? '📌 Overlay ngoài Desktop: Luôn hiện'
+        : (ovMode === 'off' ? '🙈 Overlay ngoài Desktop: Đang tắt' : '🖥️ Overlay ngoài Desktop: Khi chìm');
       menu.innerHTML = `
         <button type="button" class="agy-better-pet-menu__item" data-act="speak">🔊 Nghe ${escHtml(activePetName)} nói</button>
         <button type="button" class="agy-better-pet-menu__item" data-act="toggle-chat">${chatOpen ? '🔽 Đóng Pet Chat' : '💬 Mở Pet Chat'}</button>
         <button type="button" class="agy-better-pet-menu__item" data-act="toggle-dock">${docked ? '👁️ Hiện lại thanh chat gốc' : '🧲 Thu gọn vào dưới chân Pet'}</button>
+        <button type="button" class="agy-better-pet-menu__item" data-act="toggle-desktop-overlay">${ovLabel}</button>
         <button type="button" class="agy-better-pet-menu__item" data-act="gen-voice">🎙️ Tạo Voice cho ${escHtml(activePetName)}</button>
         <button type="button" class="agy-better-pet-menu__item" data-act="studio">🎨 Mở Custom Theme Studio</button>
         <button type="button" class="agy-better-pet-menu__item" data-act="hide-pet">🐾 Ẩn Pet</button>
       `;
       menu.hidden = false;
-      const mw = 224;
-      const mh = 216;
+      const mw = 248;
+      const mh = 250;
       const ml = Math.min(Math.max(8, Math.round(clientX)), Math.max(8, window.innerWidth - mw - 8));
       const mt = Math.min(Math.max(8, Math.round(clientY - mh)), Math.max(8, window.innerHeight - mh - 8));
       menu.style.left = `${ml}px`;
@@ -2808,6 +2816,12 @@
             setTimeout(() => { try { compInput.focus(); } catch (_) {} }, 50);
           }
         }
+      } else if (act === 'toggle-desktop-overlay') {
+        const curOv = getStateSafe().desktopOverlayMode || 'auto';
+        const nextOv = curOv === 'auto' ? 'always' : (curOv === 'always' ? 'off' : 'auto');
+        applyTheme({ desktopOverlayMode: nextOv });
+        const ovSel = document.getElementById('agy-comp-desktop-overlay-mode');
+        if (ovSel) ovSel.value = nextOv;
       } else if (act === 'studio') {
         openCustomThemeModal();
       } else if (act === 'hide-pet') {
@@ -3459,7 +3473,26 @@
       localStorage.setItem(STORAGE_INTRO_ENABLED, String(st.introEnabled));
       localStorage.setItem(STORAGE_PET_ENABLED, String(st.petEnabled));
       localStorage.setItem(STORAGE_PET_CHAT_DOCK, String(st.petChatDocked !== false));
+      localStorage.setItem(STORAGE_DESKTOP_OVERLAY, st.desktopOverlayMode || 'auto');
     } catch (e) {}
+
+    if (typeof window !== 'undefined' && !window.__AGY_SYNC_CONFIG_FROM_DAEMON__) {
+      window.__AGY_SYNC_CONFIG_FROM_DAEMON__ = (partial) => {
+        if (!partial || typeof partial !== 'object') return;
+        try {
+          if (partial.desktopOverlayMode) {
+            localStorage.setItem(STORAGE_DESKTOP_OVERLAY, partial.desktopOverlayMode);
+            const ovSel = document.getElementById('agy-comp-desktop-overlay-mode');
+            if (ovSel) ovSel.value = partial.desktopOverlayMode;
+          }
+          if (typeof partial.petEnabled === 'boolean') {
+            localStorage.setItem(STORAGE_PET_ENABLED, String(partial.petEnabled));
+            const cur = getState();
+            syncBetterPet(cur.themeMode !== 'static', THEMES[cur.themeName] || {}, partial.petEnabled);
+          }
+        } catch (_) {}
+      };
+    }
 
     if (window.agySaveThemeConfig) {
       try {
@@ -7504,6 +7537,17 @@
                 <span class="agy-st-pill-track"><span class="agy-st-pill-knob"></span></span>
               </button>
             </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:10px;padding:10px 14px;border-radius:11px;border:1px solid rgba(255,255,255,0.10);background:rgba(255,255,255,0.03);">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#f8fafc;">Pet Overlay ngoài Desktop (khi Antigravity chìm / thu nhỏ)</div>
+                <div style="font-size:11.5px;color:#94a3b8;">Hiện Pet trong suốt luôn nổi trên màn hình để chat thẳng với Antigravity ngay cả khi thu nhỏ app.</div>
+              </div>
+              <select id="agy-comp-desktop-overlay-mode" style="background: rgba(6,9,16,0.82); color: #f8fafc; border: 1px solid rgba(255,255,255,0.18); border-radius: 9px; padding: 6px 10px; font-size: 12.5px; cursor: pointer;">
+                <option value="auto" ${(st.desktopOverlayMode || 'auto') === 'auto' ? 'selected' : ''}>Tự hiện khi Antigravity chìm (Khuyên dùng)</option>
+                <option value="always" ${st.desktopOverlayMode === 'always' ? 'selected' : ''}>Luôn hiện trên mọi cửa sổ</option>
+                <option value="off" ${st.desktopOverlayMode === 'off' ? 'selected' : ''}>Tắt Overlay ngoài Desktop</option>
+              </select>
+            </div>
           </div>
 
           <div class="agy-st-glass-card">
@@ -7884,6 +7928,12 @@
     const compBootBtn = container.querySelector('#agy-comp-boot-hud-btn');
     if (compBootBtn && modalBackdrop && typeof modalBackdrop._triggerBootHud === 'function') {
       compBootBtn.addEventListener('click', modalBackdrop._triggerBootHud);
+    }
+    const desktopOverlaySel = container.querySelector('#agy-comp-desktop-overlay-mode');
+    if (desktopOverlaySel) {
+      desktopOverlaySel.addEventListener('change', (e) => {
+        applyTheme({ desktopOverlayMode: e.target.value || 'auto' });
+      });
     }
 
     const wpUpload = container.querySelector('#agy-wp-upload');

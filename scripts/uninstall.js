@@ -16,6 +16,7 @@ const { execSync } = require('child_process');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PID_FILE = path.join(ROOT_DIR, 'daemon.pid');
+const OVERLAY_PID_FILE = path.join(ROOT_DIR, 'overlay.pid');
 const VBS_FILE = path.join(ROOT_DIR, 'silent-start.vbs');
 
 function resolvePortFile() {
@@ -46,21 +47,22 @@ function resolvePortFile() {
 
 function stopDaemon() {
     const killed = new Set();
-    if (fs.existsSync(PID_FILE)) {
-        const pid = parseInt(fs.readFileSync(PID_FILE, 'utf8').trim(), 10);
-        if (pid) {
-            try {
-                process.kill(pid, 'SIGTERM');
-                killed.add(pid);
-                console.log(`[uninstall] Stopped daemon PID ${pid}.`);
-            } catch (_) {
-                console.log(`[uninstall] Daemon PID ${pid} already exited.`);
+    for (const [label, pFile] of [['daemon', PID_FILE], ['desktop overlay', OVERLAY_PID_FILE]]) {
+        if (fs.existsSync(pFile)) {
+            const pid = parseInt(fs.readFileSync(pFile, 'utf8').trim(), 10);
+            if (pid) {
+                try {
+                    process.kill(pid, 'SIGTERM');
+                    killed.add(pid);
+                    console.log(`[uninstall] Stopped ${label} PID ${pid}.`);
+                } catch (_) {
+                    console.log(`[uninstall] ${label} PID ${pid} already exited.`);
+                }
             }
+            try { fs.unlinkSync(pFile); } catch (_) {}
         }
-        try {
-            fs.unlinkSync(PID_FILE);
-        } catch (_) {}
-    } else {
+    }
+    if (!fs.existsSync(PID_FILE) && killed.size === 0) {
         console.log('[uninstall] No active daemon.pid found.');
     }
 

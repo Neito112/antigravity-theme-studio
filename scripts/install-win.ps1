@@ -68,6 +68,21 @@ if (Test-Path $PidFile) {
     Remove-Item $PidFile -Force -ErrorAction SilentlyContinue
 }
 
+$OverlayPidFile = Join-Path $RepoRoot 'overlay.pid'
+if (Test-Path $OverlayPidFile) {
+    $OldOvText = (Get-Content $OverlayPidFile -ErrorAction SilentlyContinue | Select-Object -First 1)
+    $OldOv = 0
+    if ([int]::TryParse(($OldOvText -as [string]), [ref]$OldOv) -and $OldOv -gt 0) {
+        $OvProc = Get-Process -Id $OldOv -ErrorAction SilentlyContinue
+        if ($OvProc -and ($OvProc.ProcessName -imatch 'python|py')) {
+            Write-Host "[install-win] Stopping existing Desktop Pet Overlay (PID $OldOv)..."
+            Stop-Process -Id $OldOv -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Milliseconds 250
+        }
+    }
+    Remove-Item $OverlayPidFile -Force -ErrorAction SilentlyContinue
+}
+
 # Generate silent-start.vbs dynamically without hardcoding user or Node paths.
 $EscapedNode = $NodeExe.Replace('"', '""')
 $EscapedDaemon = $DaemonJs.Replace('"', '""')

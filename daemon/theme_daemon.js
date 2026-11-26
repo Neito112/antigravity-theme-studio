@@ -594,10 +594,19 @@ function createSession(target) {
         });
     }
 
+    session.send = send;
     session.evalExpr = async (expression) => {
         try {
             await send('Runtime.evaluate', { expression, awaitPromise: false });
         } catch (_) {}
+    };
+    session.evalValue = async (expression) => {
+        try {
+            const res = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
+            return res && res.result ? res.result.value : undefined;
+        } catch (_) {
+            return undefined;
+        }
     };
 
     async function ensureBindings() {
@@ -672,6 +681,7 @@ function createSession(target) {
                 for (const ps of pluginSessions.values()) {
                     ps.evalGlass && ps.evalGlass();
                 }
+                ensureDesktopOverlay();
             } catch (err) {
                 log(`Config binding error: ${err.message}`);
             }
@@ -1410,6 +1420,284 @@ function sanitizeUploadFilename(rawName) {
     return cleaned || `upload_${Date.now()}.bin`;
 }
 
+const OVERLAY_SCRIPT_PATH = path.join(__dirname, 'pet_overlay.py');
+const OVERLAY_PID_FILE = path.join(ROOT_DIR, 'overlay.pid');
+let overlayProc = null;
+let overlayLastProbeAt = 0;
+let overlayLastProbeData = { agentState: 'idle', latestReply: '', replySeq: '', pageTitle: 'Antigravity' };
+let overlaySpawnBlockedUntil = 0;
+
+function getPrimaryOverlaySession() {
+    let fallback = null;
+    for (const s of sessions.values()) {
+        if (!s || !s.ws || s.ws.readyState !== 1) continue;
+        const u = String((s.target && s.target.url) || '');
+        if (u.startsWith('data:') || u.startsWith('devtools://')) continue;
+        if (!fallback) fallback = s;
+        if (u.includes('127.0.0.1') || u.includes('localhost')) return s;
+    }
+    return fallback;
+}
+
+function readThemesCatalog() {
+    let builtinThemes = {};
+    try {
+        if (fs.existsSync(THEMES_JSON_PATH)) {
+            const parsed = JSON.parse(fs.readFileSync(THEMES_JSON_PATH, 'utf8'));
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) builtinThemes = parsed;
+        }
+    } catch (_) {}
+    const cfg = readConfig();
+    const customThemes = (cfg.customThemes && typeof cfg.customThemes === 'object' && !Array.isArray(cfg.customThemes))
+        ? cfg.customThemes
+        : {};
+    return { cfg, themes: { ...builtinThemes, ...customThemes } };
+}
+
+async function probeActiveAntigravityState() {
+    const now = Date.now();
+    if (now - overlayLastProbeAt < 450) return overlayLastProbeData;
+    const sess = getPrimaryOverlaySession();
+    if (!sess || typeof sess.evalValue !== 'function') {
+        overlayLastProbeAt = now;
+        return overlayLastProbeData;
+    }
+    overlayLastProbeAt = now;
+    try {
+        const probe = await sess.evalValue(`(() => {
+            const runEl = document.querySelector('[data-testid="status-task-running"], [data-testid="input-cancel-button"], [data-testid="status-loading-spinner"], button[aria-label="Stop execution"], button[aria-label="Cancel Task"]');
+            const waitEl = document.querySelector('[data-testid="approve-button"], [data-testid="confirm-button"], button[aria-label*="Approve" i], button[aria-label*="Allow" i]');
+            const errEl = document.querySelector('[data-testid="error-message"], [data-status="error"], .text-destructive[role="alert"]');
+            const resps = Array.from(document.querySelectorAll('[data-testid="agent-response"]'));
+            let rawText = '';
+            for (let i = resps.length - 1; i >= 0; i--) {
+                const el = resps[i];
+                const blocks = Array.from(el.querySelectorAll('div:not([role="status"]) > p, p')).filter(p => !p.closest('[role="status"], button'));
+                const txt = (blocks.length ? blocks.map(n => String(n.innerText || '').trim()).filter(Boolean).join(' ') : String(el.innerText || '').trim()).replace(/\\s+/g, ' ').trim();
+                if (txt) { rawText = txt; break; }
+            }
+            const latestReply = rawText.length > 260 ? (rawText.slice(0, 257) + '…') : rawText;
+            const state = runEl ? 'running' : (waitEl ? 'waiting' : (errEl ? 'failed' : (resps.length ? 'ready' : 'idle')));
+            return {
+                agentState: state,
+                latestReply,
+                replySeq: resps.length ? (resps.length + ':' + rawText.length + ':' + rawText.slice(-24)) : '',
+                pageTitle: document.title || 'Antigravity'
+            };
+        })()`);
+        if (probe && typeof probe === 'object') {
+            overlayLastProbeData = probe;
+        }
+    } catch (_) {}
+    return overlayLastProbeData;
+}
+
+async function getOverlayStateSnapshot() {
+    const { cfg, themes } = readThemesCatalog();
+    const themeName = cfg.themeName && themes[cfg.themeName]
+        ? cfg.themeName
+        : (themes['WLOP Cosmic'] ? 'WLOP Cosmic' : (Object.keys(themes)[0] || 'WLOP Cosmic'));
+    const th = themes[themeName] || {};
+    const petName = (th.petDirective && th.petDirective.petName)
+        || (th.petMeta && th.petMeta.petName)
+        || (th.workIdentity && th.workIdentity.characterName)
+        || themeName;
+    const petSpriteUrl = th.petSpriteUrl || 'assets/pets/pet_wlop.webp';
+    const overrides = (cfg.petVoiceOverrides && typeof cfg.petVoiceOverrides === 'object') ? cfg.petVoiceOverrides : {};
+    const ovEntry = overrides[themeName];
+    const petVoices = (ovEntry && Array.isArray(ovEntry.clips) && ovEntry.clips.length)
+        ? ovEntry.clips
+        : (Array.isArray(th.petVoices) && th.petVoices.length ? th.petVoices : (Array.isArray(cfg.taskVoices) ? cfg.taskVoices : []));
+    const live = await probeActiveAntigravityState();
+    return {
+        ok: true,
+        themeName,
+        petName,
+        petSpriteUrl,
+        petVoices,
+        desktopOverlayMode: cfg.desktopOverlayMode || 'auto',
+        desktopOverlayPos: cfg.desktopOverlayPos || null,
+        petEnabled: cfg.petEnabled !== false && cfg.themeMode !== 'static',
+        syncPetVoice: cfg.syncPetVoice !== false,
+        taskVoiceEnabled: cfg.taskVoiceEnabled !== false,
+        taskVoiceVol: Number.isFinite(Number(cfg.taskVoiceVol)) ? Number(cfg.taskVoiceVol) : 85,
+        colors: {
+            primary: th.primary || '#38bdf8',
+            secondary: th.secondary || '#c084fc',
+            bg: th.bg || '',
+            borderColor: th.borderColor || '',
+        },
+        ...live,
+    };
+}
+
+async function submitChatToAntigravity(text) {
+    const cleanText = String(text || '').trim();
+    if (!cleanText) return { ok: false, error: 'Empty message' };
+    const sess = getPrimaryOverlaySession();
+    if (!sess) return { ok: false, error: 'No active Antigravity window' };
+
+    const focusRes = await sess.evalValue(`(() => {
+        const comps = Array.from(document.querySelectorAll('.surface-composer'));
+        let targetComp = comps.find(c => {
+            const r = c.getBoundingClientRect();
+            return r.width > 40 && r.height > 20;
+        }) || comps[0];
+        if (!targetComp) return { ok: false, error: 'Composer not found' };
+        const ed = targetComp.querySelector('[data-lexical-editor="true"], [contenteditable="true"], textarea');
+        if (!ed) return { ok: false, error: 'Editor input not found' };
+        ed.click();
+        ed.focus();
+        let inserted = false;
+        try {
+            if (ed.tagName === 'TEXTAREA') {
+                ed.value = (ed.value ? ed.value + ' ' : '') + ${JSON.stringify(cleanText)};
+                ed.dispatchEvent(new Event('input', { bubbles: true }));
+                inserted = true;
+            } else {
+                const sel = window.getSelection();
+                const range = document.createRange();
+                range.selectNodeContents(ed);
+                range.collapse(false);
+                sel.removeAllRanges();
+                sel.addRange(range);
+                inserted = document.execCommand('insertText', false, ${JSON.stringify(cleanText)});
+            }
+        } catch (_) {}
+        return { ok: true, inserted, textNow: String(ed.innerText || ed.value || '').trim().length };
+    })()`);
+
+    if (!focusRes || !focusRes.ok) {
+        return { ok: false, error: (focusRes && focusRes.error) || 'Failed focusing composer' };
+    }
+    if (!focusRes.inserted) {
+        await sess.send('Input.insertText', { text: cleanText });
+    }
+    await new Promise((r) => setTimeout(r, 110));
+
+    const clickedSend = await sess.evalValue(`(() => {
+        const comps = Array.from(document.querySelectorAll('.surface-composer'));
+        const comp = comps.find(c => c.getBoundingClientRect().width > 40) || comps[0];
+        if (!comp) return false;
+        const explicitBtn = comp.querySelector('button[data-testid="send-button"]:not([disabled]), button[aria-label="Send message"]:not([disabled])');
+        if (explicitBtn) {
+            explicitBtn.click();
+            return true;
+        }
+        const btns = Array.from(comp.querySelectorAll('button')).filter(b => !b.disabled);
+        const sendBtn = btns.find(b => {
+            const aria = (b.getAttribute('aria-label') || '').toLowerCase();
+            const testid = (b.getAttribute('data-testid') || '').toLowerCase();
+            const typ = (b.getAttribute('type') || '').toLowerCase();
+            if (testid.includes('cancel') || aria.includes('cancel') || aria.includes('voice') || aria.includes('context') || testid.includes('model') || testid.includes('permission')) return false;
+            return aria.includes('send') || testid.includes('send') || testid.includes('submit') || typ === 'submit';
+        });
+        if (sendBtn) {
+            sendBtn.click();
+            return true;
+        }
+        return false;
+    })()`);
+
+    if (!clickedSend) {
+        await sess.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', windowsVirtualKeyCode: 13, key: 'Enter', code: 'Enter' });
+        await sess.send('Input.dispatchKeyEvent', { type: 'char', windowsVirtualKeyCode: 13, key: 'Enter', code: 'Enter', text: '\r' });
+        await sess.send('Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: 13, key: 'Enter', code: 'Enter' });
+    }
+    return { ok: true, method: clickedSend ? 'button' : 'enter', pageTitle: (sess.target && sess.target.title) || 'Antigravity' };
+}
+
+function restoreAntigravityWindow() {
+    if (process.platform !== 'win32') return;
+    const ps = `
+Add-Type @"
+using System;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+public static class AgyFocusWin {
+    public delegate bool EnumProc(IntPtr h, IntPtr l);
+    [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc cb, IntPtr l);
+    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int nCmdShow);
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+    public static void Focus() {
+        var pids = new System.Collections.Generic.HashSet<uint>();
+        foreach (var p in Process.GetProcessesByName("Antigravity")) pids.Add((uint)p.Id);
+        EnumWindows((h, l) => {
+            if (!IsWindowVisible(h)) return true;
+            uint pid; GetWindowThreadProcessId(h, out pid);
+            if (pids.Contains(pid)) { ShowWindow(h, 9); SetForegroundWindow(h); return false; }
+            return true;
+        }, IntPtr.Zero);
+    }
+}
+"@
+[AgyFocusWin]::Focus()
+`;
+    execFile('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', ps], { windowsHide: true }, () => {});
+}
+
+function stopDesktopOverlay() {
+    if (overlayProc && !overlayProc.killed) {
+        try { overlayProc.kill('SIGTERM'); } catch (_) {}
+    }
+    overlayProc = null;
+    if (fs.existsSync(OVERLAY_PID_FILE)) {
+        try {
+            const pid = parseInt(fs.readFileSync(OVERLAY_PID_FILE, 'utf8').trim(), 10);
+            if (pid && isPidAlive(pid)) {
+                try { process.kill(pid, 'SIGTERM'); } catch (_) {}
+            }
+            fs.unlinkSync(OVERLAY_PID_FILE);
+        } catch (_) {}
+    }
+}
+
+function ensureDesktopOverlay() {
+    if (process.platform !== 'win32') return;
+    if (!fs.existsSync(OVERLAY_SCRIPT_PATH)) return;
+    const cfg = readConfig();
+    const shouldRun = (cfg.desktopOverlayMode || 'auto') !== 'off' && cfg.petEnabled !== false && cfg.themeMode !== 'static';
+    if (!shouldRun) {
+        stopDesktopOverlay();
+        return;
+    }
+    if (overlayProc && !overlayProc.killed && overlayProc.exitCode === null) return;
+    if (fs.existsSync(OVERLAY_PID_FILE)) {
+        try {
+            const pid = parseInt(fs.readFileSync(OVERLAY_PID_FILE, 'utf8').trim(), 10);
+            if (pid && isPidAlive(pid)) return;
+        } catch (_) {}
+    }
+    if (Date.now() < overlaySpawnBlockedUntil) return;
+
+    const pyExe = process.env.AGY_PYTHON || 'py';
+    try {
+        const proc = spawn(pyExe, [OVERLAY_SCRIPT_PATH, '--root', ROOT_DIR, '--media-port', String(MEDIA_PORT)], {
+            cwd: ROOT_DIR,
+            windowsHide: true,
+            stdio: 'ignore',
+            env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' },
+        });
+        overlayProc = proc;
+        proc.on('exit', (code) => {
+            if (overlayProc === proc) overlayProc = null;
+            if (code && code !== 0) {
+                log(`Desktop Pet Overlay exited with code ${code}`);
+                overlaySpawnBlockedUntil = Date.now() + 8000;
+            }
+        });
+        proc.on('error', (err) => {
+            log(`Desktop Pet Overlay spawn error: ${err.message}`);
+            overlaySpawnBlockedUntil = Date.now() + 15000;
+        });
+    } catch (err) {
+        log(`Desktop Pet Overlay launch failed: ${err.message}`);
+        overlaySpawnBlockedUntil = Date.now() + 15000;
+    }
+}
+
 async function handleMediaRequest(req, res) {
     setCorsHeaders(res);
     if (req.method === 'OPTIONS') {
@@ -1642,6 +1930,59 @@ async function handleMediaRequest(req, res) {
         return;
     }
 
+    if (req.method === 'GET' && pathname === '/api/overlay/state') {
+        const snap = await getOverlayStateSnapshot();
+        sendJson(res, 200, snap);
+        return;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/overlay/chat') {
+        try {
+            const raw = await readRequestBody(req, 256 * 1024);
+            const parsed = JSON.parse(raw.toString('utf8') || '{}');
+            const out = await submitChatToAntigravity(parsed.text || '');
+            sendJson(res, out.ok ? 200 : 400, out);
+        } catch (err) {
+            sendJson(res, 500, { ok: false, error: err.message });
+        }
+        return;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/overlay/focus-app') {
+        restoreAntigravityWindow();
+        sendJson(res, 200, { ok: true });
+        return;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/overlay/set-config') {
+        try {
+            const raw = await readRequestBody(req, 64 * 1024);
+            const parsed = JSON.parse(raw.toString('utf8') || '{}');
+            const allowed = {};
+            if (parsed.desktopOverlayMode === 'auto' || parsed.desktopOverlayMode === 'always' || parsed.desktopOverlayMode === 'off') {
+                allowed.desktopOverlayMode = parsed.desktopOverlayMode;
+            }
+            if (parsed.desktopOverlayPos && typeof parsed.desktopOverlayPos === 'object') {
+                allowed.desktopOverlayPos = parsed.desktopOverlayPos;
+            }
+            if (typeof parsed.petEnabled === 'boolean') {
+                allowed.petEnabled = parsed.petEnabled;
+            }
+            if (Object.keys(allowed).length > 0) {
+                saveConfig(allowed);
+                ensureDesktopOverlay();
+                const syncExpr = `window.__AGY_SYNC_CONFIG_FROM_DAEMON__ && window.__AGY_SYNC_CONFIG_FROM_DAEMON__(${JSON.stringify(allowed)});`;
+                for (const s of sessions.values()) {
+                    s.evalExpr && s.evalExpr(syncExpr);
+                }
+            }
+            sendJson(res, 200, { ok: true, updated: allowed });
+        } catch (err) {
+            sendJson(res, 400, { ok: false, error: err.message });
+        }
+        return;
+    }
+
     sendJson(res, 404, { ok: false, error: 'Not found' });
 }
 
@@ -1673,6 +2014,7 @@ function startMediaServer() {
 
 function shutdown(signal) {
     log(`Shutting down on ${signal}.`);
+    stopDesktopOverlay();
     if (mediaServer) {
         try {
             mediaServer.close();
@@ -1692,10 +2034,14 @@ function shutdown(signal) {
 acquirePidLock();
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('exit', removePidLock);
+process.on('exit', () => {
+    stopDesktopOverlay();
+    removePidLock();
+});
 
 log(`Theme daemon started (PID ${process.pid}, platform=${process.platform}, portFile=${resolvePortFile()}).`);
 startMediaServer();
+ensureDesktopOverlay();
 watchPayload();
 async function scheduleScanLoop() {
     try {

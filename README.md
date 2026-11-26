@@ -1,6 +1,6 @@
 # Antigravity Custom Theme Studio (`fusion-edition`)
 
-Bộ công cụ tùy biến toàn diện giao diện **Antigravity Desktop** với cơ chế **Unified Smoked Glass (Zero Live Blur)**, **Custom Theme Studio V2**, **AI Theme Designer (tự mở rộng ảnh 16:9 4K + trích bảng màu + vẽ ornament SVG)**, **Inline YouTube Music Player**, **Tự động đổi Icon & Favicon Antigravity theo Theme**, **Pet Neural Voice (`edge-tts`) đồng bộ từng nhân vật**, và **Companion Pet `8×11` bám sát từng ảnh gốc**.
+Bộ công cụ tùy biến toàn diện giao diện **Antigravity Desktop** với cơ chế **Unified Smoked Glass (Zero Live Blur)**, **Custom Theme Studio V2**, **AI Theme Designer (tự mở rộng ảnh 16:9 4K + trích bảng màu + vẽ ornament SVG)**, **Inline YouTube Music Player**, **Tự động đổi Icon & Favicon Antigravity theo Theme**, **Pet Neural Voice (`edge-tts`) đồng bộ từng nhân vật**, **Desktop Pet Overlay ngoài màn hình (chìm app vẫn chat được)**, và **Companion Pet `8×11` bám sát từng ảnh gốc**.
 
 <p align="center">
   <img src="docs/preview_showcase.gif" alt="Antigravity Theme Studio V2 Live Showcase" width="100%" />
@@ -45,6 +45,12 @@ Mỗi nhân vật Pet sở hữu bộ thoại neural riêng (`petVoices`), tự 
 - **Tự động nhận diện ngôn ngữ (`vi` / `ja` / `en`):** Tự chuyển sang neural voice Tiếng Việt, Tiếng Nhật hoặc Tiếng Anh khớp từng dòng thoại bạn nhập; hỗ trợ bật/tắt **Đồng bộ Pet**, nghe thử hoặc xóa từng clip riêng lẻ.
 - **Tự động sinh Voice khi tạo Theme mới từ ảnh:** Cả luồng AI lẫn fallback cục bộ đều tự động tạo kèm 3 clip `.mp3` tại `themes/user_media/voices/` cho nhân vật Pet vừa sinh ra.
 
+### 7. Desktop Companion Pet Overlay Ngoài Màn Hình (`daemon/pet_overlay.py`)
+Khi thu nhỏ hoặc đẩy Antigravity xuống nền, Companion Pet tự động nổi trên Desktop để bạn theo dõi trạng thái & chat tiếp bất cứ lúc nào:
+- **Trong suốt & Always-On-Top (`WA_TranslucentBackground`):** Sử dụng cửa sổ PyQt không viền trong suốt click-through, hiển thị đúng sprite sheet `8×11`, đổi màu viền & nút theo `--primary` / `--secondary` của theme hiện tại và kéo thả tự do qua nhiều màn hình.
+- **3 chế độ thông minh (`desktopOverlayMode`):** *Tự hiện khi Antigravity chìm / thu nhỏ* (`auto` — mặc định), *Luôn hiện trên mọi cửa sổ* (`always`), hoặc *Tắt* (`off`), chỉnh nhanh trong tab `Pet, Voice & Chào` hoặc menu chuột phải của Pet.
+- **Chat thẳng với Antigravity & Voice/Reply Bubble kính 50%:** Bấm vào Pet để mở khung chat kính bán trong suốt 50%, gõ `Enter` để gửi trực tiếp vào Lexical composer của Antigravity qua `/api/overlay/chat`; bong bóng **Trả lời mới** tự bật khi có phản hồi rồi tự ẩn sau 6 giây (bấm lại vào Pet để xem lại), kèm nút **Nghe Pet nói (`🔊`)** và **Mở App (`↗`)**.
+
 ---
 
 ## Bộ Preset Tích Hợp Sẵn (`themes/themes.json`)
@@ -81,7 +87,7 @@ Mỗi nhân vật Pet sở hữu bộ thoại neural riêng (`petVoices`), tự 
 
 ### Yêu cầu
 - **Node.js >= 22** (có sẵn `WebSocket` native trong runtime)
-- **Python 3 + `Pillow` + `edge-tts`** (`pip install pillow edge-tts`) để xử lý ảnh 4K WebP, sprite atlas và tổng hợp giọng nói neural cho Pet
+- **Python 3 + `Pillow` + `edge-tts` + `PyQt6`** (`pip install pillow edge-tts pyqt6`) để xử lý ảnh 4K WebP, sprite atlas, tổng hợp giọng nói neural cho Pet và chạy Desktop Pet Overlay ngoài màn hình
 - **Antigravity Desktop** chạy kèm CDP port (`--remote-debugging-port=0` — script cài đặt trên Windows tự cấu hình shortcut khởi động kèm Prelaunch Boot HUD)
 
 ### Cài đặt trên Windows (PowerShell)
@@ -112,5 +118,6 @@ Lệnh gỡ tắt daemon, dọn entry khởi động cùng Windows, gỡ sạch 
 - `daemon/theme_designer.js`: Thiết kế & chau chuốt theme từ ảnh bất kỳ (gọi AI qua `design_prompt.md` + local fallback `buildLocalTheme` có hỗ trợ ảnh trong suốt & ảnh dọc/nhỏ).
 - `daemon/pet_generator.js`: Sinh & kiểm định sprite atlas `8×11` (`1536×2288`) và brand logo `256×256`.
 - `daemon/voice_generator.js`: Tổng hợp giọng nói nhân vật neural MP3 (`edge-tts`) tự nhận diện ngôn ngữ `vi`/`ja`/`en` theo profile của từng Pet.
+- `daemon/pet_overlay.py`: Ứng dụng Desktop Companion Pet Overlay trong suốt (`PyQt6`/`PyQt5`), tự hiện khi Antigravity chìm/thu nhỏ và cho phép chat thẳng qua HTTP/CDP bridge.
 - `scripts/build_payload.js`: Inline toàn bộ CSS/JS & SVG ornaments từ `themes/assets/` vào `dist/theme_payload.js`.
 - `themes/themes.json`: Cấu hình đầy đủ của 9 theme mặc định kèm `dynamicPack`, `vfxSpec`, `workIdentity`, `petDirective`.

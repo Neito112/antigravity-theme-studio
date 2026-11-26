@@ -18,6 +18,7 @@ Creates and applies custom glassmorphic themes (wallpapers, cohesive palettes, c
 - `daemon/theme_designer.js` — AI/fallback theme designer & prompt refiner (`designTheme`, `normalizeTo4k16x9Webp`, SVG brand emblems, plus auto-generated `petSpriteUrl` and `petVoices`).
 - `daemon/pet_generator.js` — Generates and validates `8×11` (`1536×2288`) companion pet sprite atlases and `256×256` SVG/PNG brand logos.
 - `daemon/voice_generator.js` — Synthesizes character-synced neural `.mp3` clips via Python `edge-tts` with automatic `vi`/`ja`/`en` language routing.
+- `daemon/pet_overlay.py` — Always-on-top transparent `PyQt6`/`PyQt5` Desktop Companion Pet overlay + 50%-glass chat bridge (`/api/overlay/*`) that automatically surfaces when Antigravity is minimized or in background.
 - `scripts/install-win.ps1`, `scripts/launch-antigravity-themed.ps1`, `scripts/install-unix.sh`, `scripts/uninstall.js`, `scripts/verify_cdp.js` — OS setup, prelaunch Boot HUD wrapper, duplicate-daemon cleanup, clean uninstall (restoring `.lnk` icons), and live CDP verification.
 - `references/theme-schema.md` — Exact `themes.json` schema, contrast rules, and Antigravity selector notes.
 
