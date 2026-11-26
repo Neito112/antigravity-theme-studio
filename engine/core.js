@@ -1768,17 +1768,41 @@
       return btn;
     };
 
-    const refreshAfterToggle = () => {
-      window.__AGY_COLLAPSE_PAUSE_UNTIL__ = Date.now() + 240;
-      syncLayoutCollapsers();
-      setTimeout(() => {
+    const runRollToggle = (kind, storageKey) => {
+      const nextCollapsed = !readCollapseFlag(storageKey);
+      const attrAnim = kind === 'left' ? 'agyLeftAnim' : (kind === 'right' ? 'agyRightAnim' : 'agyTopbarAnim');
+      window.__AGY_COLLAPSE_PAUSE_UNTIL__ = Date.now() + 260;
+
+      const finishSync = () => {
         window.__AGY_COLLAPSE_PAUSE_UNTIL__ = 0;
         if (typeof syncShellMetrics === 'function') syncShellMetrics();
         syncScrollControls();
         if (window.__AGY_BETTER_PET_CTRL__ && typeof window.__AGY_BETTER_PET_CTRL__.syncComposerAnchor === 'function') {
           window.__AGY_BETTER_PET_CTRL__.syncComposerAnchor();
         }
-      }, 240);
+      };
+
+      if (nextCollapsed) {
+        // Phase 1: GPU transform roll-out (0ms reflow)
+        shell.dataset[attrAnim] = 'closing';
+        setTimeout(() => {
+          delete shell.dataset[attrAnim];
+          writeCollapseFlag(storageKey, true);
+          syncLayoutCollapsers();
+          finishSync();
+        }, 210);
+      } else {
+        // Phase 1: restore layout at translated position, then GPU roll-in
+        writeCollapseFlag(storageKey, false);
+        shell.dataset[attrAnim] = 'opening';
+        syncLayoutCollapsers();
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            delete shell.dataset[attrAnim];
+            setTimeout(finishSync, 220);
+          });
+        });
+      }
     };
 
     if (leftCol) {
@@ -1788,10 +1812,7 @@
         'agy-collapse-left-btn',
         'Cuộn gọn / Mở cột trái',
         '<span class="agy-roll-grip" aria-hidden="true"><span></span><span></span><span></span></span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>',
-        () => {
-          writeCollapseFlag(STORAGE_COLLAPSE_LEFT, !readCollapseFlag(STORAGE_COLLAPSE_LEFT));
-          refreshAfterToggle();
-        }
+        () => runRollToggle('left', STORAGE_COLLAPSE_LEFT)
       );
       btn.dataset.collapsed = leftCollapsed ? 'true' : 'false';
       btn.title = leftCollapsed ? 'Mở cuộn Sidebar trái' : 'Cuộn gọn Sidebar trái';
@@ -1812,10 +1833,7 @@
         'agy-collapse-right-btn',
         'Cuộn gọn / Mở cột phải',
         '<span class="agy-roll-grip" aria-hidden="true"><span></span><span></span><span></span></span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
-        () => {
-          writeCollapseFlag(STORAGE_COLLAPSE_RIGHT, !readCollapseFlag(STORAGE_COLLAPSE_RIGHT));
-          refreshAfterToggle();
-        }
+        () => runRollToggle('right', STORAGE_COLLAPSE_RIGHT)
       );
       btn.dataset.collapsed = rightCollapsed ? 'true' : 'false';
       btn.title = rightCollapsed ? 'Mở cuộn Panel phải' : 'Cuộn gọn Panel phải';
@@ -1833,10 +1851,7 @@
         'agy-collapse-topbar-btn',
         'Cuộn lên / Mở thanh Menu Bar',
         '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg><span class="agy-roll-grip agy-roll-grip--h" aria-hidden="true"><span></span><span></span></span>',
-        () => {
-          writeCollapseFlag(STORAGE_COLLAPSE_TOPBAR, !readCollapseFlag(STORAGE_COLLAPSE_TOPBAR));
-          refreshAfterToggle();
-        }
+        () => runRollToggle('topbar', STORAGE_COLLAPSE_TOPBAR)
       );
       btn.dataset.collapsed = topbarCollapsed ? 'true' : 'false';
       btn.title = topbarCollapsed ? 'Mở thanh Menu Bar' : 'Cuộn gọn thanh Menu Bar';
@@ -3241,16 +3256,48 @@
       ? `, radial-gradient(circle at 22% 72%, ${mainTheme.secondaryGlow} 0%, transparent 55%)`
       : '';
 
+    const toFastBgUrl = (raw) => {
+      if (!raw || typeof raw !== 'string') return '';
+      if (!raw.startsWith('data:image/')) return raw;
+      const cache = window.__AGY_WP_BLOB_CACHE__ || (window.__AGY_WP_BLOB_CACHE__ = new Map());
+      const key = `${raw.length}:${raw.slice(0, 64)}:${raw.slice(-24)}`;
+      if (cache.has(key)) return cache.get(key);
+      try {
+        const comma = raw.indexOf(',');
+        if (comma === -1) return raw;
+        const meta = raw.slice(5, comma);
+        const isB64 = /;base64$/i.test(meta);
+        const mime = meta.replace(/;base64$/i, '') || 'image/webp';
+        const dataPart = raw.slice(comma + 1);
+        const binStr = isB64 ? atob(dataPart) : decodeURIComponent(dataPart);
+        const len = binStr.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) bytes[i] = binStr.charCodeAt(i);
+        const blobUrl = URL.createObjectURL(new Blob([bytes], { type: mime }));
+        if (cache.size > 6) {
+          const oldest = cache.keys().next().value;
+          try { URL.revokeObjectURL(cache.get(oldest)); } catch (_) {}
+          cache.delete(oldest);
+        }
+        cache.set(key, blobUrl);
+        return blobUrl;
+      } catch (_) {
+        return raw;
+      }
+    };
+
+    const fastWpUrl = toFastBgUrl(wpUrl);
     let bgLayers = '';
-    if (wpUrl) {
-      bgLayers = `url("${wpUrl}")`;
+    if (fastWpUrl) {
+      bgLayers = `url("${fastWpUrl}")`;
     } else {
       bgLayers = mainTheme.pureBg || `radial-gradient(circle at 75% 30%, ${mainTheme.glow} 0%, transparent 60%), linear-gradient(160deg, rgba(${overlayRgb}, 0.96) 0%, #070910 100%)`;
     }
+    document.documentElement.style.setProperty('--agy-wp-bg', bgLayers);
 
     const wpCss = st.wpEnabled ? `
       .agy-shell {
-        background-image: ${bgLayers} !important;
+        background-image: var(--agy-wp-bg) !important;
         background-size: cover !important;
         background-position: ${bgPosition} !important;
         background-repeat: no-repeat !important;
@@ -3281,7 +3328,7 @@
         inset: 0;
         z-index: 0;
         pointer-events: none;
-        background-image: ${bgLayers};
+        background-image: var(--agy-wp-bg);
         background-size: cover;
         background-position: ${bgPosition};
         background-repeat: no-repeat;
@@ -3991,10 +4038,17 @@
         content: none !important;
         display: none !important;
       }
-      .agy-shell [data-testid="title-menu-bar"],
+      .agy-shell [data-agy-top-menubar="1"],
       .agy-shell [data-main-content-header] {
-        background-color: ${st.wpEnabled ? `rgba(${overlayRgb}, ${isLight ? '0.68' : '0.44'})` : mainTheme.headerBg} !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+        background-color: ${st.wpEnabled ? `rgba(${overlayRgb}, ${isLight ? '0.72' : '0.48'})` : mainTheme.headerBg} !important;
+        border-bottom: 1px solid ${cleanSoftHairline} !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+      }
+      .agy-shell [data-testid="title-menu-bar"] {
+        background: transparent !important;
+        background-color: transparent !important;
+        border: none !important;
         box-shadow: none !important;
         backdrop-filter: none !important;
       }
@@ -4067,20 +4121,29 @@
         display: none !important;
       }
       .agy-shell [data-testid="title-menu-bar"] {
-        margin: ${st.wpEnabled ? '4px 6px 2px 6px' : '0'} !important;
-        width: ${st.wpEnabled ? 'calc(100% - 12px)' : '100%'} !important;
-        height: ${st.wpEnabled ? 'calc(100% - 6px)' : '100%'} !important;
-        border-radius: ${st.wpEnabled ? Math.min(10, compactRadius) : 0}px !important;
-        border: 1px solid ${cleanSoftHairline} !important;
+        margin: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        padding-right: 142px !important;
+        border-radius: 0 !important;
+        border: none !important;
         box-shadow: none !important;
+        background: transparent !important;
       }
       .agy-shell [data-main-content-header] {
-        margin: ${st.wpEnabled ? '6px 6px 0 6px' : '0'} !important;
-        width: ${st.wpEnabled ? 'calc(100% - 12px)' : '100%'} !important;
-        border-radius: ${st.wpEnabled ? subCardRadius : 0}px !important;
-        border: 1px solid ${cleanSoftHairline} !important;
+        margin: 0 !important;
+        width: 100% !important;
+        border-radius: 0 !important;
+        border: none !important;
+        border-bottom: 1px solid ${cleanSoftHairline} !important;
         box-shadow: none !important;
         overflow: hidden !important;
+      }
+      .agy-shell[data-agy-topbar-collapsed="1"] [data-main-content-header] {
+        padding-right: 142px !important;
+      }
+      .agy-shell[data-agy-topbar-collapsed="1"] [data-agy-right-col="1"] > :first-child {
+        padding-right: 142px !important;
       }
       .agy-shell [data-testid="title-menu-bar-item"] {
         border-radius: 6px !important;
@@ -5191,30 +5254,50 @@
       .agy-shell [data-side-panel-open] .surface-composer::after {
         display: none !important;
       }
-      /* Full-Width Workspace Unlock */
+      /* Full-Width Workspace Unlock (no layout-thrashing max-width transition) */
       .agy-shell [data-testid="conversation-view"] .mx-auto.w-full {
         max-width: min(1240px, calc(100% - 24px)) !important;
-        transition: max-width 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important;
+        transition: none !important;
       }
       .agy-shell:is([data-agy-left-collapsed="1"], [data-agy-right-collapsed="1"]) [data-testid="conversation-view"] .mx-auto.w-full {
         max-width: calc(100% - 20px) !important;
       }
-      /* Smooth Lightweight Collapsible Columns & Top Menu Bar (no clip-path/reflow thrash) */
-      .agy-shell [data-agy-left-col="1"],
+      /* GPU-composited Roll-Up / Roll-Side Menu Bar Animation (0ms reflow during motion) */
+      .agy-shell [data-agy-left-col="1"] {
+        transform-origin: left center !important;
+        transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease !important;
+        will-change: transform, opacity;
+      }
       .agy-shell [data-agy-right-col="1"] {
-        contain: layout style;
-        transition: width 0.2s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.15s ease !important;
+        transform-origin: right center !important;
+        transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease !important;
+        will-change: transform, opacity;
       }
       .agy-shell [data-agy-top-menubar="1"] {
-        contain: layout style;
-        transition: height 0.18s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.14s ease !important;
+        transform-origin: top center !important;
+        transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.15s ease !important;
+        will-change: transform, opacity;
       }
-      .agy-shell [data-agy-left-col="1"] + [data-split-sash="true"] {
-        transition: width 0.2s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.14s ease !important;
+      .agy-shell[data-agy-left-anim="closing"] [data-agy-left-col="1"],
+      .agy-shell[data-agy-left-anim="opening"] [data-agy-left-col="1"] {
+        transform: translate3d(-100%, 0, 0) scaleX(0.86) !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+      .agy-shell[data-agy-right-anim="closing"] [data-agy-right-col="1"],
+      .agy-shell[data-agy-right-anim="opening"] [data-agy-right-col="1"] {
+        transform: translate3d(100%, 0, 0) scaleX(0.86) !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+      .agy-shell[data-agy-topbar-anim="closing"] [data-agy-top-menubar="1"],
+      .agy-shell[data-agy-topbar-anim="opening"] [data-agy-top-menubar="1"] {
+        transform: translate3d(0, -100%, 0) scaleY(0.45) !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
       }
       .agy-shell [data-main-content-header] {
         box-sizing: border-box !important;
-        transition: padding-left 0.2s cubic-bezier(0.22, 1, 0.36, 1) !important;
       }
       .agy-shell[data-agy-left-collapsed="1"] [data-main-content-header] {
         padding-left: var(--agy-topleft-pad, 178px) !important;
