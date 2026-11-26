@@ -4242,6 +4242,16 @@
         max-width: 100% !important;
         margin-right: 0 !important;
       }
+      .agy-shell [data-testid="conversation-view"] {
+        padding-right: 0 !important;
+      }
+      .agy-shell [data-testid="conversation-view"] > * {
+        margin-right: 0 !important;
+      }
+      .agy-shell [data-testid="conversation-view"] :is([data-testid="autoscroll-viewport"], .overflow-y-auto.isolate) {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+      }
       .agy-shell [data-testid="overview-panel-host-sibling"] {
         position: absolute !important;
         top: 14px !important;
