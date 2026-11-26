@@ -81,6 +81,9 @@
   const STORAGE_PET_ENABLED = 'agy_pet_enabled_v1';
   const STORAGE_PET_CHAT_DOCK = 'agy_pet_chat_dock_v1';
   const STORAGE_PET_POS = 'agy_pet_pos_v1';
+  const STORAGE_COLLAPSE_LEFT = 'agy_collapse_left_v1';
+  const STORAGE_COLLAPSE_RIGHT = 'agy_collapse_right_v1';
+  const STORAGE_COLLAPSE_TOPBAR = 'agy_collapse_topbar_v1';
   const GREETING_RX = /^(?:Hey\s+[^,]{1,40},\s+what\s+should\s+we\s+build\s+today\??|Good\s+to\s+see\s+you,\s+[^.]{1,40}\.\s+What'?s\s+next\??|What\s+(?:should|are)\s+we\s+build(?:ing)?\s+today\??|Welcome\s+back[,.!\s]+[^.!?]{0,40}(?:[.!?]\s*(?:Where\s+should\s+we\s+pick\s+up|What'?s\s+next|What\s+should\s+we\s+build)[^.!?]{0,40}[.!?]?)?|Where\s+should\s+we\s+pick\s+up\??|Ready\s+(?:to\s+build|when\s+you\s+are)[,.!\s]*.*)$/i;
 
   const CHECK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
@@ -1322,43 +1325,166 @@
     return detectAntigravityPetState() === 'running';
   }
 
-  const DEFAULT_BRAND_SIGIL_INNER = '<path d="M12 2L14.9 8.6L22 9.3L16.6 14L18.2 21L12 17.3L5.8 21L7.4 14L2 9.3L9.1 8.6Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" fill="url(#agyBrandGrad)" fill-opacity="0.26"/><circle cx="12" cy="12" r="2.4" fill="currentColor"/><path d="M12 4.5V7M12 17V19.5M4.5 12H7M17 12H19.5" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>';
+  function getActiveThemeRecord(stOverride) {
+    const st = stOverride || getStateSafe();
+    const customMap = loadCustomThemes();
+    const rawCustom = customMap && customMap[st.themeName];
+    const base = THEMES[st.themeName] || BUILTIN_THEMES[st.themeName] || THEMES[getDefaultThemeKey()] || {};
+    return (rawCustom && typeof rawCustom === 'object') ? { ...base, ...rawCustom } : base;
+  }
+
+  function getActiveBrandTitle(stOverride, thOverride) {
+    const st = stOverride || getStateSafe();
+    const th = thOverride || getActiveThemeRecord(st);
+    const workId = (th.workIdentity && typeof th.workIdentity === 'object') ? th.workIdentity : {};
+    return String(
+      th.brandTitle ||
+      workId.brandTitle ||
+      workId.franchise ||
+      st.themeName ||
+      th.name ||
+      ''
+    ).trim();
+  }
 
   function resolveThemeBrandSvg(theme) {
     const t = theme || {};
     const pack = resolveDynamicPack(t);
     const ui = (pack && pack.uiDesign) || t.uiDesign || {};
     const workId = (t.workIdentity && typeof t.workIdentity === 'object') ? t.workIdentity : (pack.workIdentity || {});
-    const raw = workId.sigilSvgInner || ui.emblemSvgInner || t.emblemSvgInner || pack.hudSvgInner || '';
-    let viewBox = '0 0 24 24';
-    let body = typeof raw === 'string' ? raw.trim() : '';
-    const svgMatch = body.match(/^<svg\b([^>]*)>([\s\S]*)<\/svg>$/i);
-    if (svgMatch) {
-      const vbMatch = svgMatch[1].match(/\bviewBox\s*=\s*(?:"([^"]+)"|'([^']+)')/i);
-      if (vbMatch) {
-        const cand = (vbMatch[1] || vbMatch[2] || '').trim();
-        if (/^-?\d+(?:\.\d+)?(?:\s+|,)+-?\d+(?:\.\d+)?(?:\s+|,)+\d+(?:\.\d+)?(?:\s+|,)+\d+(?:\.\d+)?$/.test(cand)) {
-          viewBox = cand.replace(/,/g, ' ');
+    const packWorkId = (pack && pack.workIdentity && typeof pack.workIdentity === 'object') ? pack.workIdentity : {};
+    const candidates = [
+      workId.sigilSvgInner,
+      packWorkId.sigilSvgInner,
+      ui.emblemSvgInner,
+      t.emblemSvgInner,
+      pack.hudSvgInner
+    ];
+    for (let i = 0; i < candidates.length; i++) {
+      const raw = candidates[i];
+      if (typeof raw !== 'string' || !raw.trim()) continue;
+      let viewBox = '0 0 24 24';
+      let body = raw.trim();
+      const svgMatch = body.match(/^<svg\b([^>]*)>([\s\S]*)<\/svg>$/i);
+      if (svgMatch) {
+        const vbMatch = svgMatch[1].match(/\bviewBox\s*=\s*(?:"([^"]+)"|'([^']+)')/i);
+        if (vbMatch) {
+          const cand = (vbMatch[1] || vbMatch[2] || '').trim();
+          if (/^-?\d+(?:\.\d+)?(?:\s+|,)+-?\d+(?:\.\d+)?(?:\s+|,)+\d+(?:\.\d+)?(?:\s+|,)+\d+(?:\.\d+)?$/.test(cand)) {
+            viewBox = cand.replace(/,/g, ' ');
+          }
         }
+        body = svgMatch[2];
       }
-      body = svgMatch[2];
+      const cleaned = sanitizeSvgFragment(body);
+      if (/<(path|circle|ellipse|rect|polygon|polyline|line)\b/i.test(cleaned)) {
+        return { viewBox, inner: cleaned };
+      }
     }
-    const cleaned = sanitizeSvgFragment(body);
-    const hasShape = /<(path|circle|ellipse|rect|polygon|polyline|line)\b/i.test(cleaned);
     return {
-      viewBox: hasShape ? viewBox : '0 0 24 24',
-      inner: hasShape ? cleaned : DEFAULT_BRAND_SIGIL_INNER
+      viewBox: '0 0 24 24',
+      inner: DEFAULT_BRAND_SIGIL_INNER
     };
+  }
+
+  function replaceBrandAttr(el, attrName, datasetKey, brandTitle) {
+    if (!el) return;
+    const origSaved = el.dataset[datasetKey];
+    const current = el.getAttribute(attrName) || '';
+    if (!origSaved && !/antigravity/i.test(current)) return;
+    const orig = origSaved || current;
+    if (!origSaved) el.dataset[datasetKey] = orig;
+    const nextVal = brandTitle ? orig.replace(/antigravity/gi, brandTitle) : orig;
+    if (current !== nextVal) el.setAttribute(attrName, nextVal);
+  }
+
+  function replaceBrandTextNodes(root, brandTitle) {
+    if (!root) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    let node;
+    while ((node = walker.nextNode())) {
+      const parent = node.parentElement;
+      if (!parent) continue;
+      if (parent.closest('script, style, svg, code, pre')) continue;
+      const saved = parent.dataset.agyOrigBrand;
+      const curVal = node.nodeValue || '';
+      if (!saved && !/antigravity/i.test(curVal)) continue;
+      const orig = saved || curVal;
+      if (!saved) parent.dataset.agyOrigBrand = orig;
+      const nextVal = brandTitle ? orig.replace(/antigravity/gi, brandTitle) : orig;
+      if (curVal !== nextVal) node.nodeValue = nextVal;
+    }
+  }
+
+  function syncBrandIdentityText(stOverride) {
+    const st = stOverride || getStateSafe();
+    const th = getActiveThemeRecord(st);
+    const brandTitle = getActiveBrandTitle(st, th);
+    if (!brandTitle) return;
+    const shell = findActiveShell() || document.querySelector('.agy-shell') || document;
+
+    const menuItems = shell.querySelectorAll('[data-testid="title-menu-bar-item"]');
+    menuItems.forEach((btn) => {
+      replaceBrandTextNodes(btn, brandTitle);
+      replaceBrandAttr(btn, 'title', 'agyOrigBrandTitle', brandTitle);
+      replaceBrandAttr(btn, 'aria-label', 'agyOrigBrandAria', brandTitle);
+    });
+
+    const brandEls = document.querySelectorAll('[data-testid="brand"]');
+    brandEls.forEach((el) => {
+      replaceBrandTextNodes(el, brandTitle);
+      replaceBrandAttr(el, 'title', 'agyOrigBrandTitle', brandTitle);
+      replaceBrandAttr(el, 'aria-label', 'agyOrigBrandAria', brandTitle);
+    });
+
+    const appBtn = shell.querySelector('[data-testid="app-icon-new-conversation-button"]')
+      || document.querySelector('[data-testid="app-icon-new-conversation-button"]');
+    if (appBtn) {
+      replaceBrandAttr(appBtn, 'title', 'agyOrigBrandTitle', brandTitle);
+      replaceBrandAttr(appBtn, 'aria-label', 'agyOrigBrandAria', brandTitle);
+    }
+
+    const modalHeader = document.getElementById('agy-custom-theme-modal-header');
+    if (modalHeader) {
+      const titleSpan = modalHeader.querySelector('span');
+      if (titleSpan) {
+        if (!titleSpan.dataset.agyOrigBrand) {
+          titleSpan.dataset.agyOrigBrand = titleSpan.textContent || 'Custom Theme Studio';
+        }
+        const desired = `${brandTitle} · Theme Studio`;
+        if (titleSpan.textContent !== desired) titleSpan.textContent = desired;
+      }
+    }
+
+    document.querySelectorAll('[data-base-ui-portal] [role="tooltip"], .agy-shell [role="tooltip"], [role="dialog"] header, .settings-modal-container header').forEach((el) => {
+      replaceBrandTextNodes(el, brandTitle);
+    });
+
+    const curDocTitle = String(document.title || '');
+    const prevBrand = window.__AGY_LAST_BRAND_TITLE__ || '';
+    if (/^\s*antigravity\s*$/i.test(curDocTitle)) {
+      document.title = brandTitle;
+      window.__AGY_LAST_BRAND_TITLE__ = brandTitle;
+    } else if (/\s-\sAntigravity$/i.test(curDocTitle)) {
+      document.title = curDocTitle.replace(/\s-\sAntigravity$/i, ` - ${brandTitle}`);
+      window.__AGY_LAST_BRAND_TITLE__ = brandTitle;
+    } else if (prevBrand && prevBrand !== brandTitle && curDocTitle.endsWith(` - ${prevBrand}`)) {
+      document.title = curDocTitle.slice(0, curDocTitle.length - prevBrand.length) + brandTitle;
+      window.__AGY_LAST_BRAND_TITLE__ = brandTitle;
+    }
   }
 
   function syncCustomBrandLogo(stOverride) {
     const st = stOverride || getStateSafe();
     const shell = findActiveShell() || document.querySelector('.agy-shell') || document;
-    const th = THEMES[st.themeName] || THEMES[getDefaultThemeKey()] || {};
+    const th = getActiveThemeRecord(st);
     const primary = th.primary || '#38bdf8';
     const secondary = th.secondary || primary;
+    const brandLogoUrl = (typeof th.brandLogoUrl === 'string' && th.brandLogoUrl.trim())
+      ? resolveMediaUrl(th.brandLogoUrl.trim())
+      : '';
     const svgSpec = resolveThemeBrandSvg(th);
-    const brandKey = `${st.themeName}|${primary}|${secondary}|${svgSpec.viewBox}|${svgSpec.inner.length}`;
+    const brandKey = `${st.themeName}|${primary}|${secondary}|${brandLogoUrl}|${svgSpec.viewBox}|${svgSpec.inner.length}`;
 
     const appBtn = shell.querySelector('[data-testid="app-icon-new-conversation-button"]')
       || document.querySelector('[data-testid="app-icon-new-conversation-button"]');
@@ -1372,24 +1498,22 @@
       }
       if (logoSpan.dataset.agyBrandKey !== brandKey) {
         logoSpan.dataset.agyBrandKey = brandKey;
-        logoSpan.innerHTML = `<svg viewBox="${escHtml(svgSpec.viewBox)}" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" style="color:${escHtml(primary)};--agy-c1:${escHtml(primary)};--agy-c2:${escHtml(secondary)};"><defs><linearGradient id="agyBrandGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${escHtml(primary)}"/><stop offset="100%" stop-color="${escHtml(secondary)}"/></linearGradient></defs>${svgSpec.inner}</svg>`;
-      }
-    }
-
-    const brandEl = shell.querySelector('[data-testid="brand"]') || document.querySelector('[data-testid="brand"]');
-    if (brandEl) {
-      const workId = (th.workIdentity && typeof th.workIdentity === 'object') ? th.workIdentity : {};
-      const brandLabel = String(workId.franchise || st.themeName || th.name || '').trim();
-      if (brandLabel) {
-        const walker = document.createTreeWalker(brandEl, NodeFilter.SHOW_TEXT, null);
-        let node;
-        while ((node = walker.nextNode())) {
-          if (/antigravity/i.test(node.nodeValue || '')) {
-            node.nodeValue = node.nodeValue.replace(/antigravity/gi, brandLabel);
+        const svgMarkup = `<svg id="agy-custom-brand-svg" viewBox="${escHtml(svgSpec.viewBox)}" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" style="color:${escHtml(primary)};--agy-c1:${escHtml(primary)};--agy-c2:${escHtml(secondary)};"><defs><linearGradient id="agyBrandGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${escHtml(primary)}"/><stop offset="100%" stop-color="${escHtml(secondary)}"/></linearGradient></defs>${svgSpec.inner}</svg>`;
+        if (brandLogoUrl) {
+          logoSpan.innerHTML = `<img id="agy-custom-brand-img" src="${escHtml(brandLogoUrl)}" alt="" style="width:20px;height:20px;object-fit:contain;border-radius:4px;display:block;pointer-events:none;" />`;
+          const imgEl = logoSpan.querySelector('#agy-custom-brand-img');
+          if (imgEl) {
+            imgEl.addEventListener('error', () => {
+              if (logoSpan.isConnected) logoSpan.innerHTML = svgMarkup;
+            }, { once: true });
           }
+        } else {
+          logoSpan.innerHTML = svgMarkup;
         }
       }
     }
+
+    syncBrandIdentityText(st);
 
     const activeShell = findActiveShell();
     const existingWatermark = document.getElementById('agy-bg-emblem-watermark');
@@ -1408,8 +1532,38 @@
     }
     if (wm.dataset.agyBrandKey !== brandKey) {
       wm.dataset.agyBrandKey = brandKey;
-      wm.innerHTML = `<svg viewBox="${escHtml(svgSpec.viewBox)}" width="220" height="220" fill="none" xmlns="http://www.w3.org/2000/svg" style="color:${escHtml(primary)};--agy-c1:${escHtml(primary)};--agy-c2:${escHtml(secondary)};"><defs><linearGradient id="agyWatermarkGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${escHtml(primary)}"/><stop offset="100%" stop-color="${escHtml(secondary)}"/></linearGradient></defs>${svgSpec.inner}</svg>`;
+      const wmSvg = `<svg viewBox="${escHtml(svgSpec.viewBox)}" width="220" height="220" fill="none" xmlns="http://www.w3.org/2000/svg" style="color:${escHtml(primary)};--agy-c1:${escHtml(primary)};--agy-c2:${escHtml(secondary)};"><defs><linearGradient id="agyWatermarkGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${escHtml(primary)}"/><stop offset="100%" stop-color="${escHtml(secondary)}"/></linearGradient></defs>${svgSpec.inner}</svg>`;
+      if (brandLogoUrl) {
+        wm.innerHTML = `<img src="${escHtml(brandLogoUrl)}" alt="" style="width:200px;height:200px;object-fit:contain;display:block;pointer-events:none;filter:drop-shadow(0 0 18px ${escHtml(primary)});" />`;
+        const wmImg = wm.querySelector('img');
+        if (wmImg) {
+          wmImg.addEventListener('error', () => {
+            if (wm.isConnected) wm.innerHTML = wmSvg;
+          }, { once: true });
+        }
+      } else {
+        wm.innerHTML = wmSvg;
+      }
     }
+  }
+
+  function findVisibleConversationView(shell) {
+    if (!shell) return null;
+    const views = shell.querySelectorAll('[data-testid="conversation-view"]');
+    for (let i = 0; i < views.length; i++) {
+      const cv = views[i];
+      if (cv.closest('[data-side-panel-open]')) continue;
+      const cs = getComputedStyle(cv);
+      if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+      const r = cv.getBoundingClientRect();
+      if (r.width > 40 && r.height > 40) return cv;
+    }
+    for (let i = 0; i < views.length; i++) {
+      const cv = views[i];
+      const r = cv.getBoundingClientRect();
+      if (r.width > 40 && r.height > 40) return cv;
+    }
+    return views[0] || null;
   }
 
   function syncComposerHost(stOverride) {
@@ -1420,12 +1574,21 @@
     shell.classList.toggle('agy-pet-chat-docked', shouldDock);
     shell.dataset.agyAgentRunning = isAiTaskRunning() ? '1' : '0';
 
-    const composers = shell.querySelectorAll('.surface-composer');
+    const visibleConv = findVisibleConversationView(shell);
+    const activeComposers = new Set();
+    const activeWraps = new Set();
+
+    const targetRoot = visibleConv || shell;
+    const composers = targetRoot.querySelectorAll('.surface-composer');
     composers.forEach((comp) => {
+      const compConv = comp.closest('[data-testid="conversation-view"]');
+      if (visibleConv && compConv !== visibleConv) return;
+      if (comp.closest('[data-side-panel-open]')) return;
+      activeComposers.add(comp);
       if (comp.getAttribute('data-agy-composer-host') !== '1') {
         comp.setAttribute('data-agy-composer-host', '1');
       }
-      const convView = comp.closest('[data-testid="conversation-view"]');
+      const convView = compConv;
       let wrap = null;
       let cur = comp.parentElement;
       while (cur && cur !== shell) {
@@ -1448,9 +1611,19 @@
         const box = comp.closest('[data-testid="agent-input-box"]');
         wrap = (box && box.parentElement && box.parentElement !== shell) ? box.parentElement : (box || comp.parentElement);
       }
-      if (wrap && wrap.getAttribute('data-agy-composer-wrap') !== '1') {
-        wrap.setAttribute('data-agy-composer-wrap', '1');
+      if (wrap) {
+        activeWraps.add(wrap);
+        if (wrap.getAttribute('data-agy-composer-wrap') !== '1') {
+          wrap.setAttribute('data-agy-composer-wrap', '1');
+        }
       }
+    });
+
+    shell.querySelectorAll('.surface-composer[data-agy-composer-host="1"]').forEach((el) => {
+      if (!activeComposers.has(el)) el.removeAttribute('data-agy-composer-host');
+    });
+    shell.querySelectorAll('[data-agy-composer-wrap="1"]').forEach((el) => {
+      if (!activeWraps.has(el)) el.removeAttribute('data-agy-composer-wrap');
     });
 
     if (!shouldDock) {
@@ -1463,6 +1636,212 @@
       if (closeChip) closeChip.hidden = true;
     } else if (window.__AGY_BETTER_PET_CTRL__ && typeof window.__AGY_BETTER_PET_CTRL__.syncComposerAnchor === 'function') {
       window.__AGY_BETTER_PET_CTRL__.syncComposerAnchor();
+    }
+  }
+
+  function readCollapseFlag(key) {
+    try { return localStorage.getItem(key) === '1'; } catch (_) { return false; }
+  }
+
+  function writeCollapseFlag(key, val) {
+    try { localStorage.setItem(key, val ? '1' : '0'); } catch (_) {}
+  }
+
+  function syncLayoutCollapsers(stOverride) {
+    const st = stOverride || getStateSafe();
+    const shell = findActiveShell() || document.querySelector('.agy-shell');
+    if (!shell) {
+      ['agy-collapse-left-btn', 'agy-collapse-right-btn', 'agy-collapse-topbar-btn'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+      });
+      return;
+    }
+
+    // 1. Tag real outer wrappers
+    const sidebarSplit = shell.querySelector('[data-testid="sidebar-split"]');
+    const sidebarNav = shell.querySelector('[role="navigation"][aria-label="Sidebar"]');
+    let leftCol = null;
+    if (sidebarSplit && sidebarNav) {
+      let cur = sidebarNav;
+      while (cur && cur.parentElement && cur.parentElement !== sidebarSplit) {
+        cur = cur.parentElement;
+      }
+      if (cur && cur.parentElement === sidebarSplit) leftCol = cur;
+    }
+    shell.querySelectorAll('[data-agy-left-col="1"]').forEach((el) => {
+      if (el !== leftCol) el.removeAttribute('data-agy-left-col');
+    });
+    if (leftCol && leftCol.getAttribute('data-agy-left-col') !== '1') {
+      leftCol.setAttribute('data-agy-left-col', '1');
+    }
+
+    const auxSplit = shell.querySelector('[data-testid="aux-pane-split"]');
+    const sideOpenEl = shell.querySelector('[data-side-panel-open="true"]') || shell.querySelector('[data-side-panel-body]');
+    let rightCol = null;
+    if (auxSplit && sideOpenEl) {
+      let cur = sideOpenEl;
+      while (cur && cur.parentElement && cur.parentElement !== auxSplit) {
+        cur = cur.parentElement;
+      }
+      if (cur && cur.parentElement === auxSplit) rightCol = cur;
+    } else if (!auxSplit) {
+      rightCol = sideOpenEl || shell.querySelector('[data-side-panel-docked]');
+    }
+    shell.querySelectorAll('[data-agy-right-col="1"]').forEach((el) => {
+      if (el !== rightCol) el.removeAttribute('data-agy-right-col');
+    });
+    if (rightCol && rightCol.getAttribute('data-agy-right-col') !== '1') {
+      rightCol.setAttribute('data-agy-right-col', '1');
+    }
+
+    const menuBar = shell.querySelector('[data-testid="title-menu-bar"]');
+    let topBarRow = null;
+    if (menuBar) {
+      let cur = menuBar;
+      while (cur && cur.parentElement && cur.parentElement !== shell) {
+        cur = cur.parentElement;
+      }
+      if (cur && cur.parentElement === shell) topBarRow = cur;
+    }
+    shell.querySelectorAll('[data-agy-top-menubar="1"]').forEach((el) => {
+      if (el !== topBarRow) el.removeAttribute('data-agy-top-menubar');
+    });
+    if (topBarRow && topBarRow.getAttribute('data-agy-top-menubar') !== '1') {
+      topBarRow.setAttribute('data-agy-top-menubar', '1');
+    }
+
+    const leftCollapsed = Boolean(leftCol && readCollapseFlag(STORAGE_COLLAPSE_LEFT));
+    const rightCollapsed = Boolean(rightCol && readCollapseFlag(STORAGE_COLLAPSE_RIGHT));
+    const topbarCollapsed = Boolean(topBarRow && readCollapseFlag(STORAGE_COLLAPSE_TOPBAR));
+
+    if (leftCollapsed) {
+      shell.dataset.agyLeftCollapsed = '1';
+      const appIconBtn = shell.querySelector('[data-testid="app-icon-new-conversation-button"]');
+      const clusterEl = appIconBtn ? (appIconBtn.closest('.absolute.left-0.top-0') || appIconBtn.parentElement) : null;
+      const clusterRect = clusterEl ? clusterEl.getBoundingClientRect() : null;
+      const padPx = (clusterRect && clusterRect.width > 20)
+        ? Math.max(140, Math.round(clusterRect.right - shell.getBoundingClientRect().left + 8))
+        : 178;
+      shell.style.setProperty('--agy-topleft-pad', `${padPx}px`);
+    } else {
+      delete shell.dataset.agyLeftCollapsed;
+      shell.style.removeProperty('--agy-topleft-pad');
+    }
+    if (rightCollapsed) shell.dataset.agyRightCollapsed = '1';
+    else delete shell.dataset.agyRightCollapsed;
+    if (topbarCollapsed) shell.dataset.agyTopbarCollapsed = '1';
+    else delete shell.dataset.agyTopbarCollapsed;
+
+    const th = getActiveThemeRecord(st);
+    const primary = th.primary || '#38bdf8';
+    const isLight = Boolean(th.isLight);
+    const surface = isLight ? 'rgba(248, 250, 252, 0.88)' : 'rgba(12, 16, 26, 0.82)';
+    const hairline = isLight ? 'rgba(15, 23, 42, 0.10)' : 'rgba(255, 255, 255, 0.09)';
+    const ink = isLight ? '#0f172a' : '#e2e8f0';
+
+    const ensureCollapseBtn = (id, ariaLabel, iconSvg, onToggle) => {
+      let btn = document.getElementById(id);
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.id = id;
+        btn.type = 'button';
+        btn.className = 'agy-collapse-edge-btn';
+        btn.setAttribute('aria-label', ariaLabel);
+        btn.innerHTML = iconSvg;
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const curTh = getActiveThemeRecord();
+          playClickSound(curTh);
+          onToggle();
+        });
+        document.body.appendChild(btn);
+      }
+      btn.style.setProperty('--agy-btn-surface', surface);
+      btn.style.setProperty('--agy-btn-border', hairline);
+      btn.style.setProperty('--agy-btn-ink', ink);
+      btn.style.setProperty('--agy-btn-accent', primary);
+      return btn;
+    };
+
+    const refreshAfterToggle = () => {
+      syncLayoutCollapsers();
+      if (typeof syncShellMetrics === 'function') syncShellMetrics();
+      syncScrollControls();
+      if (window.__AGY_BETTER_PET_CTRL__ && typeof window.__AGY_BETTER_PET_CTRL__.syncComposerAnchor === 'function') {
+        window.__AGY_BETTER_PET_CTRL__.syncComposerAnchor();
+      }
+      setTimeout(() => {
+        if (typeof syncShellMetrics === 'function') syncShellMetrics();
+        syncScrollControls();
+      }, 300);
+    };
+
+    if (leftCol) {
+      const leftRect = leftCollapsed ? null : leftCol.getBoundingClientRect();
+      const leftW = (!leftCollapsed && leftRect && leftRect.width > 12) ? Math.round(leftRect.right) : 0;
+      const btn = ensureCollapseBtn(
+        'agy-collapse-left-btn',
+        'Thu gọn / Mở cột trái',
+        '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>',
+        () => {
+          writeCollapseFlag(STORAGE_COLLAPSE_LEFT, !readCollapseFlag(STORAGE_COLLAPSE_LEFT));
+          refreshAfterToggle();
+        }
+      );
+      btn.dataset.collapsed = leftCollapsed ? 'true' : 'false';
+      btn.title = leftCollapsed ? 'Mở rộng Sidebar trái' : 'Thu gọn Sidebar trái';
+      btn.style.left = leftCollapsed ? '4px' : `${Math.max(4, leftW - 9)}px`;
+      btn.style.display = 'inline-flex';
+    } else {
+      const btn = document.getElementById('agy-collapse-left-btn');
+      if (btn) btn.remove();
+    }
+
+    const hasRightOpen = Boolean(rightCol && (rightCol.hasAttribute('data-side-panel-open') || rightCol.querySelector('[data-side-panel-open="true"]')));
+    if (rightCol && hasRightOpen) {
+      const rightRect = rightCollapsed ? null : rightCol.getBoundingClientRect();
+      const rightEdge = (!rightCollapsed && rightRect && rightRect.width > 12)
+        ? Math.max(4, Math.round(window.innerWidth - rightRect.left - 9))
+        : 4;
+      const btn = ensureCollapseBtn(
+        'agy-collapse-right-btn',
+        'Thu gọn / Mở cột phải',
+        '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
+        () => {
+          writeCollapseFlag(STORAGE_COLLAPSE_RIGHT, !readCollapseFlag(STORAGE_COLLAPSE_RIGHT));
+          refreshAfterToggle();
+        }
+      );
+      btn.dataset.collapsed = rightCollapsed ? 'true' : 'false';
+      btn.title = rightCollapsed ? 'Mở rộng Panel phải' : 'Thu gọn Panel phải';
+      btn.style.right = rightCollapsed ? '4px' : `${rightEdge}px`;
+      btn.style.display = 'inline-flex';
+    } else {
+      const btn = document.getElementById('agy-collapse-right-btn');
+      if (btn) btn.remove();
+    }
+
+    if (topBarRow) {
+      const topRect = topbarCollapsed ? null : topBarRow.getBoundingClientRect();
+      const topOffset = (!topbarCollapsed && topRect && topRect.height > 8) ? Math.max(4, Math.round(topRect.bottom - 5)) : 2;
+      const btn = ensureCollapseBtn(
+        'agy-collapse-topbar-btn',
+        'Thu gọn / Mở thanh Menu Bar',
+        '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>',
+        () => {
+          writeCollapseFlag(STORAGE_COLLAPSE_TOPBAR, !readCollapseFlag(STORAGE_COLLAPSE_TOPBAR));
+          refreshAfterToggle();
+        }
+      );
+      btn.dataset.collapsed = topbarCollapsed ? 'true' : 'false';
+      btn.title = topbarCollapsed ? 'Mở thanh Menu Bar' : 'Thu gọn thanh Menu Bar';
+      btn.style.top = `${topOffset}px`;
+      btn.style.display = 'inline-flex';
+    } else {
+      const btn = document.getElementById('agy-collapse-topbar-btn');
+      if (btn) btn.remove();
     }
   }
 
@@ -1811,6 +2190,12 @@
 
     const getRealComposer = () => {
       const shell = findActiveShell() || document.querySelector('.agy-shell') || document;
+      const visConv = findVisibleConversationView(shell);
+      if (visConv) {
+        const hosted = visConv.querySelector('.surface-composer[data-agy-composer-host="1"]')
+          || visConv.querySelector('.surface-composer');
+        if (hosted) return hosted;
+      }
       return shell.querySelector('.surface-composer[data-agy-composer-host="1"]')
         || shell.querySelector('.surface-composer');
     };
@@ -2164,7 +2549,17 @@
       if (!menu.hidden && !menu.contains(e.target)) {
         closeMenu();
       }
-    }, { signal: sig });
+      const sidebarHit = e.target && typeof e.target.closest === 'function'
+        ? e.target.closest('[role="navigation"][aria-label="Sidebar"], [data-testid="conversation-list-sidebar"], [data-testid="conversation-row-sidebar"]')
+        : null;
+      if (sidebarHit) {
+        const activeEl = document.activeElement;
+        if (activeEl && typeof activeEl.closest === 'function' && activeEl.closest('.surface-composer[data-agy-composer-host="1"]')) {
+          try { activeEl.blur(); } catch (_) {}
+        }
+        setTimeout(() => { try { syncComposerHost(); } catch (_) {} }, 80);
+      }
+    }, { passive: true, signal: sig });
 
     window.addEventListener('mousemove', (e) => {
       pointerAt = { x: e.clientX, y: e.clientY };
@@ -2930,7 +3325,7 @@
     const showInputSticker = st.inputStyle !== 'minimal' && bubbleTheme.sticker;
     const inputStickerCss = showInputSticker ? (bubbleTheme.isOrnament ? `
       .surface-composer {
-        margin-top: 16px !important;
+        margin-top: 14px !important;
         overflow: visible !important;
       }
       .surface-composer::before {
@@ -2947,24 +3342,10 @@
         z-index: 30;
         pointer-events: none;
       }
-      .surface-composer::after {
-        content: "";
-        position: absolute;
-        bottom: 3px;
-        left: 4px;
-        width: 16px;
-        height: 16px;
-        background-image: url("${cornerFiligreeUrl}");
-        background-size: contain;
-        background-repeat: no-repeat;
-        transform: rotate(180deg);
-        z-index: 25;
-        pointer-events: none;
-        opacity: 0.78;
-      }
+      .surface-composer::after { display: none !important; content: none !important; }
     ` : `
       .surface-composer {
-        margin-top: 28px !important;
+        margin-top: 24px !important;
         overflow: visible !important;
       }
       .surface-composer::before {
@@ -2981,23 +3362,21 @@
         z-index: 30;
         pointer-events: none;
       }
-      .surface-composer::after { display: none !important; }
+      .surface-composer::after { display: none !important; content: none !important; }
     `) : `
       .surface-composer::before,
-      .surface-composer::after { display: none !important; }
+      .surface-composer::after { display: none !important; content: none !important; }
     `;
 
-    const inputCardBg =
-      st.inputStyle === 'glass'
-        ? (bubbleTheme.inputGlassBg || 'rgba(20, 15, 13, 0.52)')
-        : st.inputStyle === 'double_gold'
-        ? 'linear-gradient(145deg, rgba(44, 28, 20, 0.90) 0%, rgba(24, 15, 12, 0.92) 100%)'
-        : (bubbleTheme.inputCardBg || 'rgba(28, 19, 16, 0.88)');
-
-    const inputOuterBorder =
-      st.inputStyle === 'double_gold'
-        ? 'linear-gradient(135deg, #f59e0b 0%, rgba(217, 119, 6, 0.35) 50%, #fbbf24 100%)'
-        : bubbleTheme.frameBg;
+    const isLightTheme = Boolean(mainTheme.isLight);
+    const cleanComposerBg = isLightTheme
+      ? 'rgba(255, 255, 255, 0.86)'
+      : `rgba(${overlayRgb}, ${st.inputStyle === 'glass' ? '0.52' : '0.68'})`;
+    const cleanComposerBorder = isLightTheme ? 'rgba(15, 23, 42, 0.10)' : 'rgba(255, 255, 255, 0.08)';
+    const cleanComposerFocusBorder = isLightTheme ? 'rgba(15, 23, 42, 0.18)' : 'rgba(255, 255, 255, 0.16)';
+    const cleanSoftHairline = isLightTheme ? 'rgba(15, 23, 42, 0.09)' : 'rgba(255, 255, 255, 0.07)';
+    const cleanBubbleBg = isLightTheme ? 'rgba(255, 255, 255, 0.72)' : `rgba(${overlayRgb}, 0.36)`;
+    const cleanBubbleBorder = isLightTheme ? 'rgba(15, 23, 42, 0.10)' : 'rgba(255, 255, 255, 0.08)';
 
     const sidebarBg = mainTheme.sidebarBg || 'rgba(14, 10, 8, 0.68)';
     const sidebarHoverBg = mainTheme.sidebarHoverBg || 'rgba(255, 255, 255, 0.08)';
@@ -3027,16 +3406,18 @@
       const subtleBg = th.aiCardBg || (lightMode ? 'rgba(255, 255, 255, 0.82)' : 'rgba(12, 14, 24, 0.68)');
       const rightTint = th.aiCardBg || (lightMode ? 'rgba(255, 255, 255, 0.84)' : 'rgba(10, 12, 20, 0.72)');
 
-      // 1. Left Column (Sidebar — clean outer floating panel, borderless inner rows)
+      // 1. Left Column (Sidebar — clean outer floating panel, borderless inner rows, safe virtual-list hitboxes)
       const lc = (vfx.leftColumn && typeof vfx.leftColumn === 'object') ? vfx.leftColumn : {};
       const surfaceMode = lc.surfaceMode || 'smoked-glass';
       const density = lc.density === 'compact' ? 'compact' : (lc.density === 'spacious' ? 'spacious' : 'balanced');
       const sidebarNavSel = '.agy-shell [role="navigation"][aria-label="Sidebar"]';
-      const sidebarItemSel = '.agy-shell [role="navigation"][aria-label="Sidebar"] :is([data-testid="new-conversation-button"], [data-testid="automations-button"], [data-testid="conversation-row-sidebar"], .agy-sidebar-row, [data-testid="settings-button"], a, [class*="group/headerbtn"])';
+      const sidebarStaticItemSel = '.agy-shell [role="navigation"][aria-label="Sidebar"] :is([data-testid="new-conversation-button"], [data-testid="automations-button"], [data-testid="settings-button"], a, [class*="group/headerbtn"])';
+      const sidebarRowSel = '.agy-shell [role="navigation"][aria-label="Sidebar"] :is([data-testid="conversation-row-sidebar"], .agy-sidebar-row)';
+      const sidebarItemSel = `${sidebarStaticItemSel}, ${sidebarRowSel}`;
       const itemPad = density === 'compact' ? '4px 8px' : (density === 'spacious' ? '8px 12px' : '6px 10px');
       const itemMargin = density === 'compact' ? '1px 4px' : (density === 'spacious' ? '3px 8px' : '2px 6px');
       const lcRadius = Math.min(16, Math.max(4, Number(lc.radiusPx) || 10));
-      const lcBorder = lc.borderHairline === false ? 'transparent' : hairline;
+      const lcBorder = lc.borderHairline === false ? 'transparent' : (lightMode ? 'rgba(15, 23, 42, 0.09)' : 'rgba(255, 255, 255, 0.07)');
 
       let leftColumnCss = `
         ${sidebarNavSel} {
@@ -3049,9 +3430,17 @@
           overflow: hidden !important;
           backdrop-filter: none !important;
           position: relative !important;
+          z-index: 5 !important;
+          -webkit-app-region: no-drag !important;
+          pointer-events: auto !important;
           ${stCur.wpEnabled && stCur.themeMode === 'dynamic' && mainTheme.unifiedGlass ? `background-color: ${sidebarBg} !important; background-image: var(--agy-l-glass-bg, none) !important; background-size: 100vw 100vh !important; background-position: ${bgPosition} !important; background-attachment: fixed !important; background-repeat: no-repeat !important;` : `background: ${subtleBg} !important;`}
         }
-        ${sidebarItemSel} {
+        .agy-shell [data-testid="conversation-list-sidebar"],
+        .agy-shell [data-testid="conversation-row-sidebar"] {
+          -webkit-app-region: no-drag !important;
+          pointer-events: auto !important;
+        }
+        ${sidebarStaticItemSel} {
           border-radius: ${Math.max(4, lcRadius - 2)}px !important;
           border: none !important;
           box-shadow: none !important;
@@ -3060,19 +3449,25 @@
           position: relative !important;
           ${isDyn ? 'transition: background-color 0.16s ease, color 0.16s ease !important;' : 'transition: none !important;'}
         }
+        ${sidebarRowSel} {
+          border-radius: ${Math.max(4, lcRadius - 2)}px !important;
+          border: none !important;
+          box-shadow: none !important;
+          ${isDyn ? 'transition: background-color 0.16s ease, color 0.16s ease !important;' : 'transition: none !important;'}
+        }
         ${sidebarItemSel}:hover {
           border: none !important;
           box-shadow: none !important;
           background: ${sidebarHoverBg} !important;
           ${isDyn ? `background-image: linear-gradient(90deg, transparent, ${gColor}, transparent) !important; background-size: 200% 100% !important; animation: agyShimmerSweep 2.4s linear infinite !important;` : ''}
         }
-        ${sidebarNavSel} :is([aria-current="page"], [aria-selected="true"], [data-active="true"]) {
+        ${sidebarNavSel} :is([aria-current="page"], [aria-selected="true"], [data-active="true"], [data-selected="true"]) {
           border: none !important;
           background: ${sidebarHoverBg} !important;
           box-shadow: inset 2.5px 0 0 ${pColor} !important;
         }
         ${isDyn ? `
-        ${sidebarNavSel} :is([aria-current="page"], [aria-selected="true"], [data-active="true"])::after {
+        ${sidebarNavSel} :is([aria-current="page"], [aria-selected="true"], [data-active="true"], [data-selected="true"])::after {
           content: "";
           position: absolute;
           left: 8px;
@@ -3088,7 +3483,7 @@
         ` : ''}
       `;
 
-      // 2. Center Stage (Airy nearly-transparent AI response, user bubble, focus-only composer glow)
+      // 2. Center Stage (Airy nearly-transparent AI response, clean smoked user bubble & clean composer without neon border)
       const cs = (vfx.centerStage && typeof vfx.centerStage === 'object') ? vfx.centerStage : {};
       const surfaceStyle = cs.cardStyle || cs.surfaceStyle || 'glass-card';
       const csRadius = Math.min(20, Math.max(4, Number(cs.radiusPx) || cardRadiusPx || 12));
@@ -3099,7 +3494,7 @@
       let centerStageCss = `
         .agy-shell [data-testid="agent-response"] {
           margin-block: 6px !important;
-          border: 1px solid ${lightMode ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255, 255, 255, 0.05)'} !important;
+          border: none !important;
           border-radius: ${csRadius}px !important;
           box-shadow: none !important;
           backdrop-filter: none !important;
@@ -3111,49 +3506,59 @@
         }
         .agy-shell .agy-user-bubble-frame {
           margin-block: 6px !important;
-          padding: 1px !important;
+          padding: 0 !important;
           border-radius: ${csRadius}px !important;
-          background: ${th.frameBg || hairline} !important;
-          box-shadow: 0 3px 12px rgba(0, 0, 0, ${lightMode ? '0.07' : '0.24'}) !important;
+          background: ${cleanBubbleBg} !important;
+          border: 1px solid ${cleanBubbleBorder} !important;
+          box-shadow: none !important;
           ${transitionCss}
         }
+        .agy-shell .agy-user-bubble-frame::after {
+          display: none !important;
+          content: none !important;
+        }
         .agy-shell .agy-user-bubble {
-          border-radius: ${Math.max(3, csRadius - 1)}px !important;
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+          border-radius: ${csRadius}px !important;
         }
         .agy-shell .surface-composer {
-          padding: 1px !important;
-          border-radius: ${csRadius + 1}px !important;
-          background: ${hairline} !important;
-          box-shadow: 0 6px 22px rgba(0, 0, 0, ${lightMode ? '0.12' : '0.36'}) !important;
+          padding: 0 !important;
+          border-radius: ${csRadius}px !important;
+          background: ${cleanComposerBg} !important;
+          border: 1px solid ${cleanComposerBorder} !important;
+          box-shadow: 0 8px 26px rgba(0, 0, 0, ${lightMode ? '0.09' : '0.28'}) !important;
           backdrop-filter: none !important;
           ${transitionCss}
         }
+        .agy-shell .surface-composer:focus-within {
+          background: ${cleanComposerBg} !important;
+          border-color: ${cleanComposerFocusBorder} !important;
+          box-shadow: 0 8px 28px rgba(0, 0, 0, ${lightMode ? '0.11' : '0.32'}) !important;
+          animation: none !important;
+        }
         .agy-shell .surface-composer-card {
+          background: transparent !important;
           border-radius: ${csRadius}px !important;
-          border: 1px solid transparent !important;
+          border: none !important;
+          box-shadow: none !important;
           backdrop-filter: none !important;
         }
         .agy-shell [data-step-index] {
           margin-block: 4px !important;
+          border: none !important;
+          box-shadow: none !important;
           border-radius: ${Math.max(4, csRadius - 2)}px !important;
         }
       `;
-      if (isDyn) {
-        centerStageCss += `
-          .agy-shell .surface-composer:focus-within {
-            background: linear-gradient(135deg, ${pColor}, ${sColor}, ${pColor}) !important;
-            background-size: 200% 200% !important;
-            animation: agyBorderFlow 4s ease infinite !important;
-            box-shadow: 0 6px 24px rgba(0, 0, 0, ${lightMode ? '0.12' : '0.40'}), 0 0 12px ${gColor} !important;
-          }
-        `;
-      }
 
-      // 3. Right Column (Side Panel — keep [data-side-panel-docked] transparent so it never covers center wallpaper)
+      // 3. Right Column (Side Panel — keep [data-side-panel-docked] transparent, subtle hairline borders)
       const rc = (vfx.rightColumn && typeof vfx.rightColumn === 'object') ? vfx.rightColumn : {};
       const tabIndicator = rc.tabIndicator || 'underline';
       const rightBg = rc.panelMode === 'transparent' ? 'transparent' : rightTint;
-      const sashBg = rc.sashGlow ? pColor : hairline;
+      const rightHairline = lightMode ? 'rgba(15, 23, 42, 0.09)' : 'rgba(255, 255, 255, 0.07)';
+      const sashBg = rightHairline;
       const tabIndicatorCss = `
         .agy-shell [data-side-panel-strip] :is(button[aria-selected="true"], [role="tab"][aria-selected="true"]) {
           position: relative !important;
@@ -3185,7 +3590,7 @@
           width: ${stCur.wpEnabled ? 'calc(100% - 12px)' : '100%'} !important;
           height: ${stCur.wpEnabled ? 'calc(100% - 12px)' : '100%'} !important;
           border-radius: ${stCur.wpEnabled ? csRadius : 0}px !important;
-          border: 1px solid ${hairline} !important;
+          border: 1px solid ${rightHairline} !important;
           box-shadow: none !important;
           overflow: hidden !important;
           background: ${rightBg} !important;
@@ -3194,7 +3599,7 @@
         body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-strip] {
           background: ${mainTheme.headerBg || rightBg} !important;
           backdrop-filter: none !important;
-          border-color: ${hairline} !important;
+          border-color: ${rightHairline} !important;
         }
         .agy-shell [data-side-panel-sash] {
           background: ${sashBg} !important;
@@ -3242,10 +3647,6 @@
       .agy-shell [data-step-index] {
         content-visibility: auto;
         contain-intrinsic-size: auto 120px;
-      }
-      .agy-shell [data-testid="conversation-row-sidebar"] {
-        content-visibility: auto;
-        contain-intrinsic-size: auto 38px;
       }
       .agy-shell [data-markdown-root] :is(p, li) {
         text-wrap: pretty;
@@ -3346,11 +3747,10 @@
 
     const aiTextShadow = isLight
       ? '0 1px 2px rgba(255, 255, 255, 0.72)'
-      : '0 1px 3px rgba(0, 0, 0, 0.85), 0 0 8px rgba(0, 0, 0, 0.45)';
+      : '0 1px 3px rgba(0, 0, 0, 0.85), 0 0 6px rgba(0, 0, 0, 0.42)';
     const aiCardTransparentBg = st.wpEnabled
-      ? `rgba(${overlayRgb}, ${isLight ? '0.16' : '0.22'})`
-      : (isLight ? 'rgba(255, 255, 255, 0.78)' : 'rgba(18, 20, 28, 0.72)');
-    const aiCardHairline = isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255, 255, 255, 0.05)';
+      ? `rgba(${overlayRgb}, ${isLight ? '0.12' : '0.14'})`
+      : (isLight ? 'rgba(255, 255, 255, 0.72)' : 'rgba(18, 20, 28, 0.64)');
 
     const aiCardCss = `
       /* Nearly-transparent airy reading canvas for AI responses (zero live backdrop-filter) */
@@ -3367,12 +3767,17 @@
         color: ${uiInk} !important;
         text-shadow: ${aiTextShadow} !important;
         backdrop-filter: none !important;
-        border: 1px solid ${aiCardHairline} !important;
+        border: none !important;
         border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
         padding: 12px 16px !important;
         box-shadow: none !important;
         box-sizing: border-box !important;
         overflow: hidden !important;
+      }
+      .agy-shell [data-testid="agent-response"]:hover {
+        border: none !important;
+        box-shadow: none !important;
+        transform: none !important;
       }
       .agy-shell [data-testid="agent-response"] :is(p, li, ul, ol, h1, h2, h3, h4, h5, h6, strong, b, em, td, th, blockquote) {
         color: ${uiInk} !important;
@@ -3541,12 +3946,12 @@
         background: ${mainTheme.aiCardBg || `rgba(${overlayRgb}, 0.72)`} !important;
         ${isLight ? `color: ${uiInk} !important;` : ''}
         backdrop-filter: none !important;
-        border-left: 1px solid ${mainTheme.aiCardBorder || (isLight ? 'rgba(15, 23, 42, 0.14)' : 'rgba(255, 255, 255, 0.14)')} !important;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+        border-left: 1px solid ${cleanSoftHairline} !important;
+        box-shadow: none !important;
       }
       body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-body="true"]:not([data-has-browser-hole="true"]):not(:has([data-browser-hole]:not([data-browser-hole="false"]))) pre {
         background: ${preCodeBg} !important;
-        border: 1px solid ${mainTheme.aiCardBorder || (isLight ? 'rgba(15, 23, 42, 0.14)' : 'rgba(255, 255, 255, 0.14)')} !important;
+        border: 1px solid ${cleanSoftHairline} !important;
         border-radius: 10px !important;
       }
       .agy-shell [data-side-panel-body="true"] :is(h1, h2, h3, h4) {
@@ -3591,7 +3996,7 @@
       }
       .agy-shell [class*="@container/titlebar"] [data-testid="pane-titlebar-toolbar"] button.border {
         background: ${isLight ? 'rgba(255, 255, 255, 0.56)' : 'rgba(6, 11, 24, 0.36)'} !important;
-        border-color: ${pillBorder} !important;
+        border-color: ${cleanSoftHairline} !important;
       }
     ` : '';
 
@@ -3653,14 +4058,14 @@
         width: ${st.wpEnabled ? 'calc(100% - 12px)' : '100%'} !important;
         height: ${st.wpEnabled ? 'calc(100% - 6px)' : '100%'} !important;
         border-radius: ${st.wpEnabled ? Math.min(10, compactRadius) : 0}px !important;
-        border: 1px solid ${mainTheme.headerBorder || (isLight ? 'rgba(15, 23, 42, 0.10)' : 'rgba(255, 255, 255, 0.08)')} !important;
+        border: 1px solid ${cleanSoftHairline} !important;
         box-shadow: none !important;
       }
       .agy-shell [data-main-content-header] {
         margin: ${st.wpEnabled ? '6px 6px 0 6px' : '0'} !important;
         width: ${st.wpEnabled ? 'calc(100% - 12px)' : '100%'} !important;
         border-radius: ${st.wpEnabled ? subCardRadius : 0}px !important;
-        border: 1px solid ${mainTheme.headerBorder || (isLight ? 'rgba(15, 23, 42, 0.10)' : 'rgba(255, 255, 255, 0.08)')} !important;
+        border: 1px solid ${cleanSoftHairline} !important;
         box-shadow: none !important;
         overflow: hidden !important;
       }
@@ -3719,23 +4124,23 @@
       }
       .agy-shell [data-step-index] {
         margin-block: 4px !important;
-        background: ${st.wpEnabled ? `rgba(${overlayRgb}, ${isLight ? '0.10' : '0.14'})` : 'transparent'} !important;
+        background: ${st.wpEnabled ? `rgba(${overlayRgb}, ${isLight ? '0.06' : '0.08'})` : 'transparent'} !important;
         border: none !important;
         border-radius: ${subCardRadius}px !important;
         box-shadow: none !important;
         backdrop-filter: none !important;
-        transition: ${isDynamicMode ? 'background-color 0.16s ease' : 'none'} !important;
       }
       .agy-shell [data-step-index]:hover,
       .agy-shell .agy-hover-row:hover {
-        background: ${st.wpEnabled ? `rgba(${overlayRgb}, ${isLight ? '0.16' : '0.22'})` : sidebarHoverBg} !important;
+        background: ${st.wpEnabled ? `rgba(${overlayRgb}, ${isLight ? '0.08' : '0.11'})` : sidebarHoverBg} !important;
         border: none !important;
         box-shadow: none !important;
+        transform: none !important;
       }
       .agy-shell [data-testid="worked-for-collapsible"],
       .agy-shell [data-testid="agent-response"] button[aria-expanded] {
         margin: 4px 0 !important;
-        background: ${isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.05)'} !important;
+        background: ${isLight ? 'rgba(15, 23, 42, 0.04)' : 'rgba(255, 255, 255, 0.04)'} !important;
         border: none !important;
         border-radius: ${compactRadius}px !important;
         color: ${uiInk} !important;
@@ -3745,8 +4150,10 @@
       }
       .agy-shell [data-testid="worked-for-collapsible"]:hover,
       .agy-shell [data-testid="agent-response"] button[aria-expanded]:hover {
-        background: ${sidebarHoverBg} !important;
+        background: ${isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255, 255, 255, 0.07)'} !important;
         color: ${pSync} !important;
+        border: none !important;
+        box-shadow: none !important;
       }
       .agy-shell [data-markdown-root] pre,
       .agy-shell [data-step-index] pre {
@@ -3800,9 +4207,9 @@
       .agy-shell [data-testid="overview-panel-host-sibling"],
       .agy-shell [data-testid="overview-panel"] {
         background: ${modalBg} !important;
-        border: 1px solid ${isLight ? 'rgba(15, 23, 42, 0.10)' : 'rgba(255, 255, 255, 0.09)'} !important;
+        border: 1px solid ${cleanSoftHairline} !important;
         border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
-        box-shadow: 0 14px 36px rgba(0, 0, 0, ${isLight ? '0.16' : '0.52'}) !important;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, ${isLight ? '0.14' : '0.44'}) !important;
         backdrop-filter: none !important;
       }
       .agy-shell :is([data-testid="overview-panel-row-review"], [data-testid="overview-panel-row-files"], [data-testid="overview-panel-row-terminal"], [data-testid="overview-panel-row-plugins"], [data-testid="subagent-node"], [data-testid="background-task-row"]) {
@@ -3842,11 +4249,11 @@
       }
       body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-open] {
         background: ${smokedSurface} !important;
-        border: 1px solid ${isLight ? 'rgba(15, 23, 42, 0.10)' : 'rgba(255, 255, 255, 0.08)'} !important;
+        border: 1px solid ${cleanSoftHairline} !important;
         backdrop-filter: none !important;
       }
       .agy-shell :is([data-side-panel-sash], [data-testid="side-panel-sash"]) {
-        background: ${isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.08)'} !important;
+        background: ${cleanSoftHairline} !important;
         transition: ${isDynamicMode ? 'background-color 0.16s ease' : 'none'} !important;
       }
       .agy-shell :is([data-side-panel-sash], [data-testid="side-panel-sash"]):hover {
@@ -3854,7 +4261,7 @@
       }
       .agy-shell [data-side-panel-strip] {
         background: ${mainTheme.headerBg || smokedElevated} !important;
-        border-bottom: 1px solid ${mainTheme.headerBorder || (isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.08)')} !important;
+        border-bottom: 1px solid ${cleanSoftHairline} !important;
         backdrop-filter: none !important;
       }
       .agy-shell .agy-aux-tab,
@@ -3895,9 +4302,9 @@
       .agy-shell :is([role="menu"], [role="listbox"], [role="dialog"], [role="alertdialog"], .surface-opaque) {
         background: ${modalBg} !important;
         color: ${uiInk} !important;
-        border: 1px solid ${mainTheme.borderColor || smokedBorder} !important;
+        border: 1px solid ${cleanSoftHairline} !important;
         border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
-        box-shadow: 0 14px 40px rgba(0, 0, 0, ${isLight ? '0.22' : '0.72'}) !important;
+        box-shadow: 0 14px 40px rgba(0, 0, 0, ${isLight ? '0.20' : '0.66'}) !important;
         backdrop-filter: none !important;
       }
       body[data-agy-pet-chat-open="1"] [data-base-ui-portal] {
@@ -3908,9 +4315,9 @@
       .agy-shell [role="tooltip"] {
         background: ${modalBg} !important;
         color: ${uiInk} !important;
-        border: 1px solid ${pSync}66 !important;
+        border: 1px solid ${cleanSoftHairline} !important;
         border-radius: 8px !important;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45) !important;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.40) !important;
         backdrop-filter: none !important;
       }
       :is([role="menu"], [role="listbox"]) :is([role="menuitem"], [role="option"], [role="menuitemcheckbox"], [role="menuitemradio"], button) {
@@ -3938,8 +4345,10 @@
         outline-offset: 2px !important;
       }
       .agy-shell [data-testid="overlay-scrollbar-thumb"] {
-        background: linear-gradient(180deg, ${pSync}, ${sSync}) !important;
-        opacity: 0.65 !important;
+        background: linear-gradient(180deg, ${pSync}, ${sSync}, ${pSync}) !important;
+        background-size: 100% 220% !important;
+        ${isDynamicMode ? 'animation: agyScrollFlow 5s ease infinite !important;' : ''}
+        opacity: 0.68 !important;
         border-radius: 9999px !important;
       }
       .agy-shell [data-testid="overlay-scrollbar-thumb"]:hover {
@@ -3958,14 +4367,17 @@
         border-radius: 9999px;
       }
       .agy-shell ::-webkit-scrollbar-thumb {
-        background: linear-gradient(180deg, ${pSync}, ${sSync});
+        background: linear-gradient(180deg, ${pSync}, ${sSync}, ${pSync});
+        background-size: 100% 220%;
+        ${isDynamicMode ? 'animation: agyScrollFlow 5s ease infinite;' : ''}
         border-radius: 9999px;
       }
       .agy-shell ::-webkit-scrollbar-thumb:horizontal {
-        background: linear-gradient(90deg, ${pSync}, ${sSync});
+        background: linear-gradient(90deg, ${pSync}, ${sSync}, ${pSync});
+        background-size: 220% 100%;
       }
       .agy-shell ::-webkit-scrollbar-thumb:hover {
-        background: linear-gradient(180deg, ${sSync}, ${pSync});
+        background: linear-gradient(180deg, ${sSync}, ${pSync}, ${sSync});
       }
     `;
 
@@ -3985,8 +4397,8 @@
       .agy-shell .surface-opaque.bg-sidebar,
       .agy-shell .surface-opaque.border-menu-border {
         background: ${modalBg} !important;
-        border-color: ${mainTheme.borderColor} !important;
-        box-shadow: 0 12px 32px rgba(0, 0, 0, ${isLight ? '0.18' : '0.65'}) !important;
+        border-color: ${cleanSoftHairline} !important;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, ${isLight ? '0.16' : '0.58'}) !important;
         backdrop-filter: none !important;
       }
       /* Preserve virtual list positioning; hide sticky headers only while scrolled */
@@ -4005,70 +4417,71 @@
       ${avatarCss}
       ${headerCss}
 
-      /* "+ New Conversation" button glow */
+      /* "+ New Conversation" & custom buttons — clean subtle hairline without bright glow */
       .agy-button-custom.border.border-border {
-        background: ${btnBg} !important;
-        border-color: ${mainTheme.borderColor} !important;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3) !important;
+        background: ${isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.06)'} !important;
+        border-color: ${cleanSoftHairline} !important;
+        box-shadow: none !important;
       }
 
-      /* User Chat Bubble Double-Border Frame & Ornament */
+      /* User Chat Bubble — Clean Smoked Glass without glowing outer frame or corner brackets */
       .agy-user-bubble-frame {
-        background: ${bubbleTheme.frameBg} !important;
-        border-radius: ${bubbleTheme.isScroll ? '6px' : `var(--agy-card-radius, ${cardRadiusPx}px)`} !important;
-        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), 0 0 12px ${bubbleTheme.glow} !important;
+        background: ${cleanBubbleBg} !important;
+        border: 1px solid ${cleanBubbleBorder} !important;
+        border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
+        box-shadow: none !important;
         position: relative !important;
         overflow: visible !important;
-        padding: 1.2px !important;
+        padding: 0 !important;
       }
 
       .agy-user-bubble-frame::after {
-        content: "";
-        position: absolute;
-        top: 3px;
-        left: 3px;
-        width: ${bubbleTheme.isOrnament ? '16px' : '14px'};
-        height: ${bubbleTheme.isOrnament ? '16px' : '14px'};
-        background-image: url("${cornerFiligreeUrl}");
-        background-size: contain;
-        background-repeat: no-repeat;
-        pointer-events: none;
-        opacity: ${bubbleTheme.isOrnament ? '0.85' : '0.65'};
+        display: none !important;
+        content: none !important;
       }
 
       .agy-user-bubble {
-        background: ${bubbleTheme.bg} !important;
-        border-radius: ${bubbleTheme.isScroll ? '5px' : `calc(var(--agy-card-radius, ${cardRadiusPx}px) - 1px)`} !important;
-        padding: 8px 16px !important;
-        color: ${bubbleTheme.textColor} !important;
-        border: ${innerBubbleBorder} !important;
+        background: transparent !important;
+        border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
+        padding: 8px 15px !important;
+        color: ${isLight ? uiInk : (bubbleTheme.textColor || '#f8fafc')} !important;
+        border: none !important;
+        box-shadow: none !important;
         overflow: visible !important;
         font-weight: 450 !important;
       }
 
       .agy-user-bubble * {
-        color: ${bubbleTheme.textColor} !important;
+        color: ${isLight ? uiInk : (bubbleTheme.textColor || '#f8fafc')} !important;
       }
 
-      /* Double-Border Input Composer */
+      /* Clean Smoked Input Composer — zero neon border or thick padding frame */
       .surface-composer {
-        background: ${inputOuterBorder} !important;
-        border-radius: calc(var(--agy-card-radius, ${cardRadiusPx}px) + 2px) !important;
-        padding: 1.5px !important;
-        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5), 0 0 14px ${bubbleTheme.glow} !important;
+        background: ${cleanComposerBg} !important;
+        border: 1px solid ${cleanComposerBorder} !important;
+        border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
+        padding: 0 !important;
+        box-shadow: 0 8px 26px rgba(0, 0, 0, ${isLight ? '0.09' : '0.28'}) !important;
         position: relative !important;
+      }
+      .surface-composer:focus-within {
+        background: ${cleanComposerBg} !important;
+        border-color: ${cleanComposerFocusBorder} !important;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, ${isLight ? '0.11' : '0.32'}) !important;
+        animation: none !important;
       }
 
       .surface-composer-card {
-        background: ${inputCardBg} !important;
+        background: transparent !important;
         backdrop-filter: none !important;
         border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
-        border: ${bubbleTheme.innerBorder || '1px solid rgba(255, 255, 255, 0.07)'} !important;
+        border: none !important;
+        box-shadow: none !important;
       }
       ${uiDesignVarsCss}
       ${layoutCss}
       .surface-composer-card :is(textarea, [contenteditable="true"], [contenteditable="true"] p, [contenteditable="true"] span) {
-        color: #f8fafc !important;
+        color: ${isLight ? '#0f172a' : '#f8fafc'} !important;
       }
 
       /* High-contrast pill badges for top composer bar (adaptive light/dark theme) */
@@ -4079,10 +4492,10 @@
       .surface-composer > :not(.surface-composer-card) [data-testid="input-box-bottom-toolbar"] [role="button"] {
         background: ${pillBg} !important;
         color: ${pillText} !important;
-        border: 1px solid ${pillBorder} !important;
+        border: 1px solid ${cleanSoftHairline} !important;
         border-radius: 9999px !important;
         font-weight: 500 !important;
-        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25) !important;
+        box-shadow: none !important;
         margin: 1px 2px !important;
         transition: background-color 0.15s ease, border-color 0.15s ease !important;
       }
@@ -4100,7 +4513,7 @@
       .surface-composer > :not(.surface-composer-card) [data-testid="input-box-bottom-toolbar"] button:hover,
       .surface-composer > :not(.surface-composer-card) [data-testid="input-box-bottom-toolbar"] [role="button"]:hover {
         background: ${pillHoverBg} !important;
-        border-color: ${mainTheme.borderColor} !important;
+        border-color: ${cleanComposerFocusBorder} !important;
         color: ${pillText} !important;
       }
       .surface-composer [data-testid="project-selector-trigger"] *,
@@ -4265,6 +4678,10 @@
       @keyframes agyShimmerSweep {
         0% { background-position: -180% 0; }
         100% { background-position: 180% 0; }
+      }
+      @keyframes agyScrollFlow {
+        0%, 100% { background-position: 50% 0%; }
+        50% { background-position: 50% 100%; }
       }
       @keyframes agyScrollRipple {
         0% { box-shadow: 0 0 0 0 var(--scroll-glow, rgba(56, 189, 248, 0.45)); }
@@ -4710,6 +5127,127 @@
       .agy-shell.agy-pet-chat-docked .surface-composer[data-agy-composer-host="1"]::after {
         display: none !important;
       }
+      /* Full-Width Workspace Unlock */
+      .agy-shell [data-testid="conversation-view"] .mx-auto.w-full {
+        max-width: min(1240px, calc(100% - 24px)) !important;
+        transition: max-width 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important;
+      }
+      .agy-shell:is([data-agy-left-collapsed="1"], [data-agy-right-collapsed="1"]) [data-testid="conversation-view"] .mx-auto.w-full {
+        max-width: calc(100% - 20px) !important;
+      }
+      /* Smooth Collapsible Columns & Top Menu Bar (zero wasted parent space when collapsed) */
+      .agy-shell [data-agy-left-col="1"],
+      .agy-shell [data-agy-right-col="1"] {
+        transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1), min-width 0.28s cubic-bezier(0.22, 1, 0.36, 1), max-width 0.28s cubic-bezier(0.22, 1, 0.36, 1), flex-basis 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease, transform 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important;
+      }
+      .agy-shell [data-agy-top-menubar="1"] {
+        transition: height 0.26s cubic-bezier(0.22, 1, 0.36, 1), min-height 0.26s cubic-bezier(0.22, 1, 0.36, 1), max-height 0.26s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease, transform 0.26s cubic-bezier(0.22, 1, 0.36, 1) !important;
+      }
+      .agy-shell [data-agy-left-col="1"] + [data-split-sash="true"] {
+        transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease !important;
+      }
+      .agy-shell [data-main-content-header] {
+        box-sizing: border-box !important;
+        transition: padding-left 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important;
+      }
+      .agy-shell[data-agy-left-collapsed="1"] [data-main-content-header] {
+        padding-left: var(--agy-topleft-pad, 178px) !important;
+      }
+      .agy-shell[data-agy-left-collapsed="1"] [data-agy-left-col="1"] {
+        width: 0px !important;
+        min-width: 0px !important;
+        max-width: 0px !important;
+        flex: 0 0 0px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        opacity: 0 !important;
+        transform: translateX(-12px) !important;
+        pointer-events: none !important;
+        overflow: hidden !important;
+      }
+      .agy-shell[data-agy-left-collapsed="1"] [data-agy-left-col="1"] + [data-split-sash="true"] {
+        width: 0px !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+      .agy-shell[data-agy-right-collapsed="1"] [data-agy-right-col="1"] {
+        width: 0px !important;
+        min-width: 0px !important;
+        max-width: 0px !important;
+        flex: 0 0 0px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        opacity: 0 !important;
+        transform: translateX(12px) !important;
+        pointer-events: none !important;
+        overflow: hidden !important;
+      }
+      .agy-shell[data-agy-right-collapsed="1"] [data-testid="aux-pane-split"] > [data-split-sash="true"] {
+        width: 0px !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+      .agy-shell[data-agy-topbar-collapsed="1"] [data-agy-top-menubar="1"] {
+        height: 0px !important;
+        min-height: 0px !important;
+        max-height: 0px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        opacity: 0 !important;
+        transform: translateY(-10px) !important;
+        pointer-events: none !important;
+        overflow: hidden !important;
+      }
+      .agy-collapse-edge-btn {
+        position: fixed;
+        z-index: 9510;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--agy-btn-surface, rgba(12, 16, 26, 0.82));
+        border: 1px solid var(--agy-btn-border, rgba(255, 255, 255, 0.09));
+        color: var(--agy-btn-ink, #e2e8f0);
+        border-radius: 9999px;
+        cursor: pointer;
+        user-select: none;
+        -webkit-app-region: no-drag;
+        backdrop-filter: none !important;
+        opacity: 0.72;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+        transition: left 0.28s cubic-bezier(0.22, 1, 0.36, 1), right 0.28s cubic-bezier(0.22, 1, 0.36, 1), top 0.26s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+      }
+      .agy-collapse-edge-btn:hover {
+        opacity: 1;
+        color: var(--agy-btn-accent, #38bdf8);
+        border-color: var(--agy-btn-accent, #38bdf8);
+      }
+      .agy-collapse-edge-btn svg {
+        transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .agy-collapse-edge-btn[data-collapsed="true"] svg {
+        transform: rotate(180deg);
+      }
+      #agy-collapse-left-btn,
+      #agy-collapse-right-btn {
+        top: 50%;
+        width: 18px;
+        height: 38px;
+        transform: translateY(-50%);
+      }
+      #agy-collapse-left-btn:active,
+      #agy-collapse-right-btn:active {
+        transform: translateY(-50%) scale(0.94);
+      }
+      #agy-collapse-topbar-btn {
+        left: 50%;
+        width: 40px;
+        height: 15px;
+        transform: translateX(-50%);
+      }
+      #agy-collapse-topbar-btn:active {
+        transform: translateX(-50%) scale(0.94);
+      }
       .agy-shell [data-agy-greeting] {
         font-size: 0 !important;
         line-height: 0 !important;
@@ -4761,6 +5299,7 @@
     syncEmptyGreeting(st);
     syncComposerHost(st);
     syncCustomBrandLogo(st);
+    syncLayoutCollapsers(st);
     syncScrollControls(st);
     syncTitleBarOverlay(st);
     scheduleTitleBarSync(st);
@@ -4826,6 +5365,28 @@
     if (watermark) watermark.remove();
     const scrollCtrl = document.getElementById('agy-scroll-controls');
     if (scrollCtrl) scrollCtrl.remove();
+    ['agy-collapse-left-btn', 'agy-collapse-right-btn', 'agy-collapse-topbar-btn'].forEach((id) => {
+      const btn = document.getElementById(id);
+      if (btn) btn.remove();
+    });
+    document.querySelectorAll('[data-agy-orig-brand]').forEach((el) => {
+      if (el.dataset.agyOrigBrand && el.children.length === 0) {
+        el.textContent = el.dataset.agyOrigBrand;
+      }
+      delete el.dataset.agyOrigBrand;
+    });
+    document.querySelectorAll('[data-agy-orig-brand-title]').forEach((el) => {
+      if (el.dataset.agyOrigBrandTitle) el.setAttribute('title', el.dataset.agyOrigBrandTitle);
+      delete el.dataset.agyOrigBrandTitle;
+    });
+    document.querySelectorAll('[data-agy-orig-brand-aria]').forEach((el) => {
+      if (el.dataset.agyOrigBrandAria) el.setAttribute('aria-label', el.dataset.agyOrigBrandAria);
+      delete el.dataset.agyOrigBrandAria;
+    });
+    if (window.__AGY_LAST_BRAND_TITLE__ && String(document.title || '').endsWith(` - ${window.__AGY_LAST_BRAND_TITLE__}`)) {
+      document.title = document.title.slice(0, document.title.length - window.__AGY_LAST_BRAND_TITLE__.length) + 'Antigravity';
+      window.__AGY_LAST_BRAND_TITLE__ = '';
+    }
     dismissThemeIntro();
     teardownBootOverlay();
     clearRevealRaf();
@@ -4842,12 +5403,20 @@
     document.querySelectorAll('[data-agy-composer-host]').forEach((el) => {
       el.removeAttribute('data-agy-composer-host');
     });
+    document.querySelectorAll('[data-agy-left-col], [data-agy-right-col], [data-agy-top-menubar]').forEach((el) => {
+      el.removeAttribute('data-agy-left-col');
+      el.removeAttribute('data-agy-right-col');
+      el.removeAttribute('data-agy-top-menubar');
+    });
     const shell = document.querySelector('.agy-shell');
     if (shell) {
       shell.classList.remove('agy-pet-chat-docked');
       delete shell.dataset.agyHoleActive;
       delete shell.dataset.agyPetChatOpen;
       delete shell.dataset.agyAgentRunning;
+      delete shell.dataset.agyLeftCollapsed;
+      delete shell.dataset.agyRightCollapsed;
+      delete shell.dataset.agyTopbarCollapsed;
       shell.style.removeProperty('--agy-hole-clip');
       shell.style.removeProperty('--agy-l-glass-bg');
       shell.style.removeProperty('--agy-pet-comp-left');
@@ -6792,6 +7361,8 @@
     if (raw.petMeta && typeof raw.petMeta === 'object') t.petMeta = raw.petMeta;
     if (raw.dynamicPack && typeof raw.dynamicPack === 'object') t.dynamicPack = raw.dynamicPack;
     if (raw.workIdentity && typeof raw.workIdentity === 'object') t.workIdentity = raw.workIdentity;
+    if (typeof raw.brandLogoUrl === 'string' && raw.brandLogoUrl.trim()) t.brandLogoUrl = raw.brandLogoUrl.trim();
+    if (typeof raw.brandTitle === 'string' && raw.brandTitle.trim()) t.brandTitle = raw.brandTitle.trim().slice(0, 80);
     t.isAiDesigned = true;
     return enforceReadableTheme(t, pal);
   }
@@ -7416,6 +7987,7 @@
     syncEmptyGreeting();
     syncComposerHost();
     syncCustomBrandLogo();
+    syncLayoutCollapsers();
     syncScrollControls();
     syncTaskCompletionVoice();
     syncTelemetryState();

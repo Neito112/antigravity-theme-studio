@@ -23,6 +23,7 @@ const CELL_W = 192;
 const CELL_H = 208;
 const ATLAS_W = ATLAS_COLS * CELL_W; // 1536
 const ATLAS_H = ATLAS_ROWS * CELL_H; // 2288
+const LOGO_SIZE = 256;
 
 function slugifyPetName(name) {
     const base = String(name || 'companion')
@@ -33,8 +34,19 @@ function slugifyPetName(name) {
     return base || 'companion';
 }
 
+function resolveSourceImagePath(rawPath) {
+    if (typeof rawPath !== 'string' || !rawPath.trim()) return '';
+    try {
+        const resolved = path.resolve(rawPath.trim());
+        if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
+            return resolved;
+        }
+    } catch (_) {}
+    return '';
+}
+
 function findPython() {
-    for (const cmd of process.platform === 'win32' ? ['python', 'python3'] : ['python3', 'python']) {
+    for (const cmd of process.platform === 'win32' ? ['python', 'py', 'python3'] : ['python3', 'python']) {
         const res = spawnSync(cmd, ['-c', 'import PIL; print(1)'], { windowsHide: true, encoding: 'utf8' });
         if (res.status === 0 && String(res.stdout).trim() === '1') return cmd;
     }
@@ -226,55 +238,162 @@ function buildFallbackResult(petDirective, reason) {
     };
 }
 
+function buildBrandLogoPrompt(workIdentity, petDirective, rawLogoPath, sourceImagePath = '') {
+    const wi = workIdentity && typeof workIdentity === 'object' ? workIdentity : {};
+    const pd = petDirective && typeof petDirective === 'object' ? petDirective : {};
+    const brandTitle = wi.brandTitle || wi.franchise || pd.petName || 'Custom Studio';
+    const subject = wi.characterName || pd.sourceObject || pd.personifiedConcept || brandTitle;
+    const palette = Array.isArray(pd.palette) && pd.palette.length
+        ? pd.palette.join(', ')
+        : (wi.secondary ? `${wi.secondary}, #f8fafc, #0f172a` : '#7dd3fc, #f472b6, #0f172a');
+    const hasChar = Boolean(pd.hasCharacter);
+
+    const sourceInstructions = sourceImagePath ? [
+        `SOURCE INPUT IMAGE ON DISK: "${sourceImagePath}"`,
+        `1. Inspect "${sourceImagePath}" using \`read_file\` if needed, AND pass the exact reference image path "${sourceImagePath}" directly in your prompt to \`image-generator\` so the subagent looks directly at the original artwork.`,
+        hasChar
+            ? `2. CHARACTER / CREATURE EMBLEM MODE: Extract the unmistakable silhouette, head/crest, horns/dorsal fins, headgear, or signature insignia of "${subject}" directly from "${sourceImagePath}" (for example: roaring Kaiju head & jagged dorsal fins, character's signature crest/hairpin/hat, or iconic mecha visor).`
+            : `2. OBJECT / SCENE EMBLEM MODE: Extract the iconic central subject ("${subject}") directly from "${sourceImagePath}" and stylize it into a bold, recognizable emblem/logo mark faithful to its silhouette, materials, and colors.`,
+        ''
+    ] : [];
+
+    return [
+        `You are a senior game/app brand emblem designer. Call \`invoke_subagent\` with \`TypeName: "image-generator"\` and \`Role: "Brand Emblem & Icon Artist"\` to generate a single crisp 512x512 square brand logo/emblem PNG saved to "${rawLogoPath}".`,
+        'Do not run shell commands (`run_command`), do not edit workspace source files.',
+        '',
+        ...sourceInstructions,
+        'STRICT BRAND LOGO / EMBLEM SPECIFICATION (512x512 square, centered icon, replaces the default Antigravity app logo):',
+        `- Brand / Theme: "${brandTitle}" — Subject motif: ${subject}.`,
+        `- Visual style: ultra-crisp, iconic vector-grade crest / stylized emblem with bold clean silhouette, sharp edges, rich focal detail, readable both at 24x24 topbar icon size and 128x128 boot splash size. Palette: ${palette}.`,
+        '- Background: SOLID FLAT CHROMA-KEY BRIGHT GREEN (#00FF00) edge-to-edge with NO gradients, NO drop shadows on the background, NO floor shadow, NO checkerboard, NO outer frame or box.',
+        '- Leave ~10% clean solid #00FF00 breathing margin around the emblem so nothing clips at the borders.',
+        '- STRICTLY FORBIDDEN: NO text, NO letters, NO words, NO "Antigravity" branding, NO generic unrelated star/circle/triangle placeholder, NO busy scenic background.',
+        '',
+        `Return ONLY JSON: {"generatedLogoPath": "${rawLogoPath}"}`
+    ].join('\n');
+}
+
 /**
- * Generates an 8x11 pet spritesheet for `petDirective` and saves it to
- * `themes/user_media/pet_<slug>.webp`. Never rejects — falls back cleanly to
- * `assets/pets/rocky.webp` if generation or validation fails.
- *
- * @param {object} petDirective
- * @param {{timeoutMs?: number, log?: Function, slugHint?: string, sourceImagePath?: string}} opts
- * @returns {Promise<{petSpriteUrl: string, petId: string, petMeta: object}>}
+ * Uses Python Pillow to chroma-key #00FF00 (if opaque), suppress green edge spill,
+ * auto-trim visible alpha bounds, center in a square canvas with 8% padding,
+ * and resize with LANCZOS to crisp 256x256 transparent WebP.
  */
-function generatePetSprite(petDirective, opts = {}) {
-    const log = opts.log || (() => {});
-    const timeoutMs = opts.timeoutMs || 180000;
-    const d = petDirective && typeof petDirective === 'object' ? petDirective : {};
-
-    if (process.env.AGY_DISABLE_PET_GEN === '1') {
-        return Promise.resolve(buildFallbackResult(d, 'disabled-by-env'));
-    }
-
+function processAndValidateLogo(inputPath, outWebpPath) {
     const py = findPython();
-    if (!py) {
-        log('Pet generator: Python Pillow unavailable, using fallback rocky.webp');
-        return Promise.resolve(buildFallbackResult(d, 'python-pil-missing'));
-    }
+    if (!py) return { ok: false, reason: 'python-pil-missing' };
 
-    let sourceImagePath = '';
-    if (typeof opts.sourceImagePath === 'string' && opts.sourceImagePath.trim()) {
-        try {
-            const resolved = path.resolve(opts.sourceImagePath.trim());
-            if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
-                sourceImagePath = resolved;
-            }
-        } catch (_) {}
-    }
+    const script = [
+        'import json, math, sys',
+        'from PIL import Image, ImageFilter',
+        'in_path, out_path = sys.argv[1], sys.argv[2]',
+        `TARGET = ${LOGO_SIZE}`,
+        'im = Image.open(in_path).convert("RGBA")',
+        'if max(im.size) > 1024:',
+        '    resample_down = getattr(getattr(Image, "Resampling", Image), "LANCZOS", Image.LANCZOS)',
+        '    im.thumbnail((1024, 1024), resample_down)',
+        'w, h = im.size',
+        'px = list(im.getdata())',
+        'alpha_hist = im.getchannel("A").histogram()',
+        'has_transparency = sum(alpha_hist[:250]) > (w * h * 0.12)',
+        'if not has_transparency:',
+        '    corners = [px[0], px[w - 1], px[(h - 1) * w], px[-1]]',
+        '    kr = sum(c[0] for c in corners) / 4.0',
+        '    kg = sum(c[1] for c in corners) / 4.0',
+        '    kb = sum(c[2] for c in corners) / 4.0',
+        '    cleaned = []',
+        '    for r, g, b, a in px:',
+        '        dist = math.sqrt((r - kr) ** 2 + (g - kg) ** 2 + (b - kb) ** 2)',
+        '        if dist < 54.0:',
+        '            cleaned.append((0, 0, 0, 0))',
+        '        elif dist < 90.0:',
+        '            t = (dist - 54.0) / 36.0',
+        '            na = int(round(a * t))',
+        '            ng = min(g, max(r, b) + 12) if kg > max(kr, kb) + 40 else g',
+        '            cleaned.append((r, ng, b, na))',
+        '        else:',
+        '            cleaned.append((r, g, b, a))',
+        '    im.putdata(cleaned)',
+        'else:',
+        '    cleaned = [(0, 0, 0, 0) if a == 0 else (r, g, b, a) for (r, g, b, a) in px]',
+        '    im.putdata(cleaned)',
+        '',
+        'alpha = im.getchannel("A")',
+        'visible = [v > 0 for v in alpha.getdata()]',
+        'trans = Image.new("L", im.size)',
+        'trans.putdata([0 if v else 255 for v in visible])',
+        'expanded = trans.filter(ImageFilter.MaxFilter(5))',
+        'rgba = list(im.getdata())',
+        'despilled = []',
+        'for (r, g, b, a), vis, near in zip(rgba, visible, expanded.getdata()):',
+        '    if vis and near > 0 and g > max(r, b) + 18:',
+        '        g = max(r, b) + 8',
+        '    despilled.append((r, g, b, a))',
+        'im.putdata(despilled)',
+        '',
+        'alpha_after = im.getchannel("A")',
+        'alpha_total = sum(alpha_after.histogram()[16:])',
+        'transparent_total = sum(alpha_after.histogram()[:16])',
+        'bbox = alpha_after.getbbox()',
+        'if not bbox or alpha_total < 250 or transparent_total < (w * h * 0.08):',
+        '    print(json.dumps({"ok": False, "reason": f"invalid-logo(alpha={alpha_total},trans={transparent_total})"}))',
+        '    sys.exit(0)',
+        '',
+        'trimmed = im.crop(bbox)',
+        'tw, th = trimmed.size',
+        'side = max(tw, th)',
+        'pad = max(8, int(round(side * 0.08)))',
+        'canvas_side = side + pad * 2',
+        'square = Image.new("RGBA", (canvas_side, canvas_side), (0, 0, 0, 0))',
+        'square.paste(trimmed, ((canvas_side - tw) // 2, (canvas_side - th) // 2), trimmed)',
+        'resample = getattr(getattr(Image, "Resampling", Image), "LANCZOS", Image.LANCZOS)',
+        'out_im = square.resize((TARGET, TARGET), resample)',
+        'out_im.save(out_path, format="WEBP", lossless=True, quality=92)',
+        'print(json.dumps({"ok": True, "width": TARGET, "height": TARGET, "trimmed": [tw, th]}))'
+    ].join('\n');
 
-    const slug = slugifyPetName(opts.slugHint || d.petName || 'companion');
-    const uniqueSlug = `${slug}-${Date.now().toString(36).slice(-4)}`;
-    const jobDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-pet-'));
-    const rawSheetPath = path.join(jobDir, 'raw_sheet.png');
+    const res = spawnSync(py, ['-c', script, inputPath, outWebpPath], {
+        windowsHide: true,
+        encoding: 'utf8',
+        timeout: 45000
+    });
+    if (res.status !== 0) {
+        return { ok: false, reason: String(res.stderr || res.stdout || 'pillow-error').trim().slice(0, 180) };
+    }
+    try {
+        const parsed = JSON.parse(String(res.stdout || '').trim().split(/\r?\n/).pop() || '{}');
+        return parsed && typeof parsed === 'object' ? parsed : { ok: false, reason: 'bad-logo-validator-json' };
+    } catch (err) {
+        return { ok: false, reason: err.message };
+    }
+}
+
+function buildLogoFallbackResult(workIdentity, reason) {
+    const wi = workIdentity && typeof workIdentity === 'object' ? workIdentity : {};
+    return {
+        brandLogoUrl: '',
+        logoId: '',
+        logoMeta: {
+            brandTitle: wi.brandTitle || wi.franchise || '',
+            franchise: wi.franchise || '',
+            fallback: true,
+            fallbackReason: reason || 'unavailable'
+        }
+    };
+}
+
+/**
+ * Shared runner for agy -p + image-generator jobs (pet spritesheets and brand logos).
+ * Resolves `{ ok: true, candidatePath, cleanup }` or `{ ok: false, reason }`.
+ */
+function runAgyImageJob({ prefix, schemaObj, outputKey, prompt, rawOutPath, sourceImagePath, timeoutMs }) {
+    const jobDir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
     const schemaFile = path.join(jobDir, 'schema.json');
     const cleanup = () => { try { fs.rmSync(jobDir, { recursive: true, force: true }); } catch (_) {} };
+    const absRawOut = path.isAbsolute(rawOutPath) ? rawOutPath : path.join(jobDir, rawOutPath);
 
-    fs.writeFileSync(schemaFile, JSON.stringify({
-        type: 'object',
-        properties: { generatedSheetPath: { type: 'string' } },
-        required: ['generatedSheetPath']
-    }));
+    fs.writeFileSync(schemaFile, JSON.stringify(schemaObj));
 
-    const prompt = buildPetSpritePrompt(d, rawSheetPath, sourceImagePath);
-    const args = ['-p', prompt, '--mode', 'accept-edits', '--output-format', 'json', '--json-schema', schemaFile, '--disable-slash-commands', '--add-dir', jobDir];
+    const args = ['-p', prompt(absRawOut), '--mode', 'accept-edits', '--output-format', 'json', '--json-schema', schemaFile, '--disable-slash-commands', '--add-dir', jobDir];
     if (sourceImagePath) {
         const sourceDir = path.dirname(sourceImagePath);
         if (path.resolve(sourceDir) !== path.resolve(jobDir)) {
@@ -286,20 +405,19 @@ function generatePetSprite(petDirective, opts = {}) {
 
     return new Promise((resolve) => {
         let settled = false;
-        const finishFallback = (reason) => {
+        const finishErr = (reason) => {
             if (settled) return;
             settled = true;
             clearTimeout(timer);
             cleanup();
-            log(`Pet generator fallback (${reason}) -> ${FALLBACK_SPRITE_URL}`);
-            resolve(buildFallbackResult(d, reason));
+            resolve({ ok: false, reason });
         };
 
         let child;
         try {
             child = spawn(bin, args, { cwd: jobDir, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
         } catch (err) {
-            finishFallback(`spawn-error: ${err.message}`);
+            finishErr(`spawn-error: ${err.message}`);
             return;
         }
 
@@ -307,19 +425,19 @@ function generatePetSprite(petDirective, opts = {}) {
         child.stdout.on('data', (chunk) => { out += chunk; });
         const timer = setTimeout(() => {
             try { child.kill(); } catch (_) {}
-            finishFallback('timeout');
+            finishErr('timeout');
         }, timeoutMs);
 
-        child.on('error', (err) => finishFallback(`agy-error: ${err.message}`));
+        child.on('error', (err) => finishErr(`agy-error: ${err.message}`));
         child.on('close', (code) => {
             if (settled) return;
             clearTimeout(timer);
             try {
                 let env;
                 try { env = JSON.parse(out.trim().split(/\r?\n/).filter(Boolean).pop()); } catch (_) {}
-                let candidatePath = rawSheetPath;
-                if (env && env.structured_output && typeof env.structured_output.generatedSheetPath === 'string') {
-                    const p = env.structured_output.generatedSheetPath.trim();
+                let candidatePath = absRawOut;
+                if (env && env.structured_output && typeof env.structured_output[outputKey] === 'string') {
+                    const p = env.structured_output[outputKey].trim();
                     if (p && fs.existsSync(p)) candidatePath = p;
                 }
                 if (!fs.existsSync(candidatePath)) {
@@ -327,54 +445,194 @@ function generatePetSprite(petDirective, opts = {}) {
                     if (files.length) candidatePath = path.join(jobDir, files[0]);
                 }
                 if (!fs.existsSync(candidatePath)) {
-                    finishFallback(`no-sheet-generated(exit=${code})`);
+                    finishErr(`no-image-generated(exit=${code})`);
                     return;
                 }
-
-                fs.mkdirSync(USER_MEDIA_DIR, { recursive: true });
-                const outFilename = `pet_${uniqueSlug}.webp`;
-                const outWebpPath = path.join(USER_MEDIA_DIR, outFilename);
-                const val = processAndValidateAtlas(candidatePath, outWebpPath);
-                if (!val.ok || !fs.existsSync(outWebpPath)) {
-                    try { if (fs.existsSync(outWebpPath)) fs.unlinkSync(outWebpPath); } catch (_) {}
-                    finishFallback(val.reason || 'atlas-validation-failed');
-                    return;
-                }
-
                 settled = true;
-                cleanup();
-                log(`Pet spritesheet generated: ${outFilename} (${val.rows}x8 grid, ${val.cells} cells)`);
-                resolve({
-                    petSpriteUrl: `user_media/${outFilename}`,
-                    petId: uniqueSlug,
-                    petMeta: {
-                        petName: d.petName || 'Companion',
-                        hasCharacter: Boolean(d.hasCharacter),
-                        sourceObject: d.sourceObject || '',
-                        personifiedConcept: d.personifiedConcept || '',
-                        style: d.style || 'pixel',
-                        palette: Array.isArray(d.palette) ? d.palette : [],
-                        idleMood: d.idleMood || 'calm-focus',
-                        prop: d.prop || '',
-                        signatureAction: d.signatureAction || 'wave',
-                        animationMood: d.animationMood || d.idleMood || 'calm-focus',
-                        sourceImageUsed: Boolean(sourceImagePath),
-                        spriteVersionNumber: 2,
-                        fallback: false
-                    }
-                });
+                resolve({ ok: true, candidatePath, cleanup });
             } catch (err) {
-                finishFallback(err.message || 'pet-gen-exception');
+                finishErr(err.message || 'agy-image-job-exception');
             }
         });
     });
 }
 
+/**
+ * Generates an 8x11 pet spritesheet for `petDirective` and saves it to
+ * `themes/user_media/pet_<slug>.webp`. Never rejects — falls back cleanly to
+ * `assets/pets/rocky.webp` if generation or validation fails.
+ *
+ * @param {object} petDirective
+ * @param {{timeoutMs?: number, log?: Function, slugHint?: string, sourceImagePath?: string}} opts
+ * @returns {Promise<{petSpriteUrl: string, petId: string, petMeta: object}>}
+ */
+async function generatePetSprite(petDirective, opts = {}) {
+    const log = opts.log || (() => {});
+    const timeoutMs = opts.timeoutMs || 180000;
+    const d = petDirective && typeof petDirective === 'object' ? petDirective : {};
+
+    if (process.env.AGY_DISABLE_PET_GEN === '1') {
+        return buildFallbackResult(d, 'disabled-by-env');
+    }
+    if (!findPython()) {
+        log('Pet generator: Python Pillow unavailable, using fallback rocky.webp');
+        return buildFallbackResult(d, 'python-pil-missing');
+    }
+
+    const sourceImagePath = resolveSourceImagePath(opts.sourceImagePath);
+    const slug = slugifyPetName(opts.slugHint || d.petName || 'companion');
+    const uniqueSlug = `${slug}-${Date.now().toString(36).slice(-4)}`;
+
+    const job = await runAgyImageJob({
+        prefix: 'agy-pet-',
+        schemaObj: {
+            type: 'object',
+            properties: { generatedSheetPath: { type: 'string' } },
+            required: ['generatedSheetPath']
+        },
+        outputKey: 'generatedSheetPath',
+        rawOutPath: 'raw_sheet.png',
+        sourceImagePath,
+        timeoutMs,
+        prompt: (rawSheetPath) => buildPetSpritePrompt(d, rawSheetPath, sourceImagePath)
+    });
+
+    if (!job.ok) {
+        log(`Pet generator fallback (${job.reason}) -> ${FALLBACK_SPRITE_URL}`);
+        return buildFallbackResult(d, job.reason);
+    }
+
+    try {
+        fs.mkdirSync(USER_MEDIA_DIR, { recursive: true });
+        const outFilename = `pet_${uniqueSlug}.webp`;
+        const outWebpPath = path.join(USER_MEDIA_DIR, outFilename);
+        const val = processAndValidateAtlas(job.candidatePath, outWebpPath);
+        if (!val.ok || !fs.existsSync(outWebpPath)) {
+            try { if (fs.existsSync(outWebpPath)) fs.unlinkSync(outWebpPath); } catch (_) {}
+            const reason = val.reason || 'atlas-validation-failed';
+            log(`Pet generator fallback (${reason}) -> ${FALLBACK_SPRITE_URL}`);
+            return buildFallbackResult(d, reason);
+        }
+
+        log(`Pet spritesheet generated: ${outFilename} (${val.rows}x8 grid, ${val.cells} cells)`);
+        return {
+            petSpriteUrl: `user_media/${outFilename}`,
+            petId: uniqueSlug,
+            petMeta: {
+                petName: d.petName || 'Companion',
+                hasCharacter: Boolean(d.hasCharacter),
+                sourceObject: d.sourceObject || '',
+                personifiedConcept: d.personifiedConcept || '',
+                style: d.style || 'pixel',
+                palette: Array.isArray(d.palette) ? d.palette : [],
+                idleMood: d.idleMood || 'calm-focus',
+                prop: d.prop || '',
+                signatureAction: d.signatureAction || 'wave',
+                animationMood: d.animationMood || d.idleMood || 'calm-focus',
+                sourceImageUsed: Boolean(sourceImagePath),
+                spriteVersionNumber: 2,
+                fallback: false
+            }
+        };
+    } catch (err) {
+        const reason = err.message || 'pet-gen-exception';
+        log(`Pet generator fallback (${reason}) -> ${FALLBACK_SPRITE_URL}`);
+        return buildFallbackResult(d, reason);
+    } finally {
+        job.cleanup();
+    }
+}
+
+/**
+ * Generates a 256x256 transparent WebP brand logo/emblem derived directly from
+ * `opts.sourceImagePath` + `workIdentity` + `petDirective`, saved to
+ * `themes/user_media/logo_<slug>.webp`. Never rejects — returns `brandLogoUrl: ''` on failure.
+ *
+ * @param {object} workIdentity
+ * @param {object} petDirective
+ * @param {{timeoutMs?: number, log?: Function, slugHint?: string, sourceImagePath?: string}} opts
+ * @returns {Promise<{brandLogoUrl: string, logoId: string, logoMeta: object}>}
+ */
+async function generateBrandLogo(workIdentity, petDirective, opts = {}) {
+    const log = opts.log || (() => {});
+    const timeoutMs = opts.timeoutMs || 180000;
+    const wi = workIdentity && typeof workIdentity === 'object' ? workIdentity : {};
+    const pd = petDirective && typeof petDirective === 'object' ? petDirective : {};
+
+    if (process.env.AGY_DISABLE_LOGO_GEN === '1' || process.env.AGY_DISABLE_PET_GEN === '1') {
+        return buildLogoFallbackResult(wi, 'disabled-by-env');
+    }
+    if (!findPython()) {
+        log('Brand logo generator: Python Pillow unavailable, skipping custom logo');
+        return buildLogoFallbackResult(wi, 'python-pil-missing');
+    }
+
+    const sourceImagePath = resolveSourceImagePath(opts.sourceImagePath);
+    const slug = slugifyPetName(opts.slugHint || wi.brandTitle || wi.franchise || pd.petName || 'brand');
+    const uniqueSlug = `${slug}-${Date.now().toString(36).slice(-4)}`;
+
+    const job = await runAgyImageJob({
+        prefix: 'agy-logo-',
+        schemaObj: {
+            type: 'object',
+            properties: { generatedLogoPath: { type: 'string' } },
+            required: ['generatedLogoPath']
+        },
+        outputKey: 'generatedLogoPath',
+        rawOutPath: 'raw_logo.png',
+        sourceImagePath,
+        timeoutMs,
+        prompt: (rawLogoPath) => buildBrandLogoPrompt(wi, pd, rawLogoPath, sourceImagePath)
+    });
+
+    if (!job.ok) {
+        log(`Brand logo generator fallback (${job.reason}) -> ''`);
+        return buildLogoFallbackResult(wi, job.reason);
+    }
+
+    try {
+        fs.mkdirSync(USER_MEDIA_DIR, { recursive: true });
+        const outFilename = `logo_${uniqueSlug}.webp`;
+        const outWebpPath = path.join(USER_MEDIA_DIR, outFilename);
+        const val = processAndValidateLogo(job.candidatePath, outWebpPath);
+        if (!val.ok || !fs.existsSync(outWebpPath)) {
+            try { if (fs.existsSync(outWebpPath)) fs.unlinkSync(outWebpPath); } catch (_) {}
+            const reason = val.reason || 'logo-validation-failed';
+            log(`Brand logo generator fallback (${reason}) -> ''`);
+            return buildLogoFallbackResult(wi, reason);
+        }
+
+        log(`Brand logo generated: ${outFilename} (${val.width}x${val.height})`);
+        return {
+            brandLogoUrl: `user_media/${outFilename}`,
+            logoId: uniqueSlug,
+            logoMeta: {
+                brandTitle: wi.brandTitle || wi.franchise || '',
+                franchise: wi.franchise || '',
+                sourceImageUsed: Boolean(sourceImagePath),
+                width: val.width || LOGO_SIZE,
+                height: val.height || LOGO_SIZE,
+                fallback: false
+            }
+        };
+    } catch (err) {
+        const reason = err.message || 'logo-gen-exception';
+        log(`Brand logo generator fallback (${reason}) -> ''`);
+        return buildLogoFallbackResult(wi, reason);
+    } finally {
+        job.cleanup();
+    }
+}
+
 module.exports = {
     generatePetSprite,
+    generateBrandLogo,
     buildPetSpritePrompt,
+    buildBrandLogoPrompt,
     processAndValidateAtlas,
+    processAndValidateLogo,
     buildFallbackResult,
+    buildLogoFallbackResult,
     slugifyPetName,
     USER_MEDIA_DIR,
     FALLBACK_SPRITE_URL,
@@ -383,5 +641,6 @@ module.exports = {
     CELL_W,
     CELL_H,
     ATLAS_W,
-    ATLAS_H
+    ATLAS_H,
+    LOGO_SIZE
 };

@@ -113,37 +113,51 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
     const emblemParsed = emblemParsedInitial.inner ? emblemParsedInitial : sigilParsed;
     const hasCustomSigil = true;
 
-    const characterName = String(
+    const rawBrandLogo = ctx.brandLogoUrl || mainTheme.brandLogoUrl || workIdentity.brandLogoUrl || '';
+    const resolvedBrandLogo = rawBrandLogo ? resolveMediaUrl(rawBrandLogo) : '';
+    const brandLogoSrc = (resolvedBrandLogo && !/^\s*(?:javascript|vbscript|data:text\/html)/i.test(resolvedBrandLogo))
+      ? resolvedBrandLogo
+      : '';
+
+    const rawPrimaryTitle = String(
+      workIdentity.brandTitle
+      || mainTheme.brandTitle
+      || workIdentity.franchise
+      || mainTheme.name
+      || activeThemeName
+      || 'CUSTOM STUDIO'
+    ).trim();
+    const cleanBrandLabel = (s) => String(s || '').replace(/antigravity/gi, activeThemeName || 'CUSTOM STUDIO').trim();
+
+    const characterName = cleanBrandLabel(
       workIdentity.characterName
       || petMeta.petName
       || petDirective.petName
       || hudWidget.title
       || activeThemeName
       || 'COMPANION'
-    ).trim();
-    const franchise = String(
+    );
+    const franchise = cleanBrandLabel(
       workIdentity.franchise
-      || mainTheme.name
-      || activeThemeName
-      || 'CUSTOM STUDIO'
-    ).trim();
-    const bootTagline = String(
+      || rawPrimaryTitle
+    );
+    const bootTagline = cleanBrandLabel(
       workIdentity.bootTagline
       || workIdentity.tagline
       || mainTheme.concept
       || hudWidget.subtitle
       || pack.archetypeLabel
       || 'SYNTHESIZE INTELLIGENCE'
-    ).trim();
+    );
 
-    const brandTitle = franchise.toUpperCase();
+    const brandTitle = cleanBrandLabel(rawPrimaryTitle || franchise).toUpperCase();
     const brandSub = bootTagline.toUpperCase();
     const characterUpper = characterName.toUpperCase();
-    const statusBadge = String(workIdentity.badge || hudWidget.badge || 'SYNC').toUpperCase();
-    const statusCheck = String(hudWidget.statusText || workIdentity.focusLabel || 'PERMISSION AUTHORIZED').toUpperCase();
-    const operatorName = String(workIdentity.operator || characterName || 'SENSEI').toUpperCase();
+    const statusBadge = cleanBrandLabel(workIdentity.badge || hudWidget.badge || 'SYNC').toUpperCase();
+    const statusCheck = cleanBrandLabel(hudWidget.statusText || workIdentity.focusLabel || 'PERMISSION AUTHORIZED').toUpperCase();
+    const operatorName = cleanBrandLabel(workIdentity.operator || characterName || 'SENSEI').toUpperCase();
     const welcomeSubline = voiceWelcome
-      ? String(voiceWelcome).toUpperCase()
+      ? cleanBrandLabel(voiceWelcome).toUpperCase()
       : `CHÀO MỪNG ${operatorName} • ${brandTitle} READY`;
 
     const starfieldUrl = sanitizeCssUrl(resolveMediaUrl(BOOT_ASSETS.starfieldBg || 'assets/starfield-boot-bg.jpg'));
@@ -248,7 +262,7 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
       #agy-boot-overlay {
         position: fixed;
         inset: 0;
-        z-index: 2147483000;
+        z-index: 2147483050;
         background: #020307;
         --agy-font-vibe: ${fontVibeStack};
         --agy-boot-primary: ${primary};
@@ -351,7 +365,7 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
       #agy-flash-curtain {
         position: fixed;
         inset: 0;
-        z-index: 2147483001;
+        z-index: 2147483051;
         pointer-events: none;
         opacity: 0;
         background: radial-gradient(circle at 82% 85%, rgba(255,255,255,0.92) 0%, ${glow} 48%, rgba(8,12,20,0.65) 100%);
@@ -435,6 +449,11 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
         border: 1px solid ${primary}; background: rgba(6, 10, 18, 0.74);
         filter: drop-shadow(0 0 22px ${glow}) drop-shadow(0 0 10px ${secondaryGlow});
       }
+      #agy-boot-overlay .agy-splash-logo.has-brand-logo { padding: 8px; }
+      #agy-boot-overlay .agy-brand-logo-img {
+        width: 100%; height: 100%; object-fit: contain; display: block; border-radius: 10px;
+      }
+      #agy-boot-overlay .agy-boot-badge.is-brand-logo { padding: 4px; }
       #agy-boot-overlay .agy-splash-wordmark {
         font-family: var(--agy-font-vibe); font-size: 17px; font-weight: 700; letter-spacing: 0.34em;
         color: #ffffff; margin-bottom: 6px; opacity: 0; text-shadow: 0 0 16px ${glow};
@@ -684,7 +703,12 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
       <div class="agy-boot-stage-wrap">
         <div class="agy-boot-stage active" id="agy-stage-0">
           <div class="agy-splash-emblem-row">
-            <div class="agy-splash-logo" id="agy-splash-logo" aria-hidden="true">${renderSigilSvg(sigilParsed, 'agyBootSplashGrad')}</div>
+            <div class="agy-splash-logo${brandLogoSrc ? ' has-brand-logo' : ''}" id="agy-splash-logo" aria-hidden="true">${
+              brandLogoSrc
+                ? `<img class="agy-brand-logo-img" data-agy-fallback-grad="agyBootSplashGrad" src="${esc(brandLogoSrc)}" alt="${esc(brandTitle)}" />`
+                : renderSigilSvg(sigilParsed, 'agyBootSplashGrad')
+            }</div>
+            ${brandLogoSrc ? `<div class="agy-boot-badge is-sm is-sigil" aria-hidden="true">${renderSigilSvg(sigilParsed, 'agyBootSplashMiniGrad')}</div>` : ''}
             ${splashPortraitHtml}
           </div>
           <div class="agy-splash-wordmark">${esc(brandTitle)}</div>
@@ -774,7 +798,11 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
           <div class="agy-welcome-eyebrow" data-stagger="28">WELCOME TO</div>
           <div class="agy-welcome-solid-box agy-welcome-reveal" style="animation-delay:240ms">${esc(brandTitle)}</div>
           <div class="agy-welcome-flare-wrap agy-welcome-reveal" style="animation-delay:360ms">
-            <div class="agy-boot-badge is-lg is-sigil" aria-hidden="true">${renderSigilSvg(sigilParsed, 'agyBootWelcomeGrad')}</div>
+            ${brandLogoSrc
+              ? `<div class="agy-boot-badge is-lg is-brand-logo"><img class="agy-brand-logo-img" data-agy-fallback-grad="agyBootWelcomeGrad" src="${esc(brandLogoSrc)}" alt="${esc(brandTitle)}" /></div>`
+              : `<div class="agy-boot-badge is-lg is-sigil" aria-hidden="true">${renderSigilSvg(sigilParsed, 'agyBootWelcomeGrad')}</div>`
+            }
+            ${brandLogoSrc ? `<div class="agy-boot-badge is-sm is-sigil" aria-hidden="true">${renderSigilSvg(sigilParsed, 'agyBootWelcomeMiniGrad')}</div>` : ''}
             ${welcomePortraitHtml}
             ${miniPetChipHtml}
           </div>
@@ -798,6 +826,17 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
       </footer>
     `;
     document.body.appendChild(overlay);
+
+    overlay.querySelectorAll('.agy-brand-logo-img').forEach((imgEl) => {
+      imgEl.addEventListener('error', () => {
+        const host = imgEl.parentElement;
+        if (!host) return;
+        const gradId = imgEl.getAttribute('data-agy-fallback-grad') || 'agyBootFallbackGrad';
+        host.classList.remove('has-brand-logo', 'is-brand-logo');
+        host.classList.add('is-sigil');
+        host.innerHTML = renderSigilSvg(sigilParsed, gradId);
+      }, { once: true });
+    });
 
     const splashSheen = document.getElementById('agy-splash-sheen');
     const hudScanline = document.getElementById('agy-hud-scanline');

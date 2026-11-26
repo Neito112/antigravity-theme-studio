@@ -10,12 +10,12 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
-const { generatePetSprite, buildFallbackResult, FALLBACK_SPRITE_URL } = require('./pet_generator');
+const { generatePetSprite, generateBrandLogo, buildFallbackResult, buildLogoFallbackResult, FALLBACK_SPRITE_URL } = require('./pet_generator');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const THEMES_JSON = path.join(ROOT_DIR, 'themes', 'themes.json');
 const USER_MEDIA_DIR = path.join(ROOT_DIR, 'themes', 'user_media');
-const DEFAULT_SIGIL_SVG_INNER = '<path d="M12 2.5L14.8 9.2L21.5 12L14.8 14.8L12 21.5L9.2 14.8L2.5 12L9.2 9.2Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="none"/><path d="M12 6.5L16.5 12L12 17.5L7.5 12Z" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" fill="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="9.2" stroke="currentColor" stroke-width="1.1" stroke-dasharray="3 4" fill="none"/>';
+const DEFAULT_SIGIL_SVG_INNER = '<path d="M12 2.4L15.6 6.2L19.8 7.8L18.2 12L19.8 16.2L15.6 17.8L12 21.6L8.4 17.8L4.2 16.2L5.8 12L4.2 7.8L8.4 6.2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" fill="none"/><path d="M12 6.2L14.5 9.8L17.8 12L14.5 14.2L12 17.8L9.5 14.2L6.2 12L9.5 9.8Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="none"/><path d="M12 2.4V6.2M12 17.8V21.6M4.2 12H6.2M17.8 12H19.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" fill="none"/><polygon points="12,9.4 14.6,12 12,14.6 9.4,12" stroke="currentColor" stroke-width="1.2" fill="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="4.4" r="0.8" fill="currentColor" stroke="none"/>';
 
 const TARGET_W = 3840;
 const TARGET_H = 2160;
@@ -388,6 +388,7 @@ const PET_DIRECTIVE_SCHEMA = {
 const WORK_IDENTITY_SCHEMA = {
     type: 'object',
     properties: {
+        brandTitle: STR,
         franchise: STR,
         characterName: STR,
         operator: STR,
@@ -400,7 +401,7 @@ const WORK_IDENTITY_SCHEMA = {
         focusLabel: STR
     },
     required: [
-        'franchise', 'characterName', 'operator', 'bootTagline', 'secondary', 'sigilSvgInner'
+        'brandTitle', 'franchise', 'characterName', 'operator', 'bootTagline', 'secondary', 'sigilSvgInner'
     ]
 };
 
@@ -442,7 +443,7 @@ function buildSchema(needsAiPaint) {
 const SCHEMA = buildSchema(false);
 
 function findPython() {
-    for (const cmd of process.platform === 'win32' ? ['python', 'python3'] : ['python3', 'python']) {
+    for (const cmd of process.platform === 'win32' ? ['python', 'py', 'python3'] : ['python3', 'python']) {
         const res = spawnSync(cmd, ['-c', 'import PIL; print(1)'], { windowsHide: true, encoding: 'utf8' });
         if (res.status === 0 && String(res.stdout).trim() === '1') return cmd;
     }
@@ -546,6 +547,9 @@ function buildLocalTheme(pal) {
     theme.petSpriteUrl = petFb.petSpriteUrl;
     theme.petId = petFb.petId;
     theme.petMeta = petFb.petMeta;
+    const logoFb = buildLogoFallbackResult(theme.workIdentity, 'local-fallback');
+    theme.brandLogoUrl = logoFb.brandLogoUrl;
+    theme.brandLogoMeta = logoFb.logoMeta;
     return theme;
 }
 
@@ -642,13 +646,14 @@ function buildPrompt(absImagePath, { srcW, srcH, needsAiPaint }) {
         '  * `centerStage`: `{ cardStyle: "glass-card"|"editorial-sheet"|"hud-hairline", radiusPx: number (8..16), typographyVibe: "sans"|"mono"|"serif", contrastFloor: "wcag-aa-dark"|"wcag-aa-light" }`',
         '  * `rightColumn`: `{ panelMode: "unified-glass"|"clean-slate"|"split-accent", sashGlow: "subtle"|"crisp"|"none", tabIndicator: "underline"|"pill"|"dot" }`',
         '  * `motionRules`: `{ budget: "calm"|"atmospheric"|"kinetic", particleCount: number (0 for calm, 6..8 for atmospheric/kinetic), particleOpacity: [min, max] within [0.22, 0.42] }`',
-        '- Design `workIdentity` so the 1-click Boot Intro (`boot.js`) and IDE top-left brand emblem replace the default Antigravity logo with one bespoke identity derived from THIS image:',
-        '  * `franchise`: short evocative work/world/theme title matching the image (e.g. "SAO // AINCRAD", "STARLIGHT CONCERTO", "RAINY CAFE") — NEVER "ANTIGRAVITY".',
-        '  * `characterName`: main character name or personified object/subject title visible in the image (e.g. "Asuna", "Violinist", "Mocha Spirit").',
-        '  * `operator`: short operator callsign/role fitting the image (e.g. "SWORDSMAN", "MAESTRO", "BARISTA", "SENSEI").',
+        '- Design `workIdentity` so the 1-click Boot Intro (`boot.js`) and IDE-wide branding completely replace EVERY "Antigravity" title and logo with one bespoke identity derived from THIS image:',
+        '  * `brandTitle`: MANDATORY concise 1–3 word uppercase brand name derived from THIS image\'s IP, subject, or atmosphere (e.g. `"KAIJU CRIMSON"`, `"PHANTOM VOLTAGE"`, `"HYDRO COURT"`, `"STARLIGHT NEXUS"`). Replaces "Antigravity" across the titlebar, document title, modals, and Boot HUD — NEVER output `"ANTIGRAVITY"`.',
+        '  * `franchise`: evocative work/world/theme title matching the image (e.g. "SAO // AINCRAD", "KAIJU CRIMSON", "RAINY CAFE") — NEVER "ANTIGRAVITY".',
+        '  * `characterName`: main character name or personified object/subject title visible in the image (e.g. "Kaiju Titan", "Furina", "Mocha Spirit").',
+        '  * `operator`: short operator callsign/role fitting the image (e.g. "SWORDSMAN", "VANGUARD", "BARISTA", "SENSEI").',
         '  * `bootTagline`: concise evocative 4-10 word boot tagline for this artwork.',
         '  * `secondary`: valid CSS hex color harmonized with the theme\'s `secondary` accent.',
-        '  * `sigilSvgInner`: MANDATORY bespoke brand logo/emblem used in BOTH the Boot HUD (Splash, Morph stroke-trace + gradient fill, Welcome) AND the IDE top-left corner logo. Output 3 to 7 distinct, crisp, iconic vector primitives (`<path>`, `<circle>`, `<ellipse>`, `<rect>`, `<polygon>`, `<polyline>`, `<line>`, `<g>`) crafted specifically for `viewBox="0 0 24 24"` (coordinates padded within 2..22) depicting the signature crest, silhouette, or iconic motif of THIS image. STRICTLY FORBIDDEN: a single plain circle/square or generic placeholder! Use `stroke="currentColor"` `stroke-width="1.4"`–`"1.7"` `stroke-linecap="round"` `stroke-linejoin="round"` `fill="none"` (plus at most 1–2 small focal dots/gems with `fill="currentColor"` `stroke="none"`), NO `<svg>` wrapper, NO `<script>`, NO `<image>`, NO `<foreignObject>`, NO `<style>`, NO `on*` handlers, NO `javascript:` or external references.',
+        '  * `sigilSvgInner`: MANDATORY bespoke vector emblem/crest used in BOTH the Boot HUD (Splash, Morph stroke-trace + gradient fill, Welcome) AND the IDE top-left corner logo fallback. Output **6 to 12 distinct, detailed, crisp geometric primitives** (`<path>`, `<circle>`, `<ellipse>`, `<rect>`, `<polygon>`, `<polyline>`, `<line>`, `<g>`) crafted specifically for `viewBox="0 0 24 24"` (coordinates padded within 2..22) that **directly depict the recognizable shape/silhouette of the main object or character in THIS image** (e.g., roaring Kaiju head + jagged dorsal spines; character crown/hairpin/wings; Gengar horns + grin + lightning bolt; mecha visor + V-fin; espresso cup + rising steam). STRICTLY FORBIDDEN: generic 4-point star, plain circle, plain diamond/triangle, or unrelated filler! Use `stroke="currentColor"` `stroke-width="1.35"`–`"1.7"` `stroke-linecap="round"` `stroke-linejoin="round"` `fill="none"` (plus at most 1–2 small focal dots/eyes with `fill="currentColor"` `stroke="none"`), NO `<svg>` wrapper, NO `<script>`, NO `<image>`, NO `<foreignObject>`, NO `<style>`, NO `on*` handlers, NO `javascript:` or external references.',
         '- Design `petDirective` for the synchronized `Neito112/desktop-agent_pet` v2 8x11 companion:',
         '  * If the input image depicts a character or creature: set `hasCharacter: true`, `sourceObject: ""`, and write `spritePrompt` describing that character adapted into a crisp 8x11 pixel/chibi mascot atlas (silhouette, hair/ears/horns, outfit colors, signature prop).',
         '  * If the input image has NO character (scenery, cafe, mecha, architecture, abstract): set `hasCharacter: false`, identify 1 iconic main object (`sourceObject`, e.g. "steaming ceramic espresso cup"), personify it (`personifiedConcept`, e.g. "Tiny Cozy Latte Spirit with a whipped-cream beret and warm amber eyes"), and write `spritePrompt` describing that mascot in a crisp 8x11 pixel/chibi atlas.',
@@ -1040,7 +1045,16 @@ function normalizeWorkIdentity(theme) {
     const dpHud = (dpUi.hudWidget && typeof dpUi.hudWidget === 'object') ? dpUi.hudWidget : {};
     const pd = (theme && theme.petDirective && typeof theme.petDirective === 'object') ? theme.petDirective : {};
 
-    const franchise = str(raw.franchise, (theme && theme.name) || dp.archetypeLabel || 'CUSTOM STUDIO', 40);
+    const isAntigravityName = (s) => /^antigravity$/i.test(String(s || '').trim());
+    const rawFranchise = str(raw.franchise, '', 40);
+    const franchise = (!rawFranchise || isAntigravityName(rawFranchise))
+        ? ((theme && theme.name && !isAntigravityName(theme.name)) ? theme.name.trim().slice(0, 40) : (dp.archetypeLabel || 'CUSTOM STUDIO'))
+        : rawFranchise;
+    const rawBrandTitle = str(raw.brandTitle, '', 28);
+    const brandCandidate = (!rawBrandTitle || isAntigravityName(rawBrandTitle))
+        ? ((theme && theme.name && !isAntigravityName(theme.name)) ? theme.name.trim() : franchise)
+        : rawBrandTitle;
+    const brandTitle = brandCandidate.split(/\s+/).filter(Boolean).slice(0, 3).join(' ').slice(0, 28).toUpperCase() || 'CUSTOM STUDIO';
     const characterName = str(raw.characterName || raw.role, pd.petName || (theme && theme.name) || 'Companion', 40);
     const operator = str(raw.operator, 'SENSEI', 32);
     const bootTagline = str(raw.bootTagline || raw.tagline, dp.introSubtitle || (theme && theme.concept) || 'NEURAL INTERFACE SYNCED', 80);
@@ -1052,6 +1066,7 @@ function normalizeWorkIdentity(theme) {
     const sigilSvgInner = hasSigilShape ? cleanSigil : DEFAULT_SIGIL_SVG_INNER;
 
     return {
+        brandTitle,
         franchise,
         characterName,
         operator,
@@ -1059,7 +1074,7 @@ function normalizeWorkIdentity(theme) {
         secondary,
         sigilSvgInner,
         role: str(raw.role, characterName, 48),
-        badge: str(raw.badge, dpHud.badge || franchise, 28).toUpperCase(),
+        badge: str(raw.badge, dpHud.badge || brandTitle, 28).toUpperCase(),
         tagline: str(raw.tagline, bootTagline, 80),
         focusLabel: str(raw.focusLabel, dpHud.statusText || 'SYNC ACTIVE', 32).toUpperCase()
     };
@@ -1141,7 +1156,8 @@ function designTheme(dataUrl, opts = {}) {
                     wpMeta: { width: is4k ? TARGET_W : (srcW || TARGET_W), height: is4k ? TARGET_H : (srcH || TARGET_H), aiOutpainted: false, wallpaperUrl },
                     petSpriteUrl: theme.petSpriteUrl || FALLBACK_SPRITE_URL,
                     petId: theme.petId || 'rocky',
-                    petMeta: theme.petMeta || null
+                    petMeta: theme.petMeta || null,
+                    brandLogoUrl: theme.brandLogoUrl || ''
                 });
                 return true;
             } catch (fbErr) {
@@ -1183,22 +1199,27 @@ function designTheme(dataUrl, opts = {}) {
                 theme.workIdentity = normalizeWorkIdentity(theme);
                 const wallpaperUrl = persistWallpaperToUserMedia(outWebpPath, theme.name || theme.workIdentity.franchise);
 
-                let petRes;
-                try {
-                    petRes = await generatePetSprite(theme.petDirective, {
+                const [petRes, logoRes] = await Promise.all([
+                    generatePetSprite(theme.petDirective, {
                         log,
                         timeoutMs: opts.petTimeoutMs || 180000,
                         slugHint: theme.petDirective.petName || theme.name,
                         sourceImagePath: absImagePath
-                    });
-                } catch (petErr) {
-                    petRes = buildFallbackResult(theme.petDirective, petErr.message || 'pet-error');
-                }
+                    }).catch((petErr) => buildFallbackResult(theme.petDirective, petErr.message || 'pet-error')),
+                    generateBrandLogo(theme.workIdentity, theme.petDirective, {
+                        log,
+                        timeoutMs: opts.logoTimeoutMs || opts.petTimeoutMs || 180000,
+                        slugHint: theme.workIdentity.brandTitle || theme.name,
+                        sourceImagePath: absImagePath
+                    }).catch((logoErr) => buildLogoFallbackResult(theme.workIdentity, logoErr.message || 'logo-error'))
+                ]);
                 theme.petSpriteUrl = petRes.petSpriteUrl;
                 theme.petId = petRes.petId;
                 theme.petMeta = petRes.petMeta;
+                theme.brandLogoUrl = logoRes.brandLogoUrl || '';
+                theme.brandLogoMeta = logoRes.logoMeta || null;
 
-                log(`Theme designed in ${env.duration_seconds}s (4K 16:9, aiOutpainted=${needsAiPaint}, wp=${wallpaperUrl || 'inline'}, pet=${theme.petSpriteUrl})`);
+                log(`Theme designed in ${env.duration_seconds}s (4K 16:9, aiOutpainted=${needsAiPaint}, wp=${wallpaperUrl || 'inline'}, pet=${theme.petSpriteUrl}, logo=${theme.brandLogoUrl || 'sigil-fallback'})`);
                 settled = true;
                 resolve({
                     theme,
@@ -1207,7 +1228,8 @@ function designTheme(dataUrl, opts = {}) {
                     wpMeta: { width: TARGET_W, height: TARGET_H, aiOutpainted: needsAiPaint, wallpaperUrl },
                     petSpriteUrl: theme.petSpriteUrl,
                     petId: theme.petId,
-                    petMeta: theme.petMeta
+                    petMeta: theme.petMeta,
+                    brandLogoUrl: theme.brandLogoUrl
                 });
             } catch (procErr) {
                 localFallback(procErr.message || String(procErr));
