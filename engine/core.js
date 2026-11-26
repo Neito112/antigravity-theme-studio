@@ -3629,7 +3629,7 @@
         }
         .agy-shell .surface-composer:focus-within {
           background: ${st.inputStyle === 'double_gold' ? 'linear-gradient(135deg, #f59e0b, #fbbf24)' : (bubbleTheme.frameBg || hairline)} !important;
-          box-shadow: 0 8px 26px rgba(0, 0, 0, ${lightMode ? '0.12' : '0.38'}), 0 0 14px ${bubbleTheme.glow || 'transparent'} !important;
+          box-shadow: 0 6px 22px rgba(0, 0, 0, ${lightMode ? '0.10' : '0.32'}), 0 0 12px ${bubbleTheme.glow || 'transparent'} !important;
           animation: none !important;
         }
         .agy-shell .surface-composer-card {
@@ -4481,10 +4481,16 @@
       .agy-shell :is(input, textarea, [contenteditable="true"], [data-lexical-editor="true"]) {
         caret-color: ${pSync} !important;
       }
-      .agy-shell :focus-visible,
+      .agy-shell :focus-visible:not(.surface-composer):not(.surface-composer *),
       [data-base-ui-portal] :focus-visible {
         outline: 1.5px solid ${pSync} !important;
         outline-offset: 2px !important;
+      }
+      .agy-shell .surface-composer,
+      .agy-shell .surface-composer :is(*, :focus, :focus-visible, :focus-within) {
+        outline: none !important;
+        outline-width: 0 !important;
+        outline-offset: 0 !important;
       }
       .agy-shell [data-testid="overlay-scrollbar-thumb"] {
         background: linear-gradient(180deg, ${pSync}, ${sSync}, ${pSync}) !important;
@@ -4626,7 +4632,7 @@
       }
       .surface-composer:focus-within {
         background: ${st.inputStyle === 'double_gold' ? 'linear-gradient(135deg, #f59e0b, #fbbf24)' : (bubbleTheme.frameBg || cleanComposerBorder)} !important;
-        box-shadow: 0 8px 28px rgba(0, 0, 0, ${isLight ? '0.11' : '0.32'}), 0 0 14px ${bubbleTheme.glow || 'transparent'} !important;
+        box-shadow: 0 8px 26px rgba(0, 0, 0, ${isLight ? '0.09' : '0.28'}), 0 0 12px ${bubbleTheme.glow || 'transparent'} !important;
         animation: none !important;
       }
 
