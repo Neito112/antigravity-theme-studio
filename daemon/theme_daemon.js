@@ -861,7 +861,7 @@ async function handleMediaRequest(req, res) {
             sendJson(res, 403, { ok: false, error: 'Forbidden' });
             return;
         }
-        serveStaticFile(req, res, filePath, 'public, max-age=86400');
+        serveStaticFile(req, res, filePath, 'no-store, no-cache, must-revalidate');
         return;
     }
 
@@ -883,7 +883,7 @@ async function handleMediaRequest(req, res) {
             sendJson(res, 403, { ok: false, error: 'Forbidden' });
             return;
         }
-        serveStaticFile(req, res, filePath, 'public, max-age=86400');
+        serveStaticFile(req, res, filePath, 'no-store, no-cache, must-revalidate');
         return;
     }
 

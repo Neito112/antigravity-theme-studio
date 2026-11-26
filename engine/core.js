@@ -2217,7 +2217,7 @@
       }
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      const cw = Math.min(500, Math.max(260, vw - 24));
+      const cw = Math.min(680, Math.max(300, vw - 24));
       const petCenterX = x + PET_WIDTH_PX / 2;
       const left = Math.min(Math.max(12, Math.round(petCenterX - cw / 2)), Math.max(12, vw - cw - 12));
       const pillRect = pill.getBoundingClientRect();
@@ -2226,7 +2226,8 @@
         : (PET_HEIGHT_PX + 28);
       const pillBottom = y + pillHeightOffset;
       const compEl = getRealComposer();
-      const neededBelow = Math.max(175, (compEl && compEl.scrollHeight > 90 ? Math.min(240, compEl.scrollHeight + 14) : 175));
+      const wrapEl = compEl ? (compEl.closest('[data-agy-composer-wrap="1"]') || compEl) : null;
+      const neededBelow = Math.max(195, (wrapEl && wrapEl.scrollHeight > 95 ? Math.min(280, wrapEl.scrollHeight + 18) : 195));
       const top = Math.min(Math.max(8, Math.round(pillBottom + 8)), Math.max(8, vh - neededBelow));
 
       shell.dataset.agyPetChatOpen = '1';
@@ -3533,21 +3534,11 @@
         .agy-shell .agy-user-bubble-frame {
           margin-block: 6px !important;
           padding: 0 !important;
-          border-radius: ${csRadius}px !important;
-          background: ${cleanBubbleBg} !important;
-          border: 1px solid ${cleanBubbleBorder} !important;
-          box-shadow: ${glassRimShadow} !important;
-          ${transitionCss}
         }
+        .agy-shell .agy-user-bubble-frame::before,
         .agy-shell .agy-user-bubble-frame::after {
           display: none !important;
           content: none !important;
-        }
-        .agy-shell .agy-user-bubble {
-          background: transparent !important;
-          border: none !important;
-          box-shadow: none !important;
-          border-radius: ${csRadius}px !important;
         }
         .agy-shell .surface-composer {
           padding: 0 !important;
@@ -3560,8 +3551,8 @@
         }
         .agy-shell .surface-composer:focus-within {
           background: ${cleanComposerBg} !important;
-          border-color: ${cleanComposerFocusBorder} !important;
-          box-shadow: inset 0 1px 0 ${glassInnerSheen}, 0 0 0 1px ${cleanComposerFocusBorder}, 0 10px 28px rgba(0, 0, 0, ${lightMode ? '0.12' : '0.38'}) !important;
+          border-color: rgba(255, 255, 255, 0.28) !important;
+          box-shadow: inset 0 1px 0 ${glassInnerSheen}, 0 10px 28px rgba(0, 0, 0, ${lightMode ? '0.12' : '0.38'}) !important;
           animation: none !important;
         }
         .agy-shell .surface-composer-card {
@@ -4467,38 +4458,20 @@
         background: ${isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.06)'} !important;
       }
 
-      /* User Chat Bubble — Clean Smoked Glass without glowing outer frame or corner brackets */
+      /* Native Antigravity User Chat Bubble (zero glowing border or custom frame override) */
       .agy-user-bubble-frame {
-        background: ${cleanBubbleBg} !important;
-        border: 1px solid ${cleanBubbleBorder} !important;
-        border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
-        box-shadow: none !important;
         position: relative !important;
         overflow: visible !important;
         padding: 0 !important;
       }
 
+      .agy-user-bubble-frame::before,
       .agy-user-bubble-frame::after {
         display: none !important;
         content: none !important;
       }
 
-      .agy-user-bubble {
-        background: transparent !important;
-        border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
-        padding: 8px 15px !important;
-        color: ${isLight ? uiInk : (bubbleTheme.textColor || '#f8fafc')} !important;
-        border: none !important;
-        box-shadow: none !important;
-        overflow: visible !important;
-        font-weight: 450 !important;
-      }
-
-      .agy-user-bubble * {
-        color: ${isLight ? uiInk : (bubbleTheme.textColor || '#f8fafc')} !important;
-      }
-
-      /* Clean Smoked Input Composer — zero neon border or thick padding frame */
+      /* Clean Smoked Input Composer — zero bright colored border or thick padding frame */
       .surface-composer {
         background: ${cleanComposerBg} !important;
         border: 1px solid ${cleanComposerBorder} !important;
@@ -4509,7 +4482,7 @@
       }
       .surface-composer:focus-within {
         background: ${cleanComposerBg} !important;
-        border-color: ${cleanComposerFocusBorder} !important;
+        border-color: rgba(255, 255, 255, 0.28) !important;
         box-shadow: 0 8px 28px rgba(0, 0, 0, ${isLight ? '0.11' : '0.32'}) !important;
         animation: none !important;
       }
@@ -5178,7 +5151,7 @@
       body[data-has-browser-hole="true"] .agy-shell[data-agy-hole-active="1"] > #agy-live-bg-layer {
         clip-path: var(--agy-hole-clip, none) !important;
       }
-      .agy-shell.agy-pet-chat-docked [data-agy-composer-wrap="1"] {
+      .agy-shell.agy-pet-chat-docked:not([data-agy-pet-chat-open="1"]) [data-agy-composer-wrap="1"] {
         height: 0 !important;
         min-height: 0 !important;
         max-height: 0 !important;
@@ -5186,36 +5159,37 @@
         margin: 0 !important;
         border: 0 !important;
         flex: 0 0 0px !important;
-        overflow: visible !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        overflow: hidden !important;
       }
-      .agy-shell.agy-pet-chat-docked .surface-composer[data-agy-composer-host="1"] {
+      .agy-shell.agy-pet-chat-docked[data-agy-pet-chat-open="1"] [data-agy-composer-wrap="1"] {
         position: fixed !important;
         z-index: 2147483002 !important;
-        background: ${isLight ? 'rgba(248, 250, 252, 0.94)' : 'rgba(10, 12, 22, 0.92)'} !important;
-        width: var(--agy-pet-comp-w, min(500px, calc(100vw - 24px))) !important;
+        width: var(--agy-pet-comp-w, min(680px, calc(100vw - 24px))) !important;
         max-width: calc(100vw - 24px) !important;
         left: var(--agy-pet-comp-left, auto) !important;
         top: var(--agy-pet-comp-top, auto) !important;
         right: auto !important;
         bottom: auto !important;
         margin: 0 !important;
+        padding: 0 !important;
         height: auto !important;
-        max-height: min(65vh, 480px) !important;
+        min-height: 0 !important;
+        max-height: min(68vh, 520px) !important;
         overflow: visible !important;
-        transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0.18s !important;
-      }
-      .agy-shell.agy-pet-chat-docked:not([data-agy-pet-chat-open="1"]) .surface-composer[data-agy-composer-host="1"] {
-        opacity: 0 !important;
-        pointer-events: none !important;
-        visibility: hidden !important;
-        transform: translateY(-6px) scale(0.98) !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+        transform: translateY(0) scale(1) !important;
+        transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1) !important;
       }
       .agy-shell.agy-pet-chat-docked[data-agy-pet-chat-open="1"] .surface-composer[data-agy-composer-host="1"] {
-        opacity: 1 !important;
-        pointer-events: auto !important;
-        visibility: visible !important;
-        transform: translateY(0) scale(1) !important;
-        transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        background: ${isLight ? 'rgba(248, 250, 252, 0.94)' : 'rgba(10, 12, 22, 0.94)'} !important;
+        overflow: visible !important;
       }
       .agy-shell.agy-pet-chat-docked .surface-composer[data-agy-composer-host="1"]::before,
       .agy-shell.agy-pet-chat-docked .surface-composer[data-agy-composer-host="1"]::after {
