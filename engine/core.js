@@ -1782,7 +1782,7 @@
     // Xóa bỏ toàn bộ nút cuộn tự chế
     document.querySelectorAll('#agy-collapse-left-btn, #agy-collapse-right-btn, #agy-collapse-topbar-btn, .agy-collapse-edge-btn').forEach((el) => el.remove());
 
-    // Dùng chính 2 nút Toggle gốc trên thanh Topbar để trượt mượt 60fps từ Topbar xuống
+    // Dùng chính 2 nút tròn Toggle ở 2 bên Topbar để thả xuống / thu gọn mượt 60fps từ Topbar
     if (!window.__AGY_NATIVE_TOGGLE_BOUND__) {
       window.__AGY_NATIVE_TOGGLE_BOUND__ = true;
       document.addEventListener('click', (e) => {
@@ -1791,12 +1791,20 @@
         const leftToggle = t.closest('[data-testid="sidebar-toggle"]');
         if (leftToggle) {
           const curShell = findActiveShell() || document.querySelector('.agy-shell');
-          if (curShell && curShell.querySelector('[data-agy-left-col="1"]')) {
+          const lCol = curShell ? curShell.querySelector('[data-agy-left-col="1"]') : null;
+          if (curShell && lCol && lCol.getBoundingClientRect().width > 12) {
             e.preventDefault();
             e.stopPropagation();
             if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
             playClickSound(getActiveThemeRecord());
             runRollToggle('left', STORAGE_COLLAPSE_LEFT);
+          } else if (curShell) {
+            writeCollapseFlag(STORAGE_COLLAPSE_LEFT, false);
+            curShell.dataset.agyLeftAnim = 'opening';
+            setTimeout(() => {
+              delete curShell.dataset.agyLeftAnim;
+              syncLayoutCollapsers();
+            }, 340);
           }
           return;
         }
@@ -1804,12 +1812,19 @@
         if (rightToggle) {
           const curShell = findActiveShell() || document.querySelector('.agy-shell');
           const rCol = curShell ? curShell.querySelector('[data-agy-right-col="1"][data-agy-right-open="1"]') : null;
-          if (curShell && rCol) {
+          if (curShell && rCol && rCol.getBoundingClientRect().width > 12) {
             e.preventDefault();
             e.stopPropagation();
             if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
             playClickSound(getActiveThemeRecord());
             runRollToggle('right', STORAGE_COLLAPSE_RIGHT);
+          } else if (curShell) {
+            writeCollapseFlag(STORAGE_COLLAPSE_RIGHT, false);
+            curShell.dataset.agyRightAnim = 'opening';
+            setTimeout(() => {
+              delete curShell.dataset.agyRightAnim;
+              syncLayoutCollapsers();
+            }, 340);
           }
         }
       }, true);
@@ -5222,11 +5237,11 @@
       .agy-shell > .agy-inset-shell::before {
         content: "" !important;
         position: absolute !important;
-        top: 6px !important;
+        top: 4px !important;
         left: 10px !important;
         right: 10px !important;
-        height: 40px !important;
-        border-radius: 14px !important;
+        height: 36px !important;
+        border-radius: 13px !important;
         background: ${cleanBubbleBg} !important;
         border: 1px solid ${glassRimBorder} !important;
         box-shadow: inset 0 1px 0 ${glassInnerSheen}, 0 6px 22px rgba(0, 0, 0, 0.22) !important;
@@ -5247,19 +5262,21 @@
         position: relative !important;
         background: transparent !important;
       }
-      /* Các phần header & cluster icon bên trong thanh Topbar: hoàn toàn trong suốt, căn giữa dọc 40px */
+      /* Các phần header & cluster icon bên trong thanh Topbar: hoàn toàn trong suốt, căn giữa dọc 36px */
       .agy-shell [data-agy-left-col="1"] [role="navigation"][aria-label="Sidebar"] > :first-child,
       .agy-shell [data-main-content-header],
       .agy-shell [data-agy-right-col="1"] [data-side-panel-strip] {
         box-sizing: border-box !important;
-        height: 40px !important;
-        margin: 6px 0 !important;
+        height: 36px !important;
+        margin: 4px 0 !important;
         background: transparent !important;
         background-color: transparent !important;
         border: 0 !important;
         border-radius: 0 !important;
         box-shadow: none !important;
         overflow: visible !important;
+        display: flex !important;
+        align-items: center !important;
       }
       .agy-shell [data-agy-left-col="1"] [role="navigation"][aria-label="Sidebar"] > :first-child {
         padding-left: 14px !important;
@@ -5267,13 +5284,16 @@
       .agy-shell [data-agy-right-col="1"] [data-side-panel-strip] {
         padding-right: 48px !important;
       }
-      .agy-shell > .agy-inset-shell :is(:has(> [data-testid="app-icon-new-conversation-button"]), :has(> [data-testid="toggle-aux-sidebar"])) {
-        height: 40px !important;
-        margin-top: 6px !important;
-        margin-bottom: 6px !important;
+      .agy-shell > .agy-inset-shell :has(> [data-testid="app-icon-new-conversation-button"]),
+      .agy-shell > .agy-inset-shell :has(> [data-testid="toggle-aux-sidebar"]) {
+        height: 36px !important;
+        top: 4px !important;
+        margin: 0 !important;
         background: transparent !important;
         background-color: transparent !important;
         box-shadow: none !important;
+        display: flex !important;
+        align-items: center !important;
       }
       .agy-shell > .agy-inset-shell :has(> [data-testid="app-icon-new-conversation-button"]) {
         padding-left: 16px !important;
@@ -5281,11 +5301,37 @@
       .agy-shell > .agy-inset-shell :has(> [data-testid="toggle-aux-sidebar"]) {
         padding-right: 16px !important;
       }
+      /* 2 nút tròn trên Topbar cho side panel trái & phải */
+      .agy-shell [data-testid="sidebar-toggle"],
+      .agy-shell [data-testid="toggle-aux-sidebar"] {
+        width: 26px !important;
+        height: 26px !important;
+        min-width: 26px !important;
+        padding: 0 !important;
+        border-radius: 9999px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: rgba(255, 255, 255, 0.08) !important;
+        border: 1px solid ${glassRimBorder} !important;
+        box-shadow: inset 0 1px 0 ${glassInnerSheen} !important;
+        transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease, transform 0.14s ease !important;
+      }
+      .agy-shell [data-testid="sidebar-toggle"]:hover,
+      .agy-shell [data-testid="toggle-aux-sidebar"]:hover {
+        background: rgba(255, 255, 255, 0.14) !important;
+        border-color: ${mainTheme.primary || '#38bdf8'} !important;
+        color: ${mainTheme.primary || '#38bdf8'} !important;
+      }
+      .agy-shell [data-testid="sidebar-toggle"]:active,
+      .agy-shell [data-testid="toggle-aux-sidebar"]:active {
+        transform: scale(0.92) !important;
+      }
       /* 2. Bảng trái & bảng phải bên dưới Topbar: khung glass bo góc, mọc mượt 60fps từ Topbar xuống */
       .agy-shell [data-agy-left-col="1"] [role="navigation"][aria-label="Sidebar"]::before {
         content: "" !important;
         position: absolute !important;
-        top: 52px !important;
+        top: 46px !important;
         bottom: 10px !important;
         left: 10px !important;
         right: 4px !important;
