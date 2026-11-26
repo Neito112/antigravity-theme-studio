@@ -5555,8 +5555,11 @@
   }
 
   function cleanupStaleEngineArtifacts() {
-    teardownBootOverlay();
-    dismissThemeIntro();
+    const bootStillRunning = Boolean(document.getElementById('agy-boot-overlay') && !window.__AGY_BOOT_FINISHED__);
+    if (!bootStillRunning) {
+      teardownBootOverlay();
+      dismissThemeIntro();
+    }
     const staleFx = document.getElementById('agy-dynamic-fx-layer');
     if (staleFx) staleFx.remove();
     ['agy-custom-brand-logo', 'agy-bg-emblem-watermark', 'agy-scroll-controls', 'agy-pet-composer-close'].forEach((id) => {
@@ -5592,7 +5595,6 @@
   window.__ANTIGRAVITY_OPEN_THEME_MODAL__ = openCustomThemeModal;
 
   cleanupStaleEngineArtifacts();
-  applyTheme();
   (() => {
     const st0 = getStateSafe();
     if (st0.themeMode === 'dynamic') {
@@ -5605,6 +5607,13 @@
       }
     }
   })();
+  if (document.body) {
+    applyTheme();
+  } else {
+    window.addEventListener('DOMContentLoaded', () => {
+      try { applyTheme(); } catch (_) {}
+    }, { once: true });
+  }
 
   function syncThemeModeToggleBtn(mode, primaryColor) {
     const btn = document.getElementById('agy-theme-mode-toggle');

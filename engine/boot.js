@@ -663,7 +663,7 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
       @keyframes agyEqPulse { from { height: 3px; opacity: 0.45; } to { height: 11px; opacity: 1; } }
     `;
     (document.head || document.documentElement).appendChild(bootStyle);
-    const bootMount = document.body || document.documentElement;
+    const bootMount = document.documentElement || document.body;
 
     const flashCurtain = document.createElement('div');
     flashCurtain.id = 'agy-flash-curtain';
@@ -826,7 +826,7 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
         </div>
       </footer>
     `;
-    (document.body || document.documentElement).appendChild(overlay);
+    (document.documentElement || document.body).appendChild(overlay);
 
     overlay.querySelectorAll('.agy-brand-logo-img').forEach((imgEl) => {
       imgEl.addEventListener('error', () => {
