@@ -4237,7 +4237,7 @@
         z-index: 60 !important;
         width: min(400px, calc(100% - 32px)) !important;
         max-height: min(560px, calc(100% - 76px)) !important;
-        background: ${cleanBubbleBg} !important;
+        background: ${isLight ? 'rgba(255, 255, 255, 0.92)' : `rgba(${overlayRgb}, 0.88)`} !important;
         border: 1px solid ${glassRimBorder} !important;
         border-radius: 16px !important;
         box-shadow: ${glassRimShadow}, 0 18px 48px rgba(0, 0, 0, ${isLight ? '0.20' : '0.58'}) !important;
@@ -5231,9 +5231,10 @@
       .agy-shell:not(.agy-pet-chat-docked) [data-agy-composer-wrap="1"] {
         padding-bottom: 52px !important;
       }
-      /* Full-Width Workspace Unlock (bố cục chính giữa luôn giữ nguyên khi thu gọn 2 bên) */
+      /* Full-Width Workspace Unlock (phủ cân đối toàn bộ vùng trung tâm, không để khoảng trống thừa) */
       .agy-shell [data-testid="conversation-view"] .mx-auto.w-full {
-        max-width: min(1240px, calc(100% - 24px)) !important;
+        max-width: calc(100% - 24px) !important;
+        margin-inline: auto !important;
         transition: none !important;
       }
       /* 1. Thanh Topbar FULL chiều ngang, glass, bo góc thống nhất qua .agy-inset-shell::before */
