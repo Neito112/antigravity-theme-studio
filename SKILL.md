@@ -9,14 +9,16 @@ Creates and applies custom glassmorphic themes (wallpapers, cohesive palettes, c
 
 ## Repository Layout
 
-- `themes/themes.json` — Theme presets (colors, wallpaper path, SVG ornaments, glass alpha/saturation defaults).
-- `themes/assets/` — Raster wallpapers (`.webp`/`.png`/`.jpg`) and SVG stickers/corner flourishes.
-- `engine/core.js` — Standalone DOM + CSS injection engine (Zero Live Blur, L-glass layout, split-browser hole cutout, composer pill contrast, resilient topbar ✨ button with 3-layer self-healing, live Custom Theme Studio modal with AI dropzone & preset cleanup).
+- `themes/themes.json` — Built-in presets (`WLOP Cosmic`, `Furina Live`, `Gemini-chan Live`, `Celestial Eclipse`, `Luminous Grotto`, `Miku Cyber`, `Midnight Obsidian`, `Codex Dark Pro`, `Claude Warm Charcoal`) including colors, wallpaper/video path, SVG ornaments, `dynamicPack`, `vfxSpec`, `workIdentity`, `petDirective`, `petSpriteUrl`, and `petVoices`.
+- `themes/assets/` — Raster wallpapers (`.webp`), sprite sheets (`pets/pet_*.webp`), neural pet voices (`voice/pets/*.mp3`), and SVG stickers/corner flourishes.
+- `engine/core.js` — Standalone DOM + CSS injection engine (Zero Live Blur, L-glass layout, split-browser hole cutout, composer pill contrast, resilient topbar ✨ button, live Custom Theme Studio V2, Companion Pet `8×11`, Inline YouTube Music Player `#agy-yt-bar`, Dynamic App Icon & Favicon sync, and Pet Neural Voice playback/UI).
 - `scripts/build_payload.js` — Zero-dependency Node >= 22 compiler: `themes/themes.json` + `engine/core.js` into gitignored `dist/theme_payload.js` (no Python required).
 - `scripts/build_payload.py` — Optional Python + Pillow compiler (auto-downscales >2560px rasters to WebP when Pillow is installed).
-- `daemon/theme_daemon.js` — Cross-platform Node.js (>= 22) CDP daemon watching `DevToolsActivePort` (or `AGY_CDP_PORT` / `9222`), `dist/theme_payload.js`, bridging `agySaveThemeConfig` and `agyDesignTheme`, and self-healing missing DOM nodes.
-- `daemon/theme_designer.js` — Headless `agy -p --disable-slash-commands --json-schema ...` bridge so dropping an image in the topbar ✨ / Studio dropzone generates a complete preset + custom SVG ornaments using the user's Antigravity quota (no API key required).
-- `scripts/install-win.ps1`, `scripts/install-unix.sh`, `scripts/uninstall.js`, `scripts/verify_cdp.js` — OS setup, duplicate-daemon cleanup, removal, and live CDP verification.
+- `daemon/theme_daemon.js` — Cross-platform Node.js (>= 22) CDP daemon watching `DevToolsActivePort` (or `AGY_CDP_PORT` / `9222`), `dist/theme_payload.js`, bridging `agySaveThemeConfig`, `agyDesignThemeV2`, `agyYtSearch`, `agyYtResolve`, `agyUpdateAppIcon`, and `agyGeneratePetVoice`, serving media over `:47821`, and applying Swarm Board glass.
+- `daemon/theme_designer.js` — AI/fallback theme designer & prompt refiner (`designTheme`, `normalizeTo4k16x9Webp`, SVG brand emblems, plus auto-generated `petSpriteUrl` and `petVoices`).
+- `daemon/pet_generator.js` — Generates and validates `8×11` (`1536×2288`) companion pet sprite atlases and `256×256` SVG/PNG brand logos.
+- `daemon/voice_generator.js` — Synthesizes character-synced neural `.mp3` clips via Python `edge-tts` with automatic `vi`/`ja`/`en` language routing.
+- `scripts/install-win.ps1`, `scripts/launch-antigravity-themed.ps1`, `scripts/install-unix.sh`, `scripts/uninstall.js`, `scripts/verify_cdp.js` — OS setup, prelaunch Boot HUD wrapper, duplicate-daemon cleanup, clean uninstall (restoring `.lnk` icons), and live CDP verification.
 - `references/theme-schema.md` — Exact `themes.json` schema, contrast rules, and Antigravity selector notes.
 
 ## Workflow

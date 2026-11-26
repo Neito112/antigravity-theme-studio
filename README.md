@@ -35,15 +35,15 @@ Mỗi khi đổi theme, toàn bộ nhận diện gốc của Antigravity tự đ
 ### 5. Companion Pet `8×11` Bám Sát Ảnh Gốc & Floating Pet Composer
 - Khung nhập liệu tự co kéo chiều cao theo văn bản (không có thanh cuộn thừa), neo mượt dưới chân Pet hoặc đặt cuối màn hình.
 - Từng theme đi kèm bộ sprite sheet `8×11` (`1536×2288`) riêng phản ứng theo trạng thái `Idle / Run / Wave / Jump / Dizzy / Thinking / Ready` và dõi theo con trỏ chuột theo 16 hướng:
-  - *Furina Live (`Furina`)*, *Gemini-chan Live (`Yuki`)*, *WLOP Cosmic (`Seraph`)*, *Miku Cyber (`Miku`)* — nhân vật Chibi Anime khớp trang phục, kiểu tóc, màu mắt & đạo cụ từng ảnh gốc.
-  - *Celestial Eclipse (`Solara`)*, *Luminous Grotto (`Lumia` Golem đá)*, *Midnight Obsidian (`Onyx`)*, *Codex Dark Pro (`Byte`)*, *Claude Warm Charcoal (`Solis`)*, cùng các custom theme *Kaiju Crimson (`Kaiju`)*, *Pixel Kaiju (`Rexy`)*, *Phantom Voltage (`Volt` Gigantamax Gengar)*.
+  - **9 bộ Pet tích hợp sẵn:** *WLOP Cosmic (`Seraph`)*, *Furina Live (`Furina`)*, *Gemini-chan Live (`Yuki`)*, *Celestial Eclipse (`Solara`)*, *Luminous Grotto (`Lumia`)*, *Miku Cyber (`Miku`)*, *Midnight Obsidian (`Onyx`)*, *Codex Dark Pro (`Byte`)*, *Claude Warm Charcoal (`Solis`)*.
+  - **Hỗ trợ sinh Pet đồng bộ cho Custom Theme:** Tự động tạo sprite sheet `8×11` bám sát nhân vật/vật thể trong ảnh upload (ví dụ *Kaiju Crimson (`Kaiju`)*, *Pixel Kaiju (`Rexy`)*, *Phantom Voltage (`Volt` Gigantamax Gengar)*).
 
 ### 6. Pet Neural Voice (`edge-tts`) & Trình Tạo Voice Trực Tiếp Trong Studio
-Mỗi nhân vật Pet sở hữu bộ thoại neural riêng biệt (`petVoices` trong `themes/assets/voice/pets/` & `themes/user_media/voices/`), phát tự động khi hoàn thành tác vụ hoặc đổi theme:
-- **12 Bộ Voice Độc Quyền Theo Nhân Vật:** Tự động ánh xạ chất giọng theo cá tính từng Pet — giọng quý tộc dịu dàng (*Furina*), kawaii anime (*Yuki*, *Miku*), thanh tao sâu lắng (*Seraph*, *Solara*), trầm hùng/tinh quái (*Kaiju*, *Rexy*, *Volt Gengar*), hộ vệ ấm áp (*Lumia*, *Solis*) hoặc telemetry bot (*Byte*, *Onyx*).
-- **Trình tạo Voice trực tiếp trong tab `Pet, Voice & Chào`:** Cho phép chọn kiểu giọng (`Tự động theo Pet`, *Anime Kawaii*, *Quý tộc Fontaine*, *Trầm hùng Kaiju*, *Tiếng Việt Nữ/Nam*, *Tiếng Nhật Kawaii*...), tinh chỉnh cao độ (`Pitch Hz`), tốc độ (`Rate %`), nhập từng câu thoại tùy ý và bấm **Tạo Voice cho Pet** (gọi daemon `agyGeneratePetVoice` -> `daemon/voice_generator.js` -> `edge-tts`).
-- **Tự động nhận diện ngôn ngữ (`vi` / `ja` / `en`):** Tự chuyển sang neural voice tiếng Việt (`vi-VN-HoaiMyNeural` / `vi-VN-NamMinhNeural`), tiếng Nhật (`ja-JP-NanamiNeural` / `ja-JP-KeitaNeural`) hoặc tiếng Anh khớp từng dòng thoại bạn nhập, hỗ trợ nghe thử từng clip, xóa bớt clip hoặc bấm chuột phải vào Pet -> **Nghe `<Pet>` nói**.
-- **Tự động sinh Voice khi tạo Theme mới từ ảnh:** Cả luồng AI lẫn fallback cục bộ đều tự động tạo kèm 3 câu thoại cho nhân vật Pet vừa sinh ra.
+Mỗi nhân vật Pet sở hữu bộ thoại neural riêng (`petVoices`), tự phát khi hoàn thành tác vụ, khi đổi theme hoặc khi bấm chuột phải vào Pet → **Nghe `<Pet>` nói**:
+- **9 Bộ Voice Tích Hợp Sẵn (`themes/assets/voice/pets/`):** Được tổng hợp sẵn (3 clip mỗi preset) theo tính cách từng nhân vật — quý tộc dịu dàng (*Furina*), kawaii anime (*Yuki*, *Miku*), thanh tao sâu lắng (*Seraph*, *Solara*), hộ vệ trầm ấm (*Lumia*), stealth/telemetry bot (*Onyx*, *Byte*) và học giả ấm áp (*Solis*); kèm profile mặc định trong `daemon/voice_generator.js` cho các nhân vật phổ biến như *Kaiju*, *Rexy*, *Volt*.
+- **Trình tạo Voice trực tiếp trong tab `Pet, Voice & Chào`:** Cho phép chọn 12 kiểu giọng (`Tự động theo Pet`, *Anime Kawaii (Cao sáng)*, *Quý tộc / Dịu dàng*, *Thanh tao sâu lắng*, *Tinh quái / Ranh mãnh*, *Trầm hùng / Kaiju*, *Hộ vệ trầm ấm*, *Cyber Telemetry Bot*, *Học giả ấm áp*, *Tiếng Việt (Nữ - Hoài My)*, *Tiếng Việt (Nam - Nam Minh)*, *Tiếng Nhật Kawaii (Nanami)*), tinh chỉnh **Pitch (`-35..+35Hz`)** & **Rate (`-25..+35%`)**, nhập nhiều câu thoại và bấm **Tạo Voice cho `<Pet>`** (bridge `agyGeneratePetVoice` → `daemon/voice_generator.js` → `edge-tts`).
+- **Tự động nhận diện ngôn ngữ (`vi` / `ja` / `en`):** Tự chuyển sang neural voice Tiếng Việt, Tiếng Nhật hoặc Tiếng Anh khớp từng dòng thoại bạn nhập; hỗ trợ bật/tắt **Đồng bộ Pet**, nghe thử hoặc xóa từng clip riêng lẻ.
+- **Tự động sinh Voice khi tạo Theme mới từ ảnh:** Cả luồng AI lẫn fallback cục bộ đều tự động tạo kèm 3 clip `.mp3` tại `themes/user_media/voices/` cho nhân vật Pet vừa sinh ra.
 
 ---
 
@@ -51,27 +51,29 @@ Mỗi nhân vật Pet sở hữu bộ thoại neural riêng biệt (`petVoices` 
 
 | Theme | Nhân vật / Concept | Companion Pet (`8×11`) | SVG Ornament & Corner |
 | --- | --- | --- | --- |
-| **WLOP Cosmic** | *WLOP // Concerto* — Trâm vàng & vĩ cầm cyan | `Seraph` (Váy đen, búi tóc trâm vàng, violin cyan) | `wlop_corner.svg` / `wlop_ornament.svg` |
-| **Furina Live** | *Fontaine // Furina* — Áo ngủ bạch lam & ahoge | `Furina` (Pijama trắng, tóc bạch-lam xoắn ahoge) | `furina_corner.svg` / `furina_ornament.svg` |
-| **Gemini-chan Live** | *Gemini-chan // Starlight* — Kẹp 4 sao & mắt 2 màu | `Yuki` (Tóc tím-hồng, tai mèo, kẹp 4 sao, khăn caro) | `gemini_chan_corner.svg` / `gemini_chan_ornament.svg` |
-| **Celestial Eclipse** | *Celestial // Eclipse* — Hắc tinh cầu & quỹ đạo sao | `Solara` (Tinh cầu nhật thực & vành đai sao) | `celestial_corner.svg` / `celestial_ornament.svg` |
-| **Luminous Grotto** | *Luminous // Grotto* — Golem đá & hoa phát sáng | `Lumia` (Chibi Golem đá đội hoa pha lê) | `luminous_grotto_corner.svg` / `luminous_grotto_ornament.svg` |
-| **Miku Cyber** | *Miku // Stage* — Váy trắng, mũ cói & twin-tail biển | `Miku` (Váy trắng đi biển, mũ cói rộng & twin-tail) | `miku_corner.svg` / `miku_ornament.svg` |
-| **Midnight Obsidian** | *Obsidian // Stealth* — Hắc thạch ánh trăng bạc | `Onyx` (Cáo Obsidian ánh bạc) | `midnight_obsidian_corner.svg` / `midnight_obsidian_ornament.svg` |
-| **Codex Dark Pro** | *Codex // Telemetry* — Terminal carbon ngọc lục bảo | `Byte` (Bot cánh cụt màn LED ngọc) | `codex_corner.svg` / `codex_ornament.svg` |
-| **Claude Warm Charcoal** | *Claude // Warm Serif* — Hổ phách & than ấm | `Solis` (Gấu trúc đỏ kính tròn & bút lông) | `claude_corner.svg` / `claude_ornament.svg` |
+| **WLOP Cosmic** | *WLOP // Concerto* — Cosmic Violin & Starlight | `Seraph` (Váy đen, búi tóc trâm vàng, vĩ cầm cyan) | `wlop_corner.svg` / `wlop_ornament.svg` |
+| **Furina Live** | *Fontaine // Furina* — Áo ngủ bạch lam & ahoge | `Furina` (Áo trắng cổ xanh, tóc bạch-lam xoắn ahoge) | `furina_corner.svg` / `furina_ornament.svg` |
+| **Gemini-chan Live** | *Gemini-chan // Live* — Snowy Violet MP4 | `Yuki` (Tóc tím-hồng, tai mèo, kẹp 4 sao, khăn caro) | `gemini_chan_corner.svg` / `gemini_chan_ornament.svg` |
+| **Celestial Eclipse** | *Celestial // Eclipse* — Hắc tinh cầu & quỹ đạo sao | `Solara` (Tinh cầu nhật thực & vành đai quỹ đạo sao) | `celestial_corner.svg` / `celestial_ornament.svg` |
+| **Luminous Grotto** | *Luminous // Grotto* — Hang động phát sáng & Automaton | `Lumia` (Chibi Golem đá xám đội 3 mầm phát sáng ngọc lam) | `luminous_grotto_corner.svg` / `luminous_grotto_ornament.svg` |
+| **Miku Cyber** | *Miku // Stage* — Cyber Acrylic & Video 1080p | `Miku` (Váy trắng đi biển, mũ rộng vành & twin-tail xanh ngọc) | `miku_corner.svg` / `miku_ornament.svg` |
+| **Midnight Obsidian** | *Midnight // Obsidian* — Hắc thạch & Pure CSS siêu nhẹ | `Onyx` (Cáo Obsidian đen tai xanh ánh bạc) | `midnight_obsidian_corner.svg` / `midnight_obsidian_ornament.svg` |
+| **Codex Dark Pro** | *Codex // Dark* — Concentric Telemetry & Deep Carbon | `Byte` (Bot tròn 2 râu ăng-ten ngọc & kính visor cyan) | `codex_corner.svg` / `codex_ornament.svg` |
+| **Claude Warm Charcoal** | *Claude // Charcoal* — Editorial Typography & Warm Carbon | `Solis` (Chú cáo/gấu trúc nhỏ màu cam ấm hổ phách) | `claude_corner.svg` / `claude_ornament.svg` |
 
 ---
 
 ## Ảnh Chụp Thực Tế
 
-| **WLOP Cosmic + Music Bar & Swarm Glass** | **Kaiju Crimson (AI `8×11` Pet)** |
+| **WLOP Cosmic + Music Bar & Swarm Glass** | **Kaiju Crimson (Custom Theme + `Kaiju` Pet)** |
 | :---: | :---: |
 | ![WLOP Cosmic](docs/preview_wlop_cosmic.webp) | ![Kaiju Crimson](docs/preview_kaiju_crimson.webp) |
-| **Phantom Voltage (`Volt` Gigantamax Gengar)** | **Furina Live (`Furina` Pet)** |
+| **Phantom Voltage (Custom Theme + `Volt` Gengar)** | **Furina Live (`Furina` Pet)** |
 | ![Phantom Voltage](docs/preview_phantom_voltage.webp) | ![Furina Live](docs/preview_furina_live.webp) |
-| **Gemini-chan Live (`Yuki` Pet)** | **Custom Theme Studio V2** |
-| ![Gemini-chan Live](docs/preview_luminous_grotto.webp) | ![Theme Studio V2](docs/preview_studio_v2.webp) |
+| **Gemini-chan Live (`Yuki` Pet)** | **Pixel Kaiju (Custom Theme + `Rexy` Pet)** |
+| ![Gemini-chan Live](docs/preview_gemini_chan_live.webp) | ![Pixel Kaiju](docs/preview_pixel_kaiju_4k.webp) |
+| **Custom Theme Studio V2 (`Giao diện & AI`)** | **Tab `Pet, Voice & Chào` (`edge-tts` Studio)** |
+| ![Theme Studio V2](docs/preview_studio_v2.webp) | ![Voice Studio](docs/preview_voice_studio.webp) |
 
 ---
 
@@ -79,8 +81,8 @@ Mỗi nhân vật Pet sở hữu bộ thoại neural riêng biệt (`petVoices` 
 
 ### Yêu cầu
 - **Node.js >= 22** (có sẵn `WebSocket` native trong runtime)
-- **Python 3 + Pillow** (hỗ trợ xử lý poster/4K WebP, palette trích xuất local và pet sprite atlas)
-- **Antigravity Desktop** chạy kèm CDP port (`--remote-debugging-port` — script cài đặt trên Windows tự cấu hình shortcut khởi động kèm Prelaunch Intro)
+- **Python 3 + `Pillow` + `edge-tts`** (`pip install pillow edge-tts`) để xử lý ảnh 4K WebP, sprite atlas và tổng hợp giọng nói neural cho Pet
+- **Antigravity Desktop** chạy kèm CDP port (`--remote-debugging-port=0` — script cài đặt trên Windows tự cấu hình shortcut khởi động kèm Prelaunch Boot HUD)
 
 ### Cài đặt trên Windows (PowerShell)
 ```powershell
