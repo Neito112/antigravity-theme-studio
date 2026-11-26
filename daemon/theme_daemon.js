@@ -1176,6 +1176,8 @@ async function handleMediaRequest(req, res) {
                         title: info.title,
                         author: info.author,
                         durationSec: info.durationSec,
+                        durationText: info.durationSec ? `${Math.floor(info.durationSec / 60)}:${String(info.durationSec % 60).padStart(2, '0')}` : '',
+                        thumbnail: `https://i.ytimg.com/vi/${info.videoId}/mqdefault.jpg`,
                     }],
                 });
                 return;
@@ -1193,12 +1195,17 @@ async function handleMediaRequest(req, res) {
                     if (!v || !v.videoId) continue;
                     const durationText = v.lengthText?.simpleText || '';
                     if (!durationText) continue; // skip livestreams without finite duration
+                    const thumbs = v.thumbnail?.thumbnails;
+                    const thumbUrl = (Array.isArray(thumbs) && thumbs.length > 0 && thumbs[0]?.url)
+                        ? thumbs[0].url
+                        : `https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`;
                     results.push({
                         videoId: v.videoId,
                         title: v.title?.runs?.map((r) => r.text).join('') || v.videoId,
                         author: v.ownerText?.runs?.map((r) => r.text).join('') || '',
                         durationText,
                         durationSec: parseDurationText(durationText),
+                        thumbnail: thumbUrl,
                     });
                     if (results.length >= 8) break;
                 }

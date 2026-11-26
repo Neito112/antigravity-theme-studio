@@ -5508,6 +5508,77 @@
         background: var(--agy-yt-accent, #38bdf8);
         transition: width 0.2s linear;
       }
+      #agy-yt-dropdown {
+        position: fixed;
+        bottom: 54px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 2147483009;
+        width: min(520px, calc(100vw - 32px));
+        max-height: 320px;
+        overflow-y: auto;
+        padding: 6px;
+        border-radius: 14px;
+        background: var(--agy-yt-bg, rgba(12, 16, 26, 0.94));
+        border: 1px solid ${glassRimBorder};
+        box-shadow: ${glassRimShadow}, 0 12px 36px rgba(0, 0, 0, 0.48);
+        color: var(--agy-yt-ink, #f8fafc);
+        backdrop-filter: none !important;
+        -webkit-app-region: no-drag;
+      }
+      #agy-yt-dropdown[hidden] {
+        display: none !important;
+      }
+      .agy-yt-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 6px 8px;
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        color: inherit;
+        text-align: left;
+        cursor: pointer;
+        transition: background 0.14s ease;
+      }
+      .agy-yt-item:hover,
+      .agy-yt-item[data-active="1"] {
+        background: rgba(255, 255, 255, 0.10);
+      }
+      .agy-yt-item__thumb {
+        width: 56px;
+        height: 34px;
+        border-radius: 6px;
+        object-fit: cover;
+        flex-shrink: 0;
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .agy-yt-item__info {
+        min-width: 0;
+        flex: 1 1 auto;
+      }
+      .agy-yt-item__title {
+        font-size: 12px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .agy-yt-item__sub {
+        font-size: 11px;
+        opacity: 0.68;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .agy-yt-item__dur {
+        font-size: 11px;
+        font-variant-numeric: tabular-nums;
+        opacity: 0.78;
+        flex-shrink: 0;
+      }
       .agy-shell [data-agy-greeting] {
         font-size: 0 !important;
         line-height: 0 !important;
@@ -5574,6 +5645,8 @@
     window.__AGY_YT_CTRL__ = null;
     const bar = document.getElementById('agy-yt-bar');
     if (bar) bar.remove();
+    const dd = document.getElementById('agy-yt-dropdown');
+    if (dd) dd.remove();
   }
 
   function formatYtTime(sec) {
@@ -5593,10 +5666,16 @@
     const ink = isLight ? '#0f172a' : '#f8fafc';
 
     let bar = document.getElementById('agy-yt-bar');
+    let dropdown = document.getElementById('agy-yt-dropdown');
     if (bar && window.__AGY_YT_CTRL__) {
       bar.style.setProperty('--agy-yt-accent', primary);
       bar.style.setProperty('--agy-yt-bg', bg);
       bar.style.setProperty('--agy-yt-ink', ink);
+      if (dropdown) {
+        dropdown.style.setProperty('--agy-yt-accent', primary);
+        dropdown.style.setProperty('--agy-yt-bg', bg);
+        dropdown.style.setProperty('--agy-yt-ink', ink);
+      }
       return;
     }
 
@@ -5617,12 +5696,19 @@
       <button type="button" class="agy-yt-btn agy-yt-expand-only" data-yt-act="prev" title="Bài trước">⏮</button>
       <button type="button" class="agy-yt-btn" data-yt-act="play" title="Phát / Tạm dừng">▶</button>
       <button type="button" class="agy-yt-btn agy-yt-expand-only" data-yt-act="next" title="Bài tiếp">⏭</button>
-      <div class="agy-yt-meta">
+      <div class="agy-yt-meta" data-yt-act="toggle-list" style="cursor:pointer;" title="Bấm để xem danh sách vừa tìm">
         <span class="agy-yt-title">Chưa phát nhạc</span>
         <span class="agy-yt-time agy-yt-expand-only">0:00 / 0:00</span>
       </div>
       <div class="agy-yt-progress agy-yt-expand-only" title="Tua nhanh"><div class="agy-yt-progress-fill"></div></div>
     `;
+
+    dropdown = document.createElement('div');
+    dropdown.id = 'agy-yt-dropdown';
+    dropdown.hidden = true;
+    dropdown.style.setProperty('--agy-yt-accent', primary);
+    dropdown.style.setProperty('--agy-yt-bg', bg);
+    dropdown.style.setProperty('--agy-yt-ink', ink);
 
     const inputEl = bar.querySelector('.agy-yt-search');
     const playBtn = bar.querySelector('[data-yt-act="play"]');
@@ -5631,11 +5717,14 @@
     const progEl = bar.querySelector('.agy-yt-progress');
     const progFillEl = bar.querySelector('.agy-yt-progress-fill');
 
+    const audio = new Audio();
+    audio.preload = 'auto';
+
     const iframe = document.createElement('iframe');
     iframe.setAttribute('aria-hidden', 'true');
     iframe.tabIndex = -1;
     iframe.allow = 'autoplay; encrypted-media';
-    iframe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;border:0;';
+    iframe.style.cssText = 'position:fixed;right:6px;bottom:6px;width:2px;height:2px;opacity:0.01;pointer-events:none;border:0;z-index:-1;';
     document.body.appendChild(iframe);
 
     let queue = [];
@@ -5644,6 +5733,7 @@
     let currentTime = 0;
     let isPlaying = false;
     let activeVideoId = '';
+    let playbackMode = 'none'; // 'audio' | 'iframe' | 'none'
 
     const sendCmd = (func, args = []) => {
       if (!iframe.contentWindow) return;
@@ -5652,10 +5742,20 @@
       } catch (_) {}
     };
 
+    const stopAllPlayback = () => {
+      try { audio.pause(); audio.removeAttribute('src'); audio.load(); } catch (_) {}
+      try { iframe.src = 'about:blank'; } catch (_) {}
+      playbackMode = 'none';
+      isPlaying = false;
+    };
+
     const updateTimeUi = () => {
-      const dur = currentDuration > 0 ? currentDuration : 0;
-      timeEl.textContent = `${formatYtTime(currentTime)} / ${formatYtTime(dur)}`;
-      const pct = dur > 0 ? Math.min(100, Math.max(0, (currentTime / dur) * 100)) : 0;
+      const cur = playbackMode === 'audio' ? (audio.currentTime || 0) : currentTime;
+      const dur = playbackMode === 'audio'
+        ? ((Number.isFinite(audio.duration) && audio.duration > 0) ? audio.duration : currentDuration)
+        : (currentDuration > 0 ? currentDuration : 0);
+      timeEl.textContent = `${formatYtTime(cur)} / ${formatYtTime(dur)}`;
+      const pct = dur > 0 ? Math.min(100, Math.max(0, (cur / dur) * 100)) : 0;
       progFillEl.style.width = `${pct.toFixed(1)}%`;
     };
 
@@ -5663,62 +5763,120 @@
       playBtn.textContent = isPlaying ? '⏸' : '▶';
     };
 
+    const renderDropdown = () => {
+      if (!queue.length) {
+        dropdown.hidden = true;
+        dropdown.innerHTML = '';
+        return;
+      }
+      dropdown.innerHTML = queue.map((item, idx) => `
+        <button type="button" class="agy-yt-item" data-yt-pick="${idx}" data-active="${idx === currentIndex ? '1' : '0'}">
+          <img class="agy-yt-item__thumb" src="${escHtml(item.thumbnail || '')}" alt="" loading="lazy" />
+          <div class="agy-yt-item__info">
+            <div class="agy-yt-item__title">${escHtml(item.title || item.videoId)}</div>
+            <div class="agy-yt-item__sub">${escHtml(item.author || 'YouTube')}</div>
+          </div>
+          <span class="agy-yt-item__dur">${escHtml(item.durationText || formatYtTime(item.durationSec || 0))}</span>
+        </button>
+      `).join('');
+      dropdown.hidden = false;
+    };
+
+    const startIframeFallback = (videoId) => {
+      if (videoId !== activeVideoId) return;
+      playbackMode = 'iframe';
+      try { audio.pause(); audio.removeAttribute('src'); } catch (_) {}
+      iframe.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?autoplay=1&enablejsapi=1&playsinline=1&rel=0&origin=${encodeURIComponent(location.origin)}`;
+    };
+
     const playTrackAt = (idx) => {
       if (!queue.length) return;
       const wrapped = ((idx % queue.length) + queue.length) % queue.length;
       currentIndex = wrapped;
       const track = queue[wrapped];
+      stopAllPlayback();
       activeVideoId = track.videoId;
       currentDuration = track.durationSec || 0;
       currentTime = 0;
       isPlaying = true;
+      playbackMode = 'audio';
       titleEl.textContent = track.title || track.videoId;
       titleEl.title = track.title || track.videoId;
       updateTimeUi();
       syncPlayIcon();
-      iframe.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(track.videoId)}?autoplay=1&enablejsapi=1&playsinline=1&rel=0&origin=${encodeURIComponent(location.origin)}`;
+      if (!dropdown.hidden) renderDropdown();
+
+      audio.src = `${mediaBase}/api/yt-stream?v=${encodeURIComponent(track.videoId)}`;
+      audio.play().catch(() => {
+        if (activeVideoId === track.videoId && playbackMode === 'audio') {
+          startIframeFallback(track.videoId);
+        }
+      });
     };
 
-    const searchAndPlay = async (q) => {
+    const searchAndShowList = async (q) => {
       const query = String(q || '').trim();
       if (!query) return;
+      const prevTitle = titleEl.textContent;
       titleEl.textContent = 'Đang tìm...';
       try {
         const res = await fetch(`${mediaBase}/api/yt-search?q=${encodeURIComponent(query)}`);
         const data = await res.json();
         if (!data || !data.ok || !Array.isArray(data.results) || data.results.length === 0) {
           titleEl.textContent = 'Không tìm thấy bài hát';
+          dropdown.hidden = true;
           return;
         }
         queue = data.results;
-        playTrackAt(0);
+        titleEl.textContent = activeVideoId ? prevTitle : `Tìm thấy ${queue.length} bài — chọn để phát`;
+        renderDropdown();
       } catch (_) {
         titleEl.textContent = 'Lỗi kết nối YouTube';
       }
     };
 
+    audio.addEventListener('timeupdate', () => { if (playbackMode === 'audio') updateTimeUi(); });
+    audio.addEventListener('loadedmetadata', () => { if (playbackMode === 'audio') updateTimeUi(); });
+    audio.addEventListener('play', () => { if (playbackMode === 'audio') { isPlaying = true; syncPlayIcon(); } });
+    audio.addEventListener('pause', () => { if (playbackMode === 'audio') { isPlaying = false; syncPlayIcon(); } });
+    audio.addEventListener('ended', () => {
+      if (playbackMode !== 'audio') return;
+      isPlaying = false;
+      syncPlayIcon();
+      if (queue.length > 1) playTrackAt(currentIndex + 1);
+    });
+    audio.addEventListener('error', () => {
+      if (playbackMode === 'audio' && activeVideoId) {
+        startIframeFallback(activeVideoId);
+      }
+    });
+
     iframe.addEventListener('load', () => {
-      if (!activeVideoId || !iframe.contentWindow) return;
+      if (playbackMode !== 'iframe' || !activeVideoId || !iframe.contentWindow) return;
       try {
         iframe.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: 1 }), '*');
         sendCmd('unMute', []);
+        sendCmd('setVolume', [100]);
         sendCmd('playVideo', []);
       } catch (_) {}
     });
 
     const onYtMessage = (e) => {
-      if (!iframe.contentWindow || e.source !== iframe.contentWindow) return;
+      if (playbackMode !== 'iframe' || !iframe.contentWindow || e.source !== iframe.contentWindow) return;
       if (typeof e.data !== 'string') return;
       let msg;
       try { msg = JSON.parse(e.data); } catch (_) { return; }
-      if (!msg || !msg.info) return;
+      if (!msg) return;
+      if (msg.event === 'onError') {
+        isPlaying = false;
+        syncPlayIcon();
+        titleEl.textContent = 'Bài này chặn phát nhúng — chọn bài khác';
+        return;
+      }
+      if (!msg.info) return;
       const info = msg.info;
-      if (Number.isFinite(info.duration) && info.duration > 0) {
-        currentDuration = info.duration;
-      }
-      if (Number.isFinite(info.currentTime) && info.currentTime >= 0) {
-        currentTime = info.currentTime;
-      }
+      if (Number.isFinite(info.duration) && info.duration > 0) currentDuration = info.duration;
+      if (Number.isFinite(info.currentTime) && info.currentTime >= 0) currentTime = info.currentTime;
       if (typeof info.playerState === 'number') {
         if (info.playerState === 1) {
           isPlaying = true;
@@ -5736,25 +5894,50 @@
     };
     window.addEventListener('message', onYtMessage);
 
+    const onDocPointerDown = (e) => {
+      if (dropdown.hidden) return;
+      if (dropdown.contains(e.target) || bar.contains(e.target)) return;
+      dropdown.hidden = true;
+    };
+    document.addEventListener('pointerdown', onDocPointerDown);
+
     inputEl.addEventListener('keydown', (e) => {
       e.stopPropagation();
       if (e.key === 'Enter') {
         e.preventDefault();
-        searchAndPlay(inputEl.value);
+        searchAndShowList(inputEl.value);
       } else if (e.key === 'Escape') {
+        dropdown.hidden = true;
         inputEl.blur();
       }
     });
     inputEl.addEventListener('pointerdown', (e) => e.stopPropagation());
 
+    dropdown.addEventListener('click', (e) => {
+      const item = e.target && typeof e.target.closest === 'function' ? e.target.closest('[data-yt-pick]') : null;
+      if (!item) return;
+      const idx = parseInt(item.dataset.ytPick, 10);
+      if (!Number.isFinite(idx)) return;
+      dropdown.hidden = true;
+      playTrackAt(idx);
+    });
+
     progEl.addEventListener('click', (e) => {
-      if (!activeVideoId || currentDuration <= 0) return;
+      if (!activeVideoId) return;
+      const dur = playbackMode === 'audio'
+        ? ((Number.isFinite(audio.duration) && audio.duration > 0) ? audio.duration : currentDuration)
+        : currentDuration;
+      if (!dur || dur <= 0) return;
       const rect = progEl.getBoundingClientRect();
       const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / Math.max(1, rect.width)));
-      const target = ratio * currentDuration;
-      currentTime = target;
-      updateTimeUi();
-      sendCmd('seekTo', [target, true]);
+      const target = ratio * dur;
+      if (playbackMode === 'audio') {
+        try { audio.currentTime = target; } catch (_) {}
+      } else if (playbackMode === 'iframe') {
+        currentTime = target;
+        updateTimeUi();
+        sendCmd('seekTo', [target, true]);
+      }
     });
 
     bar.addEventListener('click', (e) => {
@@ -5763,19 +5946,26 @@
       const act = btn.dataset.ytAct;
       if (act === 'collapse') {
         bar.dataset.collapsed = bar.dataset.collapsed === '1' ? '0' : '1';
+        if (bar.dataset.collapsed === '1') dropdown.hidden = true;
+      } else if (act === 'toggle-list') {
+        if (queue.length) {
+          if (dropdown.hidden) renderDropdown();
+          else dropdown.hidden = true;
+        }
       } else if (act === 'play') {
         if (!activeVideoId) {
-          if (inputEl.value.trim()) searchAndPlay(inputEl.value);
+          if (queue.length) playTrackAt(0);
+          else if (inputEl.value.trim()) searchAndShowList(inputEl.value);
           return;
         }
-        if (isPlaying) {
-          sendCmd('pauseVideo', []);
-          isPlaying = false;
-        } else {
-          sendCmd('playVideo', []);
-          isPlaying = true;
+        if (playbackMode === 'audio') {
+          if (audio.paused) audio.play().catch(() => {});
+          else audio.pause();
+        } else if (playbackMode === 'iframe') {
+          if (isPlaying) { sendCmd('pauseVideo', []); isPlaying = false; }
+          else { sendCmd('unMute', []); sendCmd('setVolume', [100]); sendCmd('playVideo', []); isPlaying = true; }
+          syncPlayIcon();
         }
-        syncPlayIcon();
       } else if (act === 'prev') {
         if (queue.length) playTrackAt(currentIndex - 1);
       } else if (act === 'next') {
@@ -5783,11 +5973,14 @@
       }
     });
 
+    document.body.appendChild(dropdown);
     document.body.appendChild(bar);
     window.__AGY_YT_CTRL__ = {
       destroy: () => {
         window.removeEventListener('message', onYtMessage);
-        try { iframe.src = 'about:blank'; iframe.remove(); } catch (_) {}
+        document.removeEventListener('pointerdown', onDocPointerDown);
+        stopAllPlayback();
+        try { iframe.remove(); } catch (_) {}
       }
     };
   }
