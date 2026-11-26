@@ -2219,18 +2219,8 @@
       }
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      let minLeft = 12;
-      let maxRight = vw - 12;
-      const leftCol = shell.querySelector('[data-agy-left-col="1"]');
-      const rightCol = shell.querySelector('[data-agy-right-col="1"]');
-      if (leftCol && shell.dataset.agyLeftCollapsed !== '1') {
-        const lr = leftCol.getBoundingClientRect();
-        if (lr && lr.width > 12 && lr.right < vw - 320) minLeft = Math.max(minLeft, Math.round(lr.right) + 12);
-      }
-      if (rightCol && shell.dataset.agyRightCollapsed !== '1') {
-        const rr = rightCol.getBoundingClientRect();
-        if (rr && rr.width > 12 && rr.left > minLeft + 320) maxRight = Math.min(maxRight, Math.round(rr.left) - 12);
-      }
+      const minLeft = 12;
+      const maxRight = vw - 12;
       const availW = Math.max(300, maxRight - minLeft);
       const cw = Math.min(680, availW);
       const petCenterX = x + PET_WIDTH_PX / 2;
@@ -3571,16 +3561,12 @@
         .agy-shell .surface-composer {
           padding: 0 !important;
           border-radius: ${csRadius}px !important;
-          background: ${st.inputStyle === 'glass' ? cleanComposerBg : (bubbleTheme.inputCardBg || cleanComposerBg)} !important;
-          border: 1px solid ${st.inputStyle === 'double_gold' ? 'rgba(245, 158, 11, 0.72)' : (bubbleTheme.borderColor || cleanComposerBorder)} !important;
-          box-shadow: ${glassRimShadow}, 0 0 12px ${bubbleTheme.glow || 'transparent'} !important;
+          background: ${cleanComposerBg} !important;
           backdrop-filter: none !important;
           ${transitionCss}
         }
         .agy-shell .surface-composer:focus-within {
           background: ${cleanComposerBg} !important;
-          border-color: rgba(255, 255, 255, 0.28) !important;
-          box-shadow: inset 0 1px 0 ${glassInnerSheen}, 0 10px 28px rgba(0, 0, 0, ${lightMode ? '0.12' : '0.38'}) !important;
           animation: none !important;
         }
         .agy-shell .surface-composer-card {
@@ -4512,19 +4498,15 @@
         outline: none !important;
       }
 
-      /* Composer — matches selected Composer Style & Bubble ornament cleanly (with no thick outer slab) */
+      /* Composer — giữ nguyên viền & hiệu ứng focus gốc của Antigravity, chỉ bo tròn viền */
       .surface-composer {
-        background: ${st.inputStyle === 'glass' ? cleanComposerBg : (bubbleTheme.inputCardBg || cleanComposerBg)} !important;
-        border: 1px solid ${st.inputStyle === 'double_gold' ? 'rgba(245, 158, 11, 0.72)' : (bubbleTheme.borderColor || cleanComposerBorder)} !important;
+        background: ${cleanComposerBg} !important;
         border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
         padding: 0 !important;
-        box-shadow: 0 8px 26px rgba(0, 0, 0, ${isLight ? '0.09' : '0.28'}), 0 0 12px ${bubbleTheme.glow || 'transparent'} !important;
         position: relative !important;
       }
       .surface-composer:focus-within {
-        background: ${st.inputStyle === 'glass' ? cleanComposerBg : (bubbleTheme.inputCardBg || cleanComposerBg)} !important;
-        border-color: ${st.inputStyle === 'double_gold' ? 'rgba(251, 191, 36, 0.92)' : (bubbleTheme.primary || 'rgba(255, 255, 255, 0.34)')} !important;
-        box-shadow: 0 8px 28px rgba(0, 0, 0, ${isLight ? '0.11' : '0.32'}), 0 0 14px ${bubbleTheme.glow || 'transparent'} !important;
+        background: ${cleanComposerBg} !important;
         animation: none !important;
       }
 
@@ -5305,6 +5287,12 @@
       }
       .agy-shell [data-main-content-header] {
         box-sizing: border-box !important;
+        margin: 8px 6px 4px 6px !important;
+        border-radius: 14px !important;
+        border: 1px solid ${glassRimBorder} !important;
+        background: ${cleanBubbleBg} !important;
+        box-shadow: ${glassRimShadow}, 0 4px 18px rgba(0, 0, 0, 0.20) !important;
+        overflow: hidden !important;
       }
       .agy-shell[data-agy-left-collapsed="1"] [data-main-content-header] {
         padding-left: var(--agy-topleft-pad, 178px) !important;
