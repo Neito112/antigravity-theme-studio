@@ -1784,23 +1784,23 @@
       };
 
       if (nextCollapsed) {
-        // Phase 1: GPU transform roll-out (0ms reflow)
+        // Phase 1: GPU transform top-down roll-out (0ms reflow)
         shell.dataset[attrAnim] = 'closing';
         setTimeout(() => {
           delete shell.dataset[attrAnim];
           writeCollapseFlag(storageKey, true);
           syncLayoutCollapsers();
           finishSync();
-        }, 250);
+        }, 320);
       } else {
-        // Phase 1: restore layout at translated position, then GPU roll-in
+        // Phase 1: restore layout at translated position, then GPU grow from topbar
         writeCollapseFlag(storageKey, false);
         shell.dataset[attrAnim] = 'opening';
         syncLayoutCollapsers();
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             delete shell.dataset[attrAnim];
-            setTimeout(finishSync, 270);
+            setTimeout(finishSync, 350);
           });
         });
       }
@@ -4413,9 +4413,15 @@
         width: 6px;
         height: 6px;
       }
-      .agy-shell ::-webkit-scrollbar-track {
-        background: ${isLight ? 'rgba(15, 23, 42, 0.04)' : 'rgba(255, 255, 255, 0.03)'};
-        border-radius: 9999px;
+      .agy-shell ::-webkit-scrollbar-track,
+      .agy-shell ::-webkit-scrollbar-corner {
+        background: transparent !important;
+      }
+      .agy-shell [data-testid="conversation-view"] .absolute.z-10,
+      .agy-shell [data-split-sash="true"],
+      .agy-shell [data-split-sash="true"] > * {
+        background: transparent !important;
+        background-color: transparent !important;
       }
       .agy-shell ::-webkit-scrollbar-thumb {
         background: linear-gradient(180deg, ${pSync}, ${sSync}, ${pSync});
@@ -5246,33 +5252,35 @@
       .agy-shell:is([data-agy-left-collapsed="1"], [data-agy-right-collapsed="1"]) [data-testid="conversation-view"] .mx-auto.w-full {
         max-width: calc(100% - 20px) !important;
       }
-      /* GPU-composited Roll-Side Menu Bar Animation + Rounded Glass Frame cho 2 cột trái/phải */
+      /* GPU-composited Top-Down Grow (mọc từ thanh topbar xuống 60fps) + Glass Frame cho 2 cột trái/phải */
       .agy-shell [data-agy-left-col="1"] {
-        transform-origin: left center !important;
-        transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease !important;
+        transform-origin: top center !important;
+        transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease !important;
         will-change: transform, opacity;
       }
       .agy-shell:not([data-agy-left-collapsed="1"]) [data-agy-left-col="1"] {
-        margin: 8px 4px 10px 10px !important;
-        height: calc(100% - 18px) !important;
+        margin: 0 4px 10px 10px !important;
+        height: calc(100% - 10px) !important;
         align-self: stretch !important;
-        border-radius: 16px !important;
+        border-radius: 0 0 16px 16px !important;
         border: 1px solid ${glassRimBorder} !important;
+        border-top: 0 !important;
         background: ${cleanBubbleBg} !important;
         box-shadow: ${glassRimShadow}, 0 8px 28px rgba(0, 0, 0, 0.28) !important;
         overflow: hidden !important;
       }
       .agy-shell [data-agy-right-col="1"] {
-        transform-origin: right center !important;
-        transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease !important;
+        transform-origin: top center !important;
+        transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease !important;
         will-change: transform, opacity;
       }
       .agy-shell:not([data-agy-right-collapsed="1"]) [data-agy-right-col="1"][data-agy-right-open="1"] {
-        margin: 8px 10px 10px 4px !important;
-        height: calc(100% - 18px) !important;
+        margin: 0 10px 10px 4px !important;
+        height: calc(100% - 10px) !important;
         align-self: stretch !important;
-        border-radius: 16px !important;
+        border-radius: 0 0 16px 16px !important;
         border: 1px solid ${glassRimBorder} !important;
+        border-top: 0 !important;
         background: ${cleanBubbleBg} !important;
         box-shadow: ${glassRimShadow}, 0 8px 28px rgba(0, 0, 0, 0.28) !important;
         overflow: hidden !important;
@@ -5281,30 +5289,31 @@
       .agy-shell:not([data-agy-right-collapsed="1"]) [data-agy-right-col="1"][data-agy-right-open="1"] > * {
         background: transparent !important;
         background-color: transparent !important;
-        border-radius: 15px !important;
+        border-radius: 0 0 15px 15px !important;
       }
       .agy-shell[data-agy-left-anim="closing"] [data-agy-left-col="1"],
       .agy-shell[data-agy-left-anim="opening"] [data-agy-left-col="1"] {
-        transform: translate3d(-24px, 0, 0) scaleX(0.04) scaleY(0.96) !important;
+        transform: scaleY(0.02) !important;
         opacity: 0 !important;
         pointer-events: none !important;
       }
       .agy-shell[data-agy-right-anim="closing"] [data-agy-right-col="1"],
       .agy-shell[data-agy-right-anim="opening"] [data-agy-right-col="1"] {
-        transform: translate3d(24px, 0, 0) scaleX(0.04) scaleY(0.96) !important;
+        transform: scaleY(0.02) !important;
         opacity: 0 !important;
         pointer-events: none !important;
       }
       .agy-shell [data-main-content-header] {
         box-sizing: border-box !important;
-        width: auto !important;
-        max-width: calc(100% - 12px) !important;
-        margin: 8px 6px 4px 6px !important;
-        border-radius: 14px !important;
-        border: 1px solid ${glassRimBorder} !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        border: 0 !important;
+        border-bottom: 1px solid ${glassRimBorder} !important;
         background: ${cleanBubbleBg} !important;
-        box-shadow: ${glassRimShadow}, 0 4px 18px rgba(0, 0, 0, 0.20) !important;
-        overflow: hidden !important;
+        box-shadow: inset 0 1px 0 ${glassInnerSheen} !important;
+        overflow: visible !important;
       }
       .agy-shell[data-agy-left-collapsed="1"] [data-main-content-header] {
         padding-left: var(--agy-topleft-pad, 178px) !important;
@@ -5782,6 +5791,51 @@
       dropdown.hidden = false;
     };
 
+    const callYtSearchBridge = (q) => new Promise((resolve, reject) => {
+      if (typeof window.agyYtSearch === 'function') {
+        const reqId = `yts_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        if (!window.__AGY_YT_SEARCH_PEND__) window.__AGY_YT_SEARCH_PEND__ = new Map();
+        window.__AGY_YT_SEARCH_CB__ = (id, jsonStr) => {
+          const cb = window.__AGY_YT_SEARCH_PEND__ && window.__AGY_YT_SEARCH_PEND__.get(id);
+          if (!cb) return;
+          window.__AGY_YT_SEARCH_PEND__.delete(id);
+          try { cb.resolve(JSON.parse(jsonStr)); } catch (e) { cb.reject(e); }
+        };
+        const timer = setTimeout(() => {
+          window.__AGY_YT_SEARCH_PEND__?.delete(reqId);
+          reject(new Error('YouTube search timeout'));
+        }, 12000);
+        window.__AGY_YT_SEARCH_PEND__.set(reqId, {
+          resolve: (val) => { clearTimeout(timer); resolve(val); },
+          reject: (err) => { clearTimeout(timer); reject(err); }
+        });
+        window.agyYtSearch(JSON.stringify({ id: reqId, q }));
+        return;
+      }
+      fetch(`${mediaBase}/api/yt-search?q=${encodeURIComponent(q)}`).then((r) => r.json()).then(resolve).catch(reject);
+    });
+
+    const callYtResolveBridge = (videoId) => new Promise((resolve) => {
+      if (typeof window.agyYtResolve === 'function') {
+        const reqId = `ytr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        if (!window.__AGY_YT_RESOLVE_PEND__) window.__AGY_YT_RESOLVE_PEND__ = new Map();
+        window.__AGY_YT_RESOLVE_CB__ = (id, jsonStr) => {
+          const cb = window.__AGY_YT_RESOLVE_PEND__ && window.__AGY_YT_RESOLVE_PEND__.get(id);
+          if (!cb) return;
+          window.__AGY_YT_RESOLVE_PEND__.delete(id);
+          try { cb(JSON.parse(jsonStr)); } catch (_) { cb({ ok: false }); }
+        };
+        const timer = setTimeout(() => {
+          window.__AGY_YT_RESOLVE_PEND__?.delete(reqId);
+          resolve({ ok: false });
+        }, 8000);
+        window.__AGY_YT_RESOLVE_PEND__.set(reqId, (val) => { clearTimeout(timer); resolve(val); });
+        window.agyYtResolve(JSON.stringify({ id: reqId, v: videoId }));
+        return;
+      }
+      resolve({ ok: false });
+    });
+
     const startIframeFallback = (videoId) => {
       if (videoId !== activeVideoId) return;
       playbackMode = 'iframe';
@@ -5789,7 +5843,7 @@
       iframe.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?autoplay=1&enablejsapi=1&playsinline=1&rel=0&origin=${encodeURIComponent(location.origin)}`;
     };
 
-    const playTrackAt = (idx) => {
+    const playTrackAt = async (idx) => {
       if (!queue.length) return;
       const wrapped = ((idx % queue.length) + queue.length) % queue.length;
       currentIndex = wrapped;
@@ -5806,12 +5860,19 @@
       syncPlayIcon();
       if (!dropdown.hidden) renderDropdown();
 
-      audio.src = `${mediaBase}/api/yt-stream?v=${encodeURIComponent(track.videoId)}`;
-      audio.play().catch(() => {
-        if (activeVideoId === track.videoId && playbackMode === 'audio') {
-          startIframeFallback(track.videoId);
-        }
-      });
+      const resolved = await callYtResolveBridge(track.videoId);
+      if (activeVideoId !== track.videoId) return;
+      if (resolved && resolved.ok && resolved.url) {
+        if (resolved.durationSec > 0) currentDuration = resolved.durationSec;
+        audio.src = resolved.url;
+        audio.play().catch(() => {
+          if (activeVideoId === track.videoId && playbackMode === 'audio') {
+            startIframeFallback(track.videoId);
+          }
+        });
+      } else {
+        startIframeFallback(track.videoId);
+      }
     };
 
     const searchAndShowList = async (q) => {
@@ -5820,8 +5881,7 @@
       const prevTitle = titleEl.textContent;
       titleEl.textContent = 'Đang tìm...';
       try {
-        const res = await fetch(`${mediaBase}/api/yt-search?q=${encodeURIComponent(query)}`);
-        const data = await res.json();
+        const data = await callYtSearchBridge(query);
         if (!data || !data.ok || !Array.isArray(data.results) || data.results.length === 0) {
           titleEl.textContent = 'Không tìm thấy bài hát';
           dropdown.hidden = true;

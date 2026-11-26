@@ -293,7 +293,7 @@ function createSession(target) {
     async function ensureBindings() {
         try {
             await send('Runtime.evaluate', {
-                expression: 'delete window.agySaveThemeConfig; delete window.agyDesignTheme; delete window.agyDesignThemeV2;',
+                expression: 'delete window.agySaveThemeConfig; delete window.agyDesignTheme; delete window.agyDesignThemeV2; delete window.agyYtSearch; delete window.agyYtResolve;',
                 awaitPromise: false,
             });
         } catch (_) {}
@@ -302,6 +302,12 @@ function createSession(target) {
         } catch (_) {}
         try {
             await send('Runtime.addBinding', { name: 'agyDesignThemeV2' });
+        } catch (_) {}
+        try {
+            await send('Runtime.addBinding', { name: 'agyYtSearch' });
+        } catch (_) {}
+        try {
+            await send('Runtime.addBinding', { name: 'agyYtResolve' });
         } catch (_) {}
     }
 
@@ -368,6 +374,36 @@ function createSession(target) {
                 }
             } catch (err) {
                 log(`Config binding error: ${err.message}`);
+            }
+            return;
+        }
+
+        if (msg.method === 'Runtime.bindingCalled' && msg.params && msg.params.name === 'agyYtSearch') {
+            let job = null;
+            try { job = JSON.parse(msg.params.payload || '{}'); } catch (_) {}
+            if (job && job.id && job.q) {
+                const reply = (obj) => {
+                    const expr = `window.__AGY_YT_SEARCH_CB__ && window.__AGY_YT_SEARCH_CB__(${JSON.stringify(job.id)}, ${JSON.stringify(JSON.stringify(obj))})`;
+                    send('Runtime.evaluate', { expression: expr }).catch(() => {});
+                };
+                searchYouTubeTracks(job.q)
+                    .then((results) => reply({ ok: true, results }))
+                    .catch((err) => reply({ ok: false, error: err.message }));
+            }
+            return;
+        }
+
+        if (msg.method === 'Runtime.bindingCalled' && msg.params && msg.params.name === 'agyYtResolve') {
+            let job = null;
+            try { job = JSON.parse(msg.params.payload || '{}'); } catch (_) {}
+            if (job && job.id && job.v) {
+                const reply = (obj) => {
+                    const expr = `window.__AGY_YT_RESOLVE_CB__ && window.__AGY_YT_RESOLVE_CB__(${JSON.stringify(job.id)}, ${JSON.stringify(JSON.stringify(obj))})`;
+                    send('Runtime.evaluate', { expression: expr }).catch(() => {});
+                };
+                resolveYtAudioStream(job.v, false)
+                    .then((info) => reply({ ok: true, url: info.url, durationSec: info.durationSec }))
+                    .catch((err) => reply({ ok: false, error: err.message }));
             }
             return;
         }
@@ -708,6 +744,64 @@ function extractYouTubeId(input) {
     if (m) return m[1];
     if (/^[A-Za-z0-9_-]{11}$/.test(raw)) return raw;
     return '';
+}
+
+async function searchYouTubeTracks(rawQuery) {
+    const q = String(rawQuery || '').trim();
+    if (!q) return [];
+    const directId = extractYouTubeId(q);
+    if (directId) {
+        try {
+            const info = await resolveYtAudioStream(directId, false);
+            return [{
+                videoId: info.videoId,
+                title: info.title,
+                author: info.author,
+                durationSec: info.durationSec,
+                durationText: info.durationSec ? `${Math.floor(info.durationSec / 60)}:${String(info.durationSec % 60).padStart(2, '0')}` : '',
+                thumbnail: `https://i.ytimg.com/vi/${info.videoId}/mqdefault.jpg`,
+            }];
+        } catch (_) {
+            return [{
+                videoId: directId,
+                title: `YouTube (${directId})`,
+                author: 'YouTube',
+                durationSec: 0,
+                durationText: '',
+                thumbnail: `https://i.ytimg.com/vi/${directId}/mqdefault.jpg`,
+            }];
+        }
+    }
+    const searchRes = await ytPostJson('/youtubei/v1/search?prettyPrint=false', {
+        context: { client: { clientName: 'WEB', clientVersion: '2.20241126.01.00', hl: 'vi', gl: 'VN' } },
+        query: q,
+    });
+    const contents = searchRes?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || [];
+    const results = [];
+    for (const sec of contents) {
+        const items = sec?.itemSectionRenderer?.contents || [];
+        for (const item of items) {
+            const v = item?.videoRenderer;
+            if (!v || !v.videoId) continue;
+            const durationText = v.lengthText?.simpleText || '';
+            if (!durationText) continue;
+            const thumbs = v.thumbnail?.thumbnails;
+            const thumbUrl = (Array.isArray(thumbs) && thumbs.length > 0 && thumbs[0]?.url)
+                ? thumbs[0].url
+                : `https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`;
+            results.push({
+                videoId: v.videoId,
+                title: v.title?.runs?.map((r) => r.text).join('') || v.videoId,
+                author: v.ownerText?.runs?.map((r) => r.text).join('') || '',
+                durationText,
+                durationSec: parseDurationText(durationText),
+                thumbnail: thumbUrl,
+            });
+            if (results.length >= 8) break;
+        }
+        if (results.length >= 8) break;
+    }
+    return results;
 }
 
 async function resolveYtAudioStream(videoId, forceRefresh) {
@@ -1166,51 +1260,7 @@ async function handleMediaRequest(req, res) {
             return;
         }
         try {
-            const directId = extractYouTubeId(q);
-            if (directId) {
-                const info = await resolveYtAudioStream(directId, false);
-                sendJson(res, 200, {
-                    ok: true,
-                    results: [{
-                        videoId: info.videoId,
-                        title: info.title,
-                        author: info.author,
-                        durationSec: info.durationSec,
-                        durationText: info.durationSec ? `${Math.floor(info.durationSec / 60)}:${String(info.durationSec % 60).padStart(2, '0')}` : '',
-                        thumbnail: `https://i.ytimg.com/vi/${info.videoId}/mqdefault.jpg`,
-                    }],
-                });
-                return;
-            }
-            const searchRes = await ytPostJson('/youtubei/v1/search?prettyPrint=false', {
-                context: { client: { clientName: 'WEB', clientVersion: '2.20241126.01.00', hl: 'vi', gl: 'VN' } },
-                query: q,
-            });
-            const contents = searchRes?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || [];
-            const results = [];
-            for (const sec of contents) {
-                const items = sec?.itemSectionRenderer?.contents || [];
-                for (const item of items) {
-                    const v = item?.videoRenderer;
-                    if (!v || !v.videoId) continue;
-                    const durationText = v.lengthText?.simpleText || '';
-                    if (!durationText) continue; // skip livestreams without finite duration
-                    const thumbs = v.thumbnail?.thumbnails;
-                    const thumbUrl = (Array.isArray(thumbs) && thumbs.length > 0 && thumbs[0]?.url)
-                        ? thumbs[0].url
-                        : `https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`;
-                    results.push({
-                        videoId: v.videoId,
-                        title: v.title?.runs?.map((r) => r.text).join('') || v.videoId,
-                        author: v.ownerText?.runs?.map((r) => r.text).join('') || '',
-                        durationText,
-                        durationSec: parseDurationText(durationText),
-                        thumbnail: thumbUrl,
-                    });
-                    if (results.length >= 8) break;
-                }
-                if (results.length >= 8) break;
-            }
+            const results = await searchYouTubeTracks(q);
             sendJson(res, 200, { ok: true, results });
         } catch (err) {
             sendJson(res, 500, { ok: false, error: err.message });
