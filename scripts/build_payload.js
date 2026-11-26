@@ -125,6 +125,25 @@ function buildPayload(themesPath, enginePath, outPath) {
     if (compiled.includes(BUILD_VER_PLACEHOLDER)) {
         compiled = compiled.split(BUILD_VER_PLACEHOLDER).join(JSON.stringify(String(Date.now())));
     }
+
+    const bootPath = path.join(path.dirname(enginePath), 'boot.js');
+    if (fs.existsSync(bootPath)) {
+        const bootSrc = fs.readFileSync(bootPath, 'utf8').trimEnd();
+        compiled = [
+            bootSrc + ';',
+            'try {',
+            compiled,
+            '} catch (__agyEarlyInitErr) {',
+            '  if (typeof document !== "undefined" && document.body) throw __agyEarlyInitErr;',
+            '} finally {',
+            '  if (typeof window !== "undefined" && typeof window.__AGY_LAZY_BOOT__ === "function") {',
+            '    window.__AGY_LOADED_MODS__ = window.__AGY_LOADED_MODS__ || {};',
+            '    window.__AGY_LOADED_MODS__.boot = true;',
+            '  }',
+            '}',
+        ].join('\n');
+    }
+
     fs.mkdirSync(path.dirname(outPath), { recursive: true });
     fs.writeFileSync(outPath, compiled, 'utf8');
 

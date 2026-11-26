@@ -3322,7 +3322,7 @@
       .agy-user-bubble-frame::before { display: none !important; }
     `;
 
-    const showInputSticker = st.inputStyle !== 'minimal' && bubbleTheme.sticker;
+    const showInputSticker = st.inputStyle !== 'minimal' && st.petEnabled === false && bubbleTheme.sticker;
     const inputStickerCss = showInputSticker ? (bubbleTheme.isOrnament ? `
       .surface-composer {
         margin-top: 14px !important;
@@ -3411,9 +3411,11 @@
       const surfaceMode = lc.surfaceMode || 'smoked-glass';
       const density = lc.density === 'compact' ? 'compact' : (lc.density === 'spacious' ? 'spacious' : 'balanced');
       const sidebarNavSel = '.agy-shell [role="navigation"][aria-label="Sidebar"]';
-      const sidebarStaticItemSel = '.agy-shell [role="navigation"][aria-label="Sidebar"] :is([data-testid="new-conversation-button"], [data-testid="automations-button"], [data-testid="settings-button"], a, [class*="group/headerbtn"])';
-      const sidebarRowSel = '.agy-shell [role="navigation"][aria-label="Sidebar"] :is([data-testid="conversation-row-sidebar"], .agy-sidebar-row)';
-      const sidebarItemSel = `${sidebarStaticItemSel}, ${sidebarRowSel}`;
+      const sidebarStaticItemSel = `${sidebarNavSel} :is([data-testid="new-conversation-button"], [data-testid="automations-button"], [data-testid="settings-button"], a.agy-sidebar-nav-link, [class*="group/headerbtn"], #agy-custom-theme-sidebar-btn)`;
+      const sidebarRowSel = `${sidebarNavSel} :is([data-testid="conversation-row-sidebar"], .agy-sidebar-row)`;
+      const sidebarHoverSel = `${sidebarNavSel} :is([data-testid="new-conversation-button"], [data-testid="automations-button"], [data-testid="settings-button"], [data-testid="conversation-row-sidebar"], .agy-sidebar-row, [class*="group/headerbtn"], a.agy-sidebar-nav-link, #agy-custom-theme-sidebar-btn)`;
+      const sidebarSubtleHoverBg = lightMode ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.06)';
+      const sidebarActiveBg = lightMode ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255, 255, 255, 0.06)';
       const itemPad = density === 'compact' ? '4px 8px' : (density === 'spacious' ? '8px 12px' : '6px 10px');
       const itemMargin = density === 'compact' ? '1px 4px' : (density === 'spacious' ? '3px 8px' : '2px 6px');
       const lcRadius = Math.min(16, Math.max(4, Number(lc.radiusPx) || 10));
@@ -3441,6 +3443,8 @@
           pointer-events: auto !important;
         }
         ${sidebarStaticItemSel} {
+          background: transparent !important;
+          background-image: none !important;
           border-radius: ${Math.max(4, lcRadius - 2)}px !important;
           border: none !important;
           box-shadow: none !important;
@@ -3450,37 +3454,33 @@
           ${isDyn ? 'transition: background-color 0.16s ease, color 0.16s ease !important;' : 'transition: none !important;'}
         }
         ${sidebarRowSel} {
+          background: transparent !important;
+          background-image: none !important;
           border-radius: ${Math.max(4, lcRadius - 2)}px !important;
           border: none !important;
           box-shadow: none !important;
           ${isDyn ? 'transition: background-color 0.16s ease, color 0.16s ease !important;' : 'transition: none !important;'}
         }
-        ${sidebarItemSel}:hover {
+        ${sidebarNavSel} :is([data-testid="conversation-row-sidebar"], .agy-sidebar-row) :is(a, button, span, div):not(.rounded-full):not([data-unread]):not([data-testid*="unread"]):not([aria-label*="unread" i]) {
+          background: transparent !important;
+          background-image: none !important;
+        }
+        ${sidebarHoverSel}:hover {
           border: none !important;
           box-shadow: none !important;
-          background: ${sidebarHoverBg} !important;
-          ${isDyn ? `background-image: linear-gradient(90deg, transparent, ${gColor}, transparent) !important; background-size: 200% 100% !important; animation: agyShimmerSweep 2.4s linear infinite !important;` : ''}
+          background: ${sidebarSubtleHoverBg} !important;
+          background-image: none !important;
+          animation: none !important;
+        }
+        ${sidebarNavSel} :is([data-testid="conversation-row-sidebar"], .agy-sidebar-row) button:hover {
+          background: ${sidebarSubtleHoverBg} !important;
         }
         ${sidebarNavSel} :is([aria-current="page"], [aria-selected="true"], [data-active="true"], [data-selected="true"]) {
           border: none !important;
-          background: ${sidebarHoverBg} !important;
-          box-shadow: inset 2.5px 0 0 ${pColor} !important;
+          background: ${sidebarActiveBg} !important;
+          background-image: none !important;
+          box-shadow: inset 2px 0 0 ${pColor} !important;
         }
-        ${isDyn ? `
-        ${sidebarNavSel} :is([aria-current="page"], [aria-selected="true"], [data-active="true"], [data-selected="true"])::after {
-          content: "";
-          position: absolute;
-          left: 8px;
-          right: 8px;
-          bottom: 1px;
-          height: 1.5px;
-          border-radius: 9999px;
-          background: linear-gradient(90deg, transparent, ${pColor}, ${sColor}, transparent);
-          background-size: 200% 100%;
-          animation: agyShimmerSweep 2.8s linear infinite;
-          pointer-events: none;
-        }
-        ` : ''}
       `;
 
       // 2. Center Stage (Airy nearly-transparent AI response, clean smoked user bubble & clean composer without neon border)
@@ -4106,15 +4106,15 @@
         color: ${uiInk} !important;
         transition: ${isDynamicMode ? 'background-color 0.16s ease, color 0.16s ease' : 'none'} !important;
       }
+      .agy-shell :is([data-testid="toggle-overview-panel"], [data-overview-panel-toggle], [data-testid="toggle-aux-sidebar"], [data-testid="toggle-maximize-pane"]):is([aria-expanded="true"], [aria-pressed="true"], [data-state="open"]) {
+        background: transparent !important;
+        color: ${pSync} !important;
+        box-shadow: none !important;
+      }
       .agy-shell [data-testid="pane-titlebar-toolbar"] :is(button, [role="button"]):not(#agy-custom-theme-topbar-btn):hover,
       .agy-shell :is([data-testid="sidebar-toggle"], [data-testid="sidebar-search-button"], [data-testid="toggle-overview-panel"], [data-overview-panel-toggle], [data-testid="toggle-aux-sidebar"], [data-testid="toggle-maximize-pane"], [data-testid="open-editor-single"], [data-testid="titlebar-more-actions"]):hover {
-        background: ${sidebarHoverBg} !important;
+        background: ${isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255, 255, 255, 0.07)'} !important;
         color: ${pSync} !important;
-      }
-      .agy-shell :is([data-testid="toggle-overview-panel"], [data-overview-panel-toggle], [data-testid="toggle-aux-sidebar"], [data-testid="toggle-maximize-pane"]):is([aria-expanded="true"], [aria-pressed="true"], [data-state="open"]) {
-        background: ${sidebarHoverBg} !important;
-        color: ${pSync} !important;
-        box-shadow: inset 0 -2px 0 ${pSync} !important;
       }
 
       /* 2. Conversation Task, Step, Thinking & Overview — Clean Borderless Inner Rows */
@@ -4408,8 +4408,8 @@
         transition: opacity 0.14s ease !important;
       }
       .agy-shell .bg-sidebar [class*="group/headerbtn"]:hover,
-      .agy-shell .bg-sidebar a:hover {
-        background: ${sidebarHoverBg} !important;
+      .agy-shell .bg-sidebar a.agy-sidebar-nav-link:hover {
+        background: ${isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.06)'} !important;
       }
       ${sidebarEnhanceCss}
       ${aiCardCss}
@@ -4417,11 +4417,14 @@
       ${avatarCss}
       ${headerCss}
 
-      /* "+ New Conversation" & custom buttons — clean subtle hairline without bright glow */
+      /* "+ New Conversation" & custom buttons — transparent at rest with subtle hairline */
       .agy-button-custom.border.border-border {
-        background: ${isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.06)'} !important;
+        background: transparent !important;
         border-color: ${cleanSoftHairline} !important;
         box-shadow: none !important;
+      }
+      .agy-button-custom.border.border-border:hover {
+        background: ${isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.06)'} !important;
       }
 
       /* User Chat Bubble — Clean Smoked Glass without glowing outer frame or corner brackets */
@@ -5098,6 +5101,7 @@
       .agy-shell.agy-pet-chat-docked .surface-composer[data-agy-composer-host="1"] {
         position: fixed !important;
         z-index: 2147483002 !important;
+        background: ${isLight ? 'rgba(248, 250, 252, 0.94)' : 'rgba(10, 12, 22, 0.92)'} !important;
         width: var(--agy-pet-comp-w, min(500px, calc(100vw - 24px))) !important;
         max-width: calc(100vw - 24px) !important;
         left: var(--agy-pet-comp-left, auto) !important;

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="vi" style="background:#020307;margin:0;padding:0;overflow:hidden;">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Antigravity — Boot</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #020307;
+      overflow: hidden;
+      color: #f4f4f5;
+      font-family: ui-monospace, 'JetBrains Mono', 'Cascadia Mono', Consolas, monospace;
+    }
+  </style>
+</head>
+<body style="background:#020307;margin:0;padding:0;overflow:hidden;">
+  <script>
+    window.__AGY_PRELAUNCH_BOOTSTRAP__ = /*__PRELAUNCH_BOOTSTRAP__*/{};
+  </script>
+  <script src="/engine/boot.js"></script>
+  <script>
+    (() => {
+      const bootData = window.__AGY_PRELAUNCH_BOOTSTRAP__ || {};
+      const MEDIA_BASE = String(bootData.mediaBaseUrl || window.location.origin || 'http://127.0.0.1:47821').replace(/\/+$/, '');
+      window.__AGY_MEDIA_BASE_URL__ = MEDIA_BASE;
+
+      const THEMES = (bootData.themes && typeof bootData.themes === 'object') ? bootData.themes : {};
+      const BOOT_ASSETS = (bootData.bootAssets && typeof bootData.bootAssets === 'object') ? bootData.bootAssets : {
+        starfieldBg: 'assets/starfield-boot-bg.jpg',
+        agyColorIcon: 'assets/agy-icon-color.png',
+        voice1: 'assets/voice/tawa_voice1.mp3',
+        voice2: 'assets/voice/tawa_voice2.mp3',
+        voice3: 'assets/voice/tawa_voice3.mp3',
+        voice4: 'assets/voice/tawa_voice4.mp3',
+        greetingFontVi: 'assets/fonts/mali-500-vi.woff2',
+        greetingFontLatinExt: 'assets/fonts/mali-500-latin-ext.woff2',
+        greetingFontLatin: 'assets/fonts/mali-500-latin.woff2',
+      };
+      const INITIAL_CONFIG = (bootData.config && typeof bootData.config === 'object') ? bootData.config : {};
+      const THEME_KEYS = Object.keys(THEMES);
+      const DEFAULT_THEME_KEY = THEME_KEYS[0] || 'Default';
+
+      function getDefaultThemeKey() {
+        return (THEMES[DEFAULT_THEME_KEY] ? DEFAULT_THEME_KEY : THEME_KEYS[0]) || DEFAULT_THEME_KEY;
+      }
+
+      function escapeHtml(v) {
+        return String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;',
+        }[c]));
+      }
+
+      function resolveMediaUrl(relOrAbs) {
+        if (!relOrAbs) return '';
+        const s = String(relOrAbs).trim();
+        if (!s) return '';
+        const localMediaMatch = s.match(/^https?:\/\/127\.0\.0\.1:\d+\/((?:assets|user_media)\/.+)$/i);
+        if (localMediaMatch) {
+          return `${MEDIA_BASE}/${localMediaMatch[1]}`;
+        }
+        if (/^(https?:|data:|blob:|file:)/i.test(s)) return s;
+        const cleanRel = s.replace(/^\.\//, '').replace(/^\/+/, '');
+        return `${MEDIA_BASE}/${cleanRel}`;
+      }
+
+      function sanitizeCssUrl(u) {
+        return String(u || '').replace(/["\\()\r\n]/g, (ch) => encodeURIComponent(ch));
+      }
+
+      const DYNAMIC_ARCHETYPES = {
+        'rpg-fantasy': {
+          archetype: 'rpg-fantasy',
+          archetypeLabel: 'RPG Fantasy',
+          introChecks: ['VISUAL', 'AUDIO', 'AETHER', 'SYNC'],
+          voiceWelcome: 'System online. Link start.',
+        },
+        'anime-celestial': {
+          archetype: 'anime-celestial',
+          archetypeLabel: 'Anime Celestial',
+          introChecks: ['VISUAL', 'STARLIGHT', 'AUDIO', 'SYNC'],
+          voiceWelcome: 'Celestial link awakened. Welcome back.',
+        },
+        'cyberpunk-sci-fi': {
+          archetype: 'cyberpunk-sci-fi',
+          archetypeLabel: 'Cyberpunk HUD',
+          introChecks: ['OPTICS', 'NEURAL', 'AUDIO', 'UPLINK'],
+          voiceWelcome: 'Neural HUD online. Welcome back.',
+        },
+        'kaiju-mecha': {
+          archetype: 'kaiju-mecha',
+          archetypeLabel: 'Kaiju Mecha',
+          introChecks: ['REACTOR', 'RADAR', 'WEAPONS', 'SYNC'],
+          voiceWelcome: 'Core reactor online. Standing by.',
+        },
+        'minimal-office': {
+          archetype: 'minimal-office',
+          archetypeLabel: 'Minimal Office',
+          introChecks: ['LAYOUT', 'CONTRAST', 'AUDIO', 'READY'],
+          voiceWelcome: 'Focus workspace ready. Welcome back.',
+        },
+        'nature-zen': {
+          archetype: 'nature-zen',
+          archetypeLabel: 'Nature Zen',
+          introChecks: ['CANOPY', 'BREEZE', 'CHIME', 'CALM'],
+          voiceWelcome: 'Sanctuary ready. Breathe and focus.',
+        },
+        'retro-arcade': {
+          archetype: 'retro-arcade',
+          archetypeLabel: 'Retro Arcade',
+          introChecks: ['SPRITES', 'CHIPTUNE', 'CRT', 'READY'],
+          voiceWelcome: 'Player one ready. Press start.',
+        },
+        'cosmic-arcane': {
+          archetype: 'cosmic-arcane',
+          archetypeLabel: 'Cosmic Arcane',
+          introChecks: ['NEBULA', 'ORBIT', 'SONIC', 'LOCK'],
+          voiceWelcome: 'Astral observatory online. Welcome back.',
+        },
+      };
+
+      function inferArchetypeFromTheme(theme) {
+        const t = theme || {};
+        const hay = `${t.name || ''} ${t.concept || ''} ${t.primary || ''}`.toLowerCase();
+        if (/kaiju|mecha|titan|crimson|lava|ember|magma|dragon/.test(hay)) return 'kaiju-mecha';
+        if (/cyber|neon|matrix|sci-fi|tech|synth|radar|hud/.test(hay)) return 'cyberpunk-sci-fi';
+        if (/office|minimal|obsidian|clean|desk|slate|monochrome/.test(hay)) return 'minimal-office';
+        if (/nature|forest|grotto|luminous|zen|garden|leaf|moss|emerald/.test(hay)) return 'nature-zen';
+        if (/retro|pixel|arcade|8-bit|8bit|chiptune/.test(hay)) return 'retro-arcade';
+        if (/anime|celestial|sakura|eclipse|petal|angel|halo/.test(hay)) return 'anime-celestial';
+        if (/rpg|fantasy|sword|knight|dungeon|guild|aether/.test(hay)) return 'rpg-fantasy';
+        return 'cosmic-arcane';
+      }
+
+      function resolveDynamicPack(theme) {
+        const t = theme || {};
+        const raw = (t.dynamicPack && typeof t.dynamicPack === 'object') ? t.dynamicPack : {};
+        const rawArch = typeof raw.archetype === 'string' ? raw.archetype.trim() : '';
+        const fallbackArch = inferArchetypeFromTheme(t);
+        const archKey = rawArch || fallbackArch;
+        const base = DYNAMIC_ARCHETYPES[archKey] || DYNAMIC_ARCHETYPES[fallbackArch] || DYNAMIC_ARCHETYPES['cosmic-arcane'];
+        const rawUi = (raw.uiDesign && typeof raw.uiDesign === 'object') ? raw.uiDesign : {};
+        return {
+          ...base,
+          ...raw,
+          archetype: archKey,
+          archetypeLabel: raw.archetypeLabel || base.archetypeLabel,
+          introChecks: Array.isArray(raw.introChecks) && raw.introChecks.length
+            ? raw.introChecks.slice(0, 4).map((c) => String(c).toUpperCase())
+            : base.introChecks,
+          voiceWelcome: raw.voiceWelcome || base.voiceWelcome,
+          uiDesign: rawUi,
+          workIdentity: (t.workIdentity && typeof t.workIdentity === 'object') ? t.workIdentity : {},
+        };
+      }
+
+      function getState() {
+        const rawName = INITIAL_CONFIG.themeName;
+        const themeName = (rawName && THEMES[rawName]) ? rawName : getDefaultThemeKey();
+        return {
+          themeName,
+          customWp: INITIAL_CONFIG.customWp || '',
+          agentAvatar: INITIAL_CONFIG.agentAvatar || 'none',
+          bootIntro: true,
+          themeMode: 'dynamic',
+          petEnabled: INITIAL_CONFIG.petEnabled !== false,
+        };
+      }
+
+      function clearBootTimers() {
+        if (Array.isArray(window.__AGY_BOOT_TIMERS__)) {
+          window.__AGY_BOOT_TIMERS__.forEach((id) => clearTimeout(id));
+        }
+        window.__AGY_BOOT_TIMERS__ = [];
+        if (window.__AGY_BOOT_CLOCK__) {
+          clearInterval(window.__AGY_BOOT_CLOCK__);
+          window.__AGY_BOOT_CLOCK__ = null;
+        }
+        if (window.__AGY_BOOT_HEX__) {
+          clearInterval(window.__AGY_BOOT_HEX__);
+          window.__AGY_BOOT_HEX__ = null;
+        }
+        if (window.__AGY_BOOT_KEYDOWN__) {
+          window.removeEventListener('keydown', window.__AGY_BOOT_KEYDOWN__, true);
+          window.__AGY_BOOT_KEYDOWN__ = null;
+        }
+      }
+
+      function stopBootAudio() {
+        if (window.__AGY_BOOT_AUDIO__) {
+          try {
+            window.__AGY_BOOT_AUDIO__.pause();
+            window.__AGY_BOOT_AUDIO__.currentTime = 0;
+          } catch (_) {}
+          window.__AGY_BOOT_AUDIO__ = null;
+        }
+        try {
+          if (window.speechSynthesis) window.speechSynthesis.cancel();
+        } catch (_) {}
+      }
+
+      function teardownBootOverlay() {
+        clearBootTimers();
+        stopBootAudio();
+        const ov = document.getElementById('agy-boot-overlay');
+        if (ov) ov.remove();
+        const fl = document.getElementById('agy-flash-curtain');
+        if (fl) fl.remove();
+        const st = document.getElementById('agy-boot-styles');
+        if (st) st.remove();
+      }
+
+      let doneSent = false;
+      function notifyPrelaunchDone(instant) {
+        if (doneSent) return;
+        doneSent = true;
+        const delayMs = instant ? 0 : 280;
+        const sendDone = () => {
+          fetch(`${MEDIA_BASE}/prelaunch_done`, {
+            method: 'POST',
+            keepalive: true,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ instant: Boolean(instant), finishedAt: Date.now() }),
+          })
+            .catch(() => {})
+            .finally(() => {
+              setTimeout(() => {
+                try { window.close(); } catch (_) {}
+              }, 120);
+            });
+          setTimeout(() => {
+            try { window.close(); } catch (_) {}
+          }, 600);
+        };
+        if (delayMs > 0) setTimeout(sendDone, delayMs);
+        else sendDone();
+      }
+
+      window.addEventListener('pagehide', () => {
+        if (!doneSent && navigator.sendBeacon) {
+          doneSent = true;
+          try {
+            navigator.sendBeacon(`${MEDIA_BASE}/prelaunch_done`, '{}');
+          } catch (_) {}
+        }
+      });
+
+      function startPrelaunchBoot() {
+        const st = getState();
+        const activeThemeName = st.themeName || getDefaultThemeKey();
+        const mainTheme = THEMES[activeThemeName] || {};
+        const pack = resolveDynamicPack(mainTheme);
+        const ui = pack.uiDesign || mainTheme.uiDesign || {};
+        const workIdentity = pack.workIdentity || mainTheme.workIdentity || {};
+        const wpUrl = resolveMediaUrl(st.customWp || mainTheme.wallpaper || mainTheme.posterUrl || '');
+        const brandTitle = String(workIdentity.brandTitle || mainTheme.brandTitle || workIdentity.franchise || activeThemeName || 'Antigravity').trim();
+        document.title = `${brandTitle} — Boot`;
+
+        const bootCtx = {
+          BOOT_ASSETS,
+          THEMES,
+          getDefaultThemeKey,
+          getState,
+          resolveMediaUrl,
+          sanitizeCssUrl,
+          resolveDynamicPack,
+          syncDynamicFxLayer: () => {},
+          removeDynamicHudWidgets: () => {},
+          syncBetterPet: () => {},
+          clearBootTimers,
+          stopBootAudio,
+          teardownBootOverlay,
+          scheduleRevealWhenReady: (allowInstant) => notifyPrelaunchDone(allowInstant),
+          escapeHtml,
+          themeName: activeThemeName,
+          mainTheme,
+          pack,
+          primary: mainTheme.primary || '#60a5fa',
+          secondary: mainTheme.secondary || mainTheme.primary || '#38bdf8',
+          glow: mainTheme.glow || 'rgba(96, 165, 250, 0.35)',
+          secondaryGlow: mainTheme.secondaryGlow || mainTheme.glow || 'rgba(59, 130, 246, 0.25)',
+          wallpaper: wpUrl,
+          petSpriteUrl: mainTheme.petSpriteUrl ? resolveMediaUrl(mainTheme.petSpriteUrl) : '',
+          agentAvatar: (st.agentAvatar && st.agentAvatar !== 'none')
+            ? resolveMediaUrl(st.agentAvatar)
+            : (mainTheme.agentAvatar ? resolveMediaUrl(mainTheme.agentAvatar) : ''),
+          workIdentity,
+          emblemSvgInner: ui.emblemSvgInner || '',
+          hudWidget: ui.hudWidget || {},
+          voiceWelcome: pack.voiceWelcome || mainTheme.voiceWelcome || '',
+          brandLogoUrl: mainTheme.brandLogoUrl || workIdentity.brandLogoUrl || '',
+        };
+
+        if (typeof window.__AGY_LAZY_BOOT__ === 'function') {
+          window.__AGY_LAZY_BOOT__(bootCtx, true);
+        } else {
+          notifyPrelaunchDone(true);
+        }
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startPrelaunchBoot, { once: true });
+      } else {
+        startPrelaunchBoot();
+      }
+    })();
+  </script>
+</body>
+</html>

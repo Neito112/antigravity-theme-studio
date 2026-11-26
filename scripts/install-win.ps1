@@ -80,6 +80,9 @@ Set-Content -Path $VbsPath -Value $VbsContent -Encoding ASCII
 
 $WshShell = New-Object -ComObject WScript.Shell
 
+$LaunchScript = Join-Path $ScriptDir 'launch-antigravity-themed.ps1'
+$AntigravityExePath = $null
+
 # Ensure Antigravity shortcuts include --remote-debugging-port=0 (required on Antigravity v2.33.0+)
 $ShortcutSearchDirs = @(
     [Environment]::GetFolderPath('DesktopDirectory'),
@@ -93,6 +96,9 @@ foreach ($SearchDir in $ShortcutSearchDirs) {
         try {
             $Sc = $WshShell.CreateShortcut($_.FullName)
             if ($Sc.TargetPath -and ($Sc.TargetPath -imatch '\\Antigravity\.exe$')) {
+                if (-not $AntigravityExePath -and (Test-Path $Sc.TargetPath)) {
+                    $AntigravityExePath = $Sc.TargetPath
+                }
                 if ($Sc.Arguments -notmatch '--remote-debugging-port') {
                     $Sc.Arguments = ("$($Sc.Arguments) --remote-debugging-port=0").Trim()
                     $Sc.Save()
@@ -101,6 +107,37 @@ foreach ($SearchDir in $ShortcutSearchDirs) {
             }
         } catch {
             # Ignore unreadable or protected shortcuts
+        }
+    }
+}
+
+if (-not $AntigravityExePath) {
+    $AntigravityExePath = @(
+        "$env:LOCALAPPDATA\Programs\Antigravity\Antigravity.exe",
+        "$env:ProgramFiles\Antigravity\Antigravity.exe",
+        "${env:ProgramFiles(x86)}\Antigravity\Antigravity.exe"
+    ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+}
+
+if ($AntigravityExePath -and (Test-Path $LaunchScript)) {
+    $ThemedBootDirs = @(
+        [Environment]::GetFolderPath('DesktopDirectory'),
+        [Environment]::GetFolderPath('Programs')
+    ) | Where-Object { $_ -and (Test-Path $_) }
+    foreach ($TargetDir in $ThemedBootDirs) {
+        try {
+            $BootShortcutPath = Join-Path $TargetDir 'Antigravity (Themed Boot).lnk'
+            $BootSc = $WshShell.CreateShortcut($BootShortcutPath)
+            $BootSc.TargetPath = 'powershell.exe'
+            $BootSc.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""$LaunchScript"""
+            $BootSc.WorkingDirectory = $RepoRoot
+            $BootSc.IconLocation = "$AntigravityExePath,0"
+            $BootSc.WindowStyle = 7
+            $BootSc.Description = 'Antigravity (Themed Boot)'
+            $BootSc.Save()
+            Write-Host "[install-win] Themed Boot shortcut created: $BootShortcutPath"
+        } catch {
+            # Ignore unwritable shortcut target dir
         }
     }
 }

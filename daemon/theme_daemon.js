@@ -27,12 +27,79 @@ const ENGINE_DIR = path.join(ROOT_DIR, 'engine');
 const THEMES_DIR = path.join(ROOT_DIR, 'themes');
 const ASSETS_DIR = path.join(THEMES_DIR, 'assets');
 const USER_MEDIA_DIR = path.join(THEMES_DIR, 'user_media');
+const THEMES_JSON_PATH = path.join(THEMES_DIR, 'themes.json');
+const PRELAUNCH_HTML_PATH = path.join(THEMES_DIR, 'prelaunch_boot.html');
 const PAYLOAD_PATH = path.join(DIST_DIR, 'theme_payload.js');
 const LOG_FILE = path.join(ROOT_DIR, 'daemon.log');
 const MEDIA_HOST = '127.0.0.1';
 const MEDIA_PORT = parseInt(process.env.AGY_MEDIA_PORT || '', 10) || 47821;
 const MEDIA_BASE_URL = `http://${MEDIA_HOST}:${MEDIA_PORT}`;
 const DEFAULT_CONFIG = {};
+const DEFAULT_BOOT_ASSETS = {
+    starfieldBg: 'assets/starfield-boot-bg.jpg',
+    agyColorIcon: 'assets/agy-icon-color.png',
+    voice1: 'assets/voice/tawa_voice1.mp3',
+    voice2: 'assets/voice/tawa_voice2.mp3',
+    voice3: 'assets/voice/tawa_voice3.mp3',
+    voice4: 'assets/voice/tawa_voice4.mp3',
+    greetingFontVi: 'assets/fonts/mali-500-vi.woff2',
+    greetingFontLatinExt: 'assets/fonts/mali-500-latin-ext.woff2',
+    greetingFontLatin: 'assets/fonts/mali-500-latin.woff2',
+};
+
+const PRELAUNCH_DONE_TTL_MS = 20000;
+const PRELAUNCH_ACTIVE_TTL_MS = 120000;
+let prelaunchDoneAt = 0;
+let prelaunchStartedAt = 0;
+
+function prelaunchRecentlyDone() {
+    return prelaunchDoneAt > 0 && (Date.now() - prelaunchDoneAt) < PRELAUNCH_DONE_TTL_MS;
+}
+
+function isPrelaunchInFlight() {
+    return prelaunchStartedAt > 0 && prelaunchStartedAt > prelaunchDoneAt && (Date.now() - prelaunchStartedAt) < PRELAUNCH_ACTIVE_TTL_MS;
+}
+
+function buildPrebootCurtainSource(cfg) {
+    if (!cfg || cfg.bootIntro === false || cfg.themeMode === 'static' || prelaunchRecentlyDone() || isPrelaunchInFlight()) {
+        return '';
+    }
+    return `(() => {
+  try {
+    if (window.__AGY_BOOT_PLAYED__ || window.__AGY_BOOT_FINISHED__) return;
+    if (localStorage.getItem('agy_boot_intro_v1') === 'false' || localStorage.getItem('agy_theme_mode_v1') === 'static') return;
+    if (document.getElementById('agy-boot-overlay') || document.getElementById('agy-preboot-curtain')) return;
+    const st = document.createElement('style');
+    st.id = 'agy-preboot-curtain';
+    st.textContent = 'html{background:#040508!important;}body{opacity:0!important;transition:none!important;}';
+    const host = document.head || document.documentElement;
+    if (host) host.appendChild(st);
+    let cleaned = false;
+    let obs = null;
+    let failSafe = null;
+    const removeCurtain = () => {
+      if (cleaned) return;
+      cleaned = true;
+      if (obs) { try { obs.disconnect(); } catch (_) {} obs = null; }
+      if (failSafe) { clearTimeout(failSafe); failSafe = null; }
+      const el = document.getElementById('agy-preboot-curtain');
+      if (el) el.remove();
+    };
+    const checkReady = () => {
+      if (document.getElementById('agy-boot-overlay') || window.__AGY_BOOT_FINISHED__) {
+        removeCurtain();
+        return true;
+      }
+      return false;
+    };
+    if (!checkReady() && document.documentElement) {
+      obs = new MutationObserver(() => { checkReady(); });
+      obs.observe(document.documentElement, { childList: true, subtree: true });
+      failSafe = setTimeout(removeCurtain, 2500);
+    }
+  } catch (_) {}
+})();`;
+}
 
 function resolvePortFile() {
     if (process.env.AGY_PORT_FILE) {
@@ -146,7 +213,10 @@ function buildInjectedSource() {
 
     const cfgJson = JSON.stringify(readConfig());
     const payloadCode = fs.readFileSync(PAYLOAD_PATH, 'utf8');
-    return `window.__AGY_MEDIA_BASE_URL__ = ${JSON.stringify(MEDIA_BASE_URL)};\nwindow.__AGY_INITIAL_CONFIG__ = ${cfgJson};\n${payloadCode}`;
+    const suppressBootPrefix = (prelaunchRecentlyDone() || isPrelaunchInFlight())
+        ? 'window.__AGY_BOOT_PLAYED__ = true;\nwindow.__AGY_BOOT_FINISHED__ = true;\nwindow.__AGY_INTRO_SHOWN_ONCE__ = true;\n'
+        : '';
+    return `window.__AGY_MEDIA_BASE_URL__ = ${JSON.stringify(MEDIA_BASE_URL)};\nwindow.__AGY_INITIAL_CONFIG__ = ${cfgJson};\n${suppressBootPrefix}${payloadCode}`;
 }
 
 function getPortInfo() {
@@ -340,6 +410,12 @@ function createSession(target) {
             await send('Runtime.enable');
             await ensureBindings();
 
+            const cfg = readConfig();
+            const curtainSrc = buildPrebootCurtainSource(cfg);
+            if (curtainSrc) {
+                await send('Page.addScriptToEvaluateOnNewDocument', { source: curtainSrc });
+            }
+
             const src = buildInjectedSource();
             if (src) {
                 await send('Page.addScriptToEvaluateOnNewDocument', { source: src });
@@ -368,7 +444,11 @@ function createSession(target) {
 }
 
 let missingCdpLogged = false;
+let scanInProgress = false;
 async function scanPages() {
+    if (scanInProgress) return;
+    scanInProgress = true;
+    try {
     const info = getPortInfo();
     if (!info) return;
 
@@ -403,7 +483,8 @@ async function scanPages() {
             url.startsWith('devtools://') ||
             url.startsWith('chrome-extension://') ||
             url.startsWith('data:') ||
-            url.startsWith('about:')
+            url.startsWith('about:') ||
+            url.includes(`:${MEDIA_PORT}/prelaunch_boot.html`)
         ) {
             return false;
         }
@@ -431,6 +512,9 @@ async function scanPages() {
         if (!sessions.has(page.id)) {
             createSession(page);
         }
+    }
+    } finally {
+        scanInProgress = false;
     }
 }
 
@@ -576,6 +660,7 @@ const MEDIA_MIME_TYPES = {
     '.js': 'application/javascript; charset=utf-8',
     '.css': 'text/css; charset=utf-8',
     '.json': 'application/json; charset=utf-8',
+    '.html': 'text/html; charset=utf-8',
 };
 
 const MAX_UPLOAD_BYTES = 150 * 1024 * 1024;
@@ -867,6 +952,91 @@ async function handleMediaRequest(req, res) {
         return;
     }
 
+    if (req.method === 'GET' && pathname === '/prelaunch_boot.html') {
+        if (!fs.existsSync(PRELAUNCH_HTML_PATH)) {
+            sendJson(res, 404, { ok: false, error: 'prelaunch_boot.html not found' });
+            return;
+        }
+        prelaunchStartedAt = Date.now();
+        let builtinThemes = {};
+        try {
+            if (fs.existsSync(THEMES_JSON_PATH)) {
+                const parsed = JSON.parse(fs.readFileSync(THEMES_JSON_PATH, 'utf8'));
+                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                    builtinThemes = parsed;
+                }
+            }
+        } catch (err) {
+            log(`Failed reading themes.json for prelaunch: ${err.message}`);
+        }
+        const cfg = readConfig();
+        const mergedThemes = {
+            ...builtinThemes,
+            ...(cfg.customThemes && typeof cfg.customThemes === 'object' && !Array.isArray(cfg.customThemes) ? cfg.customThemes : {}),
+        };
+        const bootstrapJson = JSON.stringify({
+            mediaBaseUrl: MEDIA_BASE_URL,
+            config: cfg,
+            themes: mergedThemes,
+            bootAssets: DEFAULT_BOOT_ASSETS,
+        }).replace(/</g, '\\u003c');
+        let html = fs.readFileSync(PRELAUNCH_HTML_PATH, 'utf8');
+        const placeholder = '/*__PRELAUNCH_BOOTSTRAP__*/{}';
+        if (html.includes(placeholder)) {
+            html = html.replace(placeholder, () => bootstrapJson);
+        }
+        const body = Buffer.from(html, 'utf8');
+        res.writeHead(200, {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Content-Length': body.length,
+            'Cache-Control': 'no-store',
+        });
+        res.end(body);
+        return;
+    }
+
+    if (req.method === 'POST' && pathname === '/prelaunch_done') {
+        try {
+            await readRequestBody(req, 64 * 1024);
+        } catch (_) {}
+        prelaunchDoneAt = Date.now();
+        prelaunchStartedAt = 0;
+        const dismissExpr = `(() => {
+  try {
+    window.__AGY_BOOT_PLAYED__ = true;
+    window.__AGY_BOOT_FINISHED__ = true;
+    window.__AGY_INTRO_SHOWN_ONCE__ = true;
+    const curtain = document.getElementById('agy-preboot-curtain');
+    if (curtain) curtain.remove();
+    if (document.getElementById('agy-boot-overlay') && window.__AGY_INTERNAL__ && typeof window.__AGY_INTERNAL__.teardownBootOverlay === 'function') {
+      window.__AGY_INTERNAL__.teardownBootOverlay();
+      if (typeof window.__AGY_INTERNAL__.scheduleRevealWhenReady === 'function') {
+        window.__AGY_INTERNAL__.scheduleRevealWhenReady(true);
+      }
+    }
+  } catch (_) {}
+})();`;
+        for (const s of sessions.values()) {
+            s.evalExpr && s.evalExpr(dismissExpr);
+        }
+        sendJson(res, 200, { ok: true, prelaunchDoneAt });
+        return;
+    }
+
+    if (req.method === 'GET' && pathname === '/prelaunch_status') {
+        const cfg = readConfig();
+        sendJson(res, 200, {
+            ok: true,
+            prelaunchDoneAt,
+            prelaunchStartedAt,
+            prelaunchRecentlyDone: prelaunchRecentlyDone(),
+            inFlight: isPrelaunchInFlight(),
+            bootIntro: cfg.bootIntro !== false,
+            themeMode: cfg.themeMode || 'dynamic',
+        });
+        return;
+    }
+
     sendJson(res, 404, { ok: false, error: 'Not found' });
 }
 
@@ -923,5 +1093,5 @@ log(`Theme daemon started (PID ${process.pid}, platform=${process.platform}, por
 startMediaServer();
 watchPayload();
 scanPages();
-setInterval(scanPages, 1500);
+setInterval(scanPages, 350);
 startAutoUpdater();
