@@ -3949,14 +3949,24 @@
         ${isLight ? `color: ${uiInk} !important;` : ''}
         backdrop-filter: none !important;
       }
-      .agy-shell [data-side-panel-body] :is(iframe, webview, [data-testid="sidecar-iframe-slot"], [data-testid="sidecar-iframe"], div) {
+      .agy-shell [data-side-panel-body] :is(iframe, webview, [data-testid="sidecar-iframe"], div),
+      .agy-shell [data-testid="sidecar-iframe-slot"],
+      .agy-shell [data-testid="sidecar-iframe"] {
         background: transparent !important;
         background-color: transparent !important;
       }
-      .agy-shell [data-side-panel-body] :is(iframe, webview, [data-testid="sidecar-iframe-slot"]) {
+      .agy-shell [data-testid="sidecar-iframe-slot"] {
         border: 0 !important;
         box-shadow: none !important;
-        border-radius: 15px !important;
+        border-radius: 16px !important;
+        transform-origin: top center !important;
+        transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease !important;
+      }
+      .agy-shell:is([data-agy-right-anim="closing"], [data-agy-right-anim="opening"], [data-agy-right-collapsed="1"]) [data-testid="sidecar-iframe-slot"] {
+        transform: scaleY(0) !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
       }
       body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-body="true"]:not([data-has-browser-hole="true"]):not(:has([data-browser-hole]:not([data-browser-hole="false"]))) pre {
         background: ${preCodeBg} !important;
