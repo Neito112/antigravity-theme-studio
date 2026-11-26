@@ -83,7 +83,7 @@ $WshShell = New-Object -ComObject WScript.Shell
 $LaunchScript = Join-Path $ScriptDir 'launch-antigravity-themed.ps1'
 $AntigravityExePath = $null
 
-# Ensure Antigravity shortcuts include --remote-debugging-port=0 (required on Antigravity v2.33.0+)
+# First discover Antigravity.exe path across shortcuts or standard install locations
 $ShortcutSearchDirs = @(
     [Environment]::GetFolderPath('DesktopDirectory'),
     [Environment]::GetFolderPath('Programs'),
@@ -95,14 +95,14 @@ foreach ($SearchDir in $ShortcutSearchDirs) {
     Get-ChildItem -Path $SearchDir -Recurse -Filter '*.lnk' -ErrorAction SilentlyContinue | ForEach-Object {
         try {
             $Sc = $WshShell.CreateShortcut($_.FullName)
-            if ($Sc.TargetPath -and ($Sc.TargetPath -imatch '\\Antigravity\.exe$')) {
-                if (-not $AntigravityExePath -and (Test-Path $Sc.TargetPath)) {
+            if ($Sc.TargetPath -and ($Sc.TargetPath -imatch '\\Antigravity\.exe$') -and (Test-Path $Sc.TargetPath)) {
+                if (-not $AntigravityExePath) {
                     $AntigravityExePath = $Sc.TargetPath
                 }
-                if ($Sc.Arguments -notmatch '--remote-debugging-port') {
-                    $Sc.Arguments = ("$($Sc.Arguments) --remote-debugging-port=0").Trim()
-                    $Sc.Save()
-                    Write-Host "[install-win] Patched CDP flag on shortcut: $($_.FullName)"
+            } elseif ($Sc.IconLocation -and ($Sc.IconLocation -match '^([^,]+\\Antigravity\.exe)')) {
+                $IconExe = $Matches[1]
+                if (-not $AntigravityExePath -and (Test-Path $IconExe)) {
+                    $AntigravityExePath = $IconExe
                 }
             }
         } catch {
@@ -119,7 +119,31 @@ if (-not $AntigravityExePath) {
     ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
 }
 
+# Wrap Antigravity shortcuts so clicking Antigravity ALWAYS boots theme_daemon.js + Prelaunch Intro immediately at app launch
 if ($AntigravityExePath -and (Test-Path $LaunchScript)) {
+    foreach ($SearchDir in $ShortcutSearchDirs) {
+        Get-ChildItem -Path $SearchDir -Recurse -Filter '*.lnk' -ErrorAction SilentlyContinue | ForEach-Object {
+            try {
+                if ($_.Name -ieq 'AntigravityCustomTheme.lnk') { return }
+                $Sc = $WshShell.CreateShortcut($_.FullName)
+                $IsDirectAgy = $Sc.TargetPath -and ($Sc.TargetPath -imatch '\\Antigravity\.exe$')
+                $IsAlreadyWrapped = ($Sc.TargetPath -imatch 'powershell\.exe$') -and ($Sc.Arguments -like "*launch-antigravity-themed.ps1*")
+                if ($IsDirectAgy -or $IsAlreadyWrapped) {
+                    $ExeForShortcut = if ($IsDirectAgy -and (Test-Path $Sc.TargetPath)) { $Sc.TargetPath } else { $AntigravityExePath }
+                    $Sc.TargetPath = 'powershell.exe'
+                    $Sc.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""$LaunchScript"" -AntigravityExe ""$ExeForShortcut"""
+                    $Sc.WorkingDirectory = $RepoRoot
+                    $Sc.IconLocation = "$ExeForShortcut,0"
+                    $Sc.WindowStyle = 7
+                    $Sc.Save()
+                    Write-Host "[install-win] Wrapped Antigravity shortcut for instant daemon + intro launch: $($_.FullName)"
+                }
+            } catch {
+                # Ignore unwritable or protected shortcuts
+            }
+        }
+    }
+
     $ThemedBootDirs = @(
         [Environment]::GetFolderPath('DesktopDirectory'),
         [Environment]::GetFolderPath('Programs')
@@ -129,13 +153,13 @@ if ($AntigravityExePath -and (Test-Path $LaunchScript)) {
             $BootShortcutPath = Join-Path $TargetDir 'Antigravity (Themed Boot).lnk'
             $BootSc = $WshShell.CreateShortcut($BootShortcutPath)
             $BootSc.TargetPath = 'powershell.exe'
-            $BootSc.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""$LaunchScript"""
+            $BootSc.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""$LaunchScript"" -AntigravityExe ""$AntigravityExePath"""
             $BootSc.WorkingDirectory = $RepoRoot
             $BootSc.IconLocation = "$AntigravityExePath,0"
             $BootSc.WindowStyle = 7
             $BootSc.Description = 'Antigravity (Themed Boot)'
             $BootSc.Save()
-            Write-Host "[install-win] Themed Boot shortcut created: $BootShortcutPath"
+            Write-Host "[install-win] Themed Boot shortcut synced: $BootShortcutPath"
         } catch {
             # Ignore unwritable shortcut target dir
         }
@@ -153,6 +177,11 @@ if (-not $NoStartup) {
     $Shortcut.Description = 'Antigravity Custom Theme Daemon'
     $Shortcut.Save()
     Write-Host "[install-win] Startup shortcut created: $ShortcutPath"
+
+    try {
+        Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'AntigravityCustomTheme' -Value "wscript.exe `"$VbsPath`""
+        Write-Host "[install-win] HKCU Run startup entry synced: AntigravityCustomTheme"
+    } catch {}
 }
 
 if ($Foreground) {

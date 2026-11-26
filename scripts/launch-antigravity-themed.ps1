@@ -1,7 +1,9 @@
 param(
     [string]$AntigravityExe,
     [switch]$NoPrelaunch,
-    [int]$MediaPort = 47821
+    [int]$MediaPort = 47821,
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$PassThruArgs
 )
 
 $ErrorActionPreference = 'Stop'
@@ -140,11 +142,18 @@ if (-not $ResolvedExe) {
 }
 
 $Status = Ensure-ThemeDaemon -BaseUrl $MediaBase
-$BrowserExe = if (-not $NoPrelaunch) { Find-ChromiumAppBrowser } else { $null }
-$ShouldPrelaunch = (-not $NoPrelaunch) -and $Status -and $BrowserExe -and ($Status.bootIntro -ne $false) -and ($Status.themeMode -ne 'static')
+$ExistingAgy = Get-Process -Name 'Antigravity' -ErrorAction SilentlyContinue
+$LaunchArgs = @('--remote-debugging-port=0')
+if ($PassThruArgs) {
+    $FilteredArgs = $PassThruArgs | Where-Object { $_ -and ($_ -notmatch '^--remote-debugging-port(?:=|$)') }
+    if ($FilteredArgs) { $LaunchArgs += $FilteredArgs }
+}
+
+$BrowserExe = if (-not $NoPrelaunch -and -not $ExistingAgy) { Find-ChromiumAppBrowser } else { $null }
+$ShouldPrelaunch = (-not $NoPrelaunch) -and (-not $ExistingAgy) -and $Status -and $BrowserExe -and ($Status.bootIntro -ne $false) -and ($Status.themeMode -ne 'static')
 
 if (-not $ShouldPrelaunch) {
-    Start-Process -FilePath $ResolvedExe -ArgumentList '--remote-debugging-port=0'
+    Start-Process -FilePath $ResolvedExe -ArgumentList $LaunchArgs
     [void](Focus-AntigravityWindow)
     exit 0
 }
@@ -165,10 +174,7 @@ $BrowserArgs = @(
 )
 $BrowserProc = Start-Process -FilePath $BrowserExe -ArgumentList $BrowserArgs -PassThru
 
-$ExistingAgy = Get-Process -Name 'Antigravity' -ErrorAction SilentlyContinue
-if (-not $ExistingAgy) {
-    Start-Process -FilePath $ResolvedExe -ArgumentList '--remote-debugging-port=0' -WindowStyle Minimized
-}
+Start-Process -FilePath $ResolvedExe -ArgumentList $LaunchArgs -WindowStyle Minimized
 
 $Deadline = [DateTime]::UtcNow.AddSeconds(120)
 while ([DateTime]::UtcNow -lt $Deadline) {
