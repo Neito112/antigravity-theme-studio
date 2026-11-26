@@ -81,6 +81,7 @@
   const STORAGE_PET_ENABLED = 'agy_pet_enabled_v1';
   const STORAGE_PET_CHAT_DOCK = 'agy_pet_chat_dock_v1';
   const STORAGE_PET_POS = 'agy_pet_pos_v1';
+  const STORAGE_PET_COMP_W = 'agy_pet_comp_w_v1';
   const STORAGE_COLLAPSE_LEFT = 'agy_collapse_left_v1';
   const STORAGE_COLLAPSE_RIGHT = 'agy_collapse_right_v1';
   const GREETING_RX = /^(?:Hey\s+[^,]{1,40},\s+what\s+should\s+we\s+build\s+today\??|Good\s+to\s+see\s+you,\s+[^.]{1,40}\.\s+What'?s\s+next\??|What\s+(?:should|are)\s+we\s+build(?:ing)?\s+today\??|Welcome\s+back[,.!\s]+[^.!?]{0,40}(?:[.!?]\s*(?:Where\s+should\s+we\s+pick\s+up|What'?s\s+next|What\s+should\s+we\s+build)[^.!?]{0,40}[.!?]?)?|Where\s+should\s+we\s+pick\s+up\??|Ready\s+(?:to\s+build|when\s+you\s+are)[,.!\s]*.*)$/i;
@@ -1634,8 +1635,8 @@
       shell.style.removeProperty('--agy-pet-comp-left');
       shell.style.removeProperty('--agy-pet-comp-top');
       shell.style.removeProperty('--agy-pet-comp-w');
-      const closeChip = document.getElementById('agy-pet-composer-close');
-      if (closeChip) closeChip.hidden = true;
+      const oldClose = document.getElementById('agy-pet-composer-close');
+      if (oldClose) oldClose.remove();
     } else if (window.__AGY_BETTER_PET_CTRL__ && typeof window.__AGY_BETTER_PET_CTRL__.syncComposerAnchor === 'function') {
       window.__AGY_BETTER_PET_CTRL__.syncComposerAnchor();
     }
@@ -2046,7 +2047,7 @@
       ctrl.destroy();
     }
     window.__AGY_BETTER_PET_CTRL__ = null;
-    ['agy-better-pet', 'agy-better-pet-chat', 'agy-better-pet-menu', 'agy-pet-composer-close', 'agy-ide-pet'].forEach((id) => {
+    ['agy-better-pet', 'agy-better-pet-chat', 'agy-better-pet-menu', 'agy-pet-composer-close', 'agy-pet-comp-resize-l', 'agy-pet-comp-resize-r', 'agy-ide-pet'].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.remove();
     });
@@ -2125,14 +2126,27 @@
     `;
     pet.appendChild(pill);
 
-    // Sleek close chip anchored at top-right of the real .surface-composer when opened under Pet
-    const closeChip = document.createElement('button');
-    closeChip.id = 'agy-pet-composer-close';
-    closeChip.type = 'button';
-    closeChip.hidden = true;
-    closeChip.setAttribute('aria-label', 'Đóng khung chat Pet');
-    closeChip.setAttribute('title', 'Đóng khung chat (Esc)');
-    closeChip.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    // 2 tay cầm kéo dãn chiều rộng khung chat (mép trái & mép phải)
+    const resizeL = document.createElement('div');
+    resizeL.id = 'agy-pet-comp-resize-l';
+    resizeL.className = 'agy-pet-comp-resizer';
+    resizeL.hidden = true;
+    resizeL.title = 'Kéo để co / dãn chiều rộng khung chat';
+
+    const resizeR = document.createElement('div');
+    resizeR.id = 'agy-pet-comp-resize-r';
+    resizeR.className = 'agy-pet-comp-resizer';
+    resizeR.hidden = true;
+    resizeR.title = 'Kéo để co / dãn chiều rộng khung chat';
+
+    const readSavedCompW = () => {
+      try {
+        const v = parseInt(localStorage.getItem(STORAGE_PET_COMP_W) || '', 10);
+        if (Number.isFinite(v) && v >= 280) return v;
+      } catch (_) {}
+      return 340;
+    };
+    let desiredCompW = readSavedCompW();
 
     const menu = document.createElement('div');
     menu.id = 'agy-better-pet-menu';
@@ -2196,15 +2210,16 @@
       if (!chatOpen || !docked) {
         delete shell.dataset.agyPetChatOpen;
         delete document.body.dataset.agyPetChatOpen;
-        closeChip.hidden = true;
+        resizeL.hidden = true;
+        resizeR.hidden = true;
         return;
       }
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       const minLeft = 12;
       const maxRight = vw - 12;
-      const availW = Math.max(300, maxRight - minLeft);
-      const cw = Math.min(680, availW);
+      const availW = Math.max(280, maxRight - minLeft);
+      const cw = Math.min(Math.max(280, desiredCompW), Math.min(1100, availW));
       const petCenterX = x + PET_WIDTH_PX / 2;
       const left = Math.min(Math.max(minLeft, Math.round(petCenterX - cw / 2)), Math.max(minLeft, maxRight - cw));
       const pillRect = pill.getBoundingClientRect();
@@ -2218,6 +2233,7 @@
       const ytReserved = (ytBarEl && ytBarEl.dataset.collapsed !== '1') ? 52 : 12;
       const neededBelow = Math.max(195, (wrapEl && wrapEl.scrollHeight > 95 ? Math.min(280, wrapEl.scrollHeight + 18) : 195)) + ytReserved;
       const top = Math.min(Math.max(8, Math.round(pillBottom + 16)), Math.max(8, vh - neededBelow));
+      const compH = wrapEl ? Math.max(76, Math.round(wrapEl.getBoundingClientRect().height || 86)) : 86;
 
       shell.dataset.agyPetChatOpen = '1';
       document.body.dataset.agyPetChatOpen = '1';
@@ -2225,9 +2241,15 @@
       shell.style.setProperty('--agy-pet-comp-top', `${top}px`);
       shell.style.setProperty('--agy-pet-comp-w', `${cw}px`);
 
-      closeChip.hidden = false;
-      closeChip.style.left = `${Math.min(vw - 28, left + cw - 11)}px`;
-      closeChip.style.top = `${Math.max(6, top - 10)}px`;
+      resizeL.hidden = false;
+      resizeL.style.left = `${Math.max(2, left - 5)}px`;
+      resizeL.style.top = `${top + 8}px`;
+      resizeL.style.height = `${Math.max(44, compH - 16)}px`;
+
+      resizeR.hidden = false;
+      resizeR.style.left = `${Math.min(vw - 12, left + cw - 5)}px`;
+      resizeR.style.top = `${top + 8}px`;
+      resizeR.style.height = `${Math.max(44, compH - 16)}px`;
     };
 
     const place = (nx, ny, shouldPersist = false) => {
@@ -2402,7 +2424,7 @@
       const pack = typeof resolveDynamicPack === 'function' ? resolveDynamicPack(t) : {};
       const radius = Math.min(18, Math.max(10, Number(pack.uiDesign && pack.uiDesign.cardRadiusPx) || 14));
 
-      [pet, menu, closeChip].forEach((node) => {
+      [pet, menu, resizeL, resizeR].forEach((node) => {
         node.style.setProperty('--pet-sheet', `url(${JSON.stringify(sheetUrl)})`);
         node.style.setProperty('--pet-accent', primary);
         node.style.setProperty('--pet-secondary', secondary);
@@ -2437,11 +2459,35 @@
       setChatOpen(!chatOpen, true);
     }, { signal: sig });
 
-    closeChip.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setChatOpen(false, false);
-    }, { signal: sig });
+    // Kéo dãn chiều rộng khung chat bằng tay cầm trái/phải
+    const bindResizer = (el, dir) => {
+      let rDrag = null;
+      el.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        try { el.setPointerCapture(e.pointerId); } catch (_) {}
+        rDrag = { pointerId: e.pointerId, startX: e.clientX, startW: desiredCompW };
+        el.dataset.dragging = '1';
+      }, { signal: sig });
+      el.addEventListener('pointermove', (e) => {
+        if (!rDrag || rDrag.pointerId !== e.pointerId) return;
+        const dx = (e.clientX - rDrag.startX) * dir;
+        const maxW = Math.min(1100, Math.max(340, window.innerWidth - 24));
+        desiredCompW = Math.min(maxW, Math.max(280, Math.round(rDrag.startW + dx * 2)));
+        syncComposerAnchor();
+      }, { signal: sig });
+      const endR = (e) => {
+        if (!rDrag || rDrag.pointerId !== e.pointerId) return;
+        rDrag = null;
+        delete el.dataset.dragging;
+        try { localStorage.setItem(STORAGE_PET_COMP_W, String(desiredCompW)); } catch (_) {}
+      };
+      el.addEventListener('pointerup', endR, { signal: sig });
+      el.addEventListener('pointercancel', endR, { signal: sig });
+    };
+    bindResizer(resizeL, -1);
+    bindResizer(resizeR, 1);
 
     pet.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
@@ -2591,7 +2637,8 @@
     place(x, y, false);
     updateTheme(th);
     document.body.appendChild(pet);
-    document.body.appendChild(closeChip);
+    document.body.appendChild(resizeL);
+    document.body.appendChild(resizeR);
     document.body.appendChild(menu);
     rebuild();
     syncComposerAnchor();
@@ -2615,7 +2662,8 @@
         clearTimeout(reactionTimer);
         ac.abort();
         pet.remove();
-        closeChip.remove();
+        resizeL.remove();
+        resizeR.remove();
         menu.remove();
       }
     };
@@ -5028,31 +5076,36 @@
         transform: rotate(180deg);
         color: var(--pet-accent, #38bdf8);
       }
-      #agy-pet-composer-close {
+      .agy-pet-comp-resizer {
         position: fixed;
         z-index: 2147483004;
-        width: 22px;
-        height: 22px;
-        border-radius: 9999px;
-        border: 1px solid var(--pet-border, rgba(255, 255, 255, 0.22));
-        background: var(--pet-surface, rgba(12, 16, 28, 0.94));
-        color: var(--pet-ink, #f8fafc);
-        display: inline-flex;
+        width: 10px;
+        cursor: ew-resize;
+        display: flex;
         align-items: center;
         justify-content: center;
-        cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
         -webkit-app-region: no-drag;
-        backdrop-filter: none !important;
-        transition: transform 0.12s ease, border-color 0.14s ease, color 0.14s ease;
       }
-      #agy-pet-composer-close[hidden] {
-        display: none;
+      .agy-pet-comp-resizer[hidden] {
+        display: none !important;
       }
-      #agy-pet-composer-close:hover {
-        border-color: var(--pet-accent, #38bdf8);
-        color: var(--pet-accent, #38bdf8);
-        transform: scale(1.08);
+      .agy-pet-comp-resizer::after {
+        content: "";
+        width: 3px;
+        height: 22px;
+        border-radius: 9999px;
+        background: var(--pet-accent, #38bdf8);
+        opacity: 0;
+        transition: opacity 0.14s ease, transform 0.14s ease;
+      }
+      .agy-pet-comp-resizer:hover::after,
+      .agy-pet-comp-resizer[data-dragging="1"]::after {
+        opacity: 0.88;
+        transform: scaleY(1.15);
+      }
+      .agy-shell.agy-pet-chat-docked [data-agy-composer-host="1"] [data-testid="input-box-bottom-toolbar"] {
+        flex-wrap: wrap !important;
+        gap: 4px !important;
       }
       #agy-better-pet-menu {
         position: fixed;
@@ -6311,7 +6364,7 @@
     }
     const staleFx = document.getElementById('agy-dynamic-fx-layer');
     if (staleFx) staleFx.remove();
-    ['agy-custom-brand-logo', 'agy-bg-emblem-watermark', 'agy-scroll-controls', 'agy-pet-composer-close'].forEach((id) => {
+    ['agy-custom-brand-logo', 'agy-bg-emblem-watermark', 'agy-scroll-controls', 'agy-pet-composer-close', 'agy-pet-comp-resize-l', 'agy-pet-comp-resize-r'].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.remove();
     });
