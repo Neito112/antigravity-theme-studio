@@ -3983,8 +3983,7 @@
         content: none !important;
         display: none !important;
       }
-      .agy-shell [data-agy-top-menubar="1"],
-      .agy-shell [data-main-content-header] {
+      .agy-shell [data-agy-top-menubar="1"] {
         background-color: ${st.wpEnabled ? `rgba(${overlayRgb}, ${isLight ? '0.72' : '0.48'})` : mainTheme.headerBg} !important;
         border-bottom: 1px solid ${cleanSoftHairline} !important;
         box-shadow: none !important;
@@ -5216,7 +5215,27 @@
         max-width: min(1240px, calc(100% - 24px)) !important;
         transition: none !important;
       }
-      /* 1. Thanh Topbar dài, glass, bo góc thống nhất (trái + giữa + phải nối liền) */
+      /* 1. Thanh Topbar FULL chiều ngang, glass, bo góc thống nhất qua .agy-inset-shell::before */
+      .agy-shell > .agy-inset-shell {
+        position: relative !important;
+      }
+      .agy-shell > .agy-inset-shell::before {
+        content: "" !important;
+        position: absolute !important;
+        top: 6px !important;
+        left: 10px !important;
+        right: 10px !important;
+        height: 40px !important;
+        border-radius: 14px !important;
+        background: ${cleanBubbleBg} !important;
+        border: 1px solid ${glassRimBorder} !important;
+        box-shadow: inset 0 1px 0 ${glassInnerSheen}, 0 6px 22px rgba(0, 0, 0, 0.22) !important;
+        pointer-events: none !important;
+        z-index: 1 !important;
+      }
+      .agy-shell > .agy-inset-shell > * {
+        z-index: 2 !important;
+      }
       .agy-shell [data-agy-left-col="1"],
       .agy-shell [data-agy-right-col="1"] {
         background: transparent !important;
@@ -5228,54 +5247,39 @@
         position: relative !important;
         background: transparent !important;
       }
-      .agy-shell [data-agy-left-col="1"] [role="navigation"][aria-label="Sidebar"] > :first-child {
-        height: 40px !important;
-        margin: 6px 0 6px 10px !important;
-        padding-left: 4px !important;
-        background: ${cleanBubbleBg} !important;
-        border-top: 1px solid ${glassRimBorder} !important;
-        border-bottom: 1px solid ${glassRimBorder} !important;
-        border-left: 1px solid ${glassRimBorder} !important;
-        border-right: 0 !important;
-        border-radius: 14px 0 0 14px !important;
-        box-shadow: inset 0 1px 0 ${glassInnerSheen}, 0 4px 16px rgba(0, 0, 0, 0.18) !important;
+      /* Các phần header & cluster icon bên trong thanh Topbar: hoàn toàn trong suốt, căn giữa dọc 40px */
+      .agy-shell [data-agy-left-col="1"] [role="navigation"][aria-label="Sidebar"] > :first-child,
+      .agy-shell [data-main-content-header],
+      .agy-shell [data-agy-right-col="1"] [data-side-panel-strip] {
         box-sizing: border-box !important;
-        position: relative !important;
-        z-index: 2 !important;
-      }
-      .agy-shell [data-main-content-header] {
-        box-sizing: border-box !important;
-        width: 100% !important;
-        max-width: 100% !important;
         height: 40px !important;
         margin: 6px 0 !important;
-        border-radius: 0 !important;
+        background: transparent !important;
+        background-color: transparent !important;
         border: 0 !important;
-        border-top: 1px solid ${glassRimBorder} !important;
-        border-bottom: 1px solid ${glassRimBorder} !important;
-        background: ${cleanBubbleBg} !important;
-        box-shadow: inset 0 1px 0 ${glassInnerSheen}, 0 4px 16px rgba(0, 0, 0, 0.18) !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
         overflow: visible !important;
       }
-      .agy-shell:not(:has([data-agy-right-col="1"][data-agy-right-open="1"])) [data-main-content-header] {
-        width: calc(100% - 10px) !important;
-        margin-right: 10px !important;
-        border-right: 1px solid ${glassRimBorder} !important;
-        border-radius: 0 14px 14px 0 !important;
+      .agy-shell [data-agy-left-col="1"] [role="navigation"][aria-label="Sidebar"] > :first-child {
+        padding-left: 14px !important;
       }
       .agy-shell [data-agy-right-col="1"] [data-side-panel-strip] {
+        padding-right: 48px !important;
+      }
+      .agy-shell > .agy-inset-shell :is(:has(> [data-testid="app-icon-new-conversation-button"]), :has(> [data-testid="toggle-aux-sidebar"])) {
         height: 40px !important;
-        margin: 6px 10px 6px 0 !important;
-        background: ${cleanBubbleBg} !important;
-        border-top: 1px solid ${glassRimBorder} !important;
-        border-bottom: 1px solid ${glassRimBorder} !important;
-        border-right: 1px solid ${glassRimBorder} !important;
-        border-left: 0 !important;
-        border-radius: 0 14px 14px 0 !important;
-        box-shadow: inset 0 1px 0 ${glassInnerSheen}, 0 4px 16px rgba(0, 0, 0, 0.18) !important;
-        box-sizing: border-box !important;
-        position: relative !important;
-        z-index: 2 !important;
+        margin-top: 6px !important;
+        margin-bottom: 6px !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        box-shadow: none !important;
+      }
+      .agy-shell > .agy-inset-shell :has(> [data-testid="app-icon-new-conversation-button"]) {
+        padding-left: 16px !important;
+      }
+      .agy-shell > .agy-inset-shell :has(> [data-testid="toggle-aux-sidebar"]) {
+        padding-right: 16px !important;
       }
       /* 2. Bảng trái & bảng phải bên dưới Topbar: khung glass bo góc, mọc mượt 60fps từ Topbar xuống */
       .agy-shell [data-agy-left-col="1"] [role="navigation"][aria-label="Sidebar"]::before {
