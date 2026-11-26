@@ -4220,12 +4220,39 @@
       .agy-shell nav[data-testid="conversation-navigator"] [data-testid="conversation-navigator-turn"][aria-current="true"] {
         background: ${pSync} !important;
       }
-      .agy-shell [data-testid="overview-panel-host-sibling"],
+      /* Overview Panel -> Pop-up Glass nổi lên trên vùng trung tâm, không làm biến dạng bố cục trung tâm */
+      .agy-shell [data-testid="overview-panel-host"] > :not([data-testid="overview-panel-host-sibling"]) {
+        flex: 1 1 100% !important;
+        max-width: 100% !important;
+        margin-right: 0 !important;
+      }
+      .agy-shell [data-testid="overview-panel-host-sibling"] {
+        position: absolute !important;
+        top: 14px !important;
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%) !important;
+        z-index: 60 !important;
+        width: min(400px, calc(100% - 32px)) !important;
+        max-height: min(560px, calc(100% - 76px)) !important;
+        background: ${cleanBubbleBg} !important;
+        border: 1px solid ${glassRimBorder} !important;
+        border-radius: 16px !important;
+        box-shadow: ${glassRimShadow}, 0 18px 48px rgba(0, 0, 0, ${isLight ? '0.20' : '0.58'}) !important;
+        backdrop-filter: none !important;
+        overflow: hidden !important;
+        animation: agyOverviewPopIn 0.2s cubic-bezier(0.22, 1, 0.36, 1) !important;
+      }
+      @keyframes agyOverviewPopIn {
+        from { opacity: 0; transform: translateX(-50%) translateY(-8px) scale(0.96); }
+        to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+      }
       .agy-shell [data-testid="overview-panel"] {
-        background: ${modalBg} !important;
-        border: 1px solid ${cleanSoftHairline} !important;
-        border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
-        box-shadow: 0 12px 32px rgba(0, 0, 0, ${isLight ? '0.14' : '0.44'}) !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
         backdrop-filter: none !important;
       }
       .agy-shell :is([data-testid="overview-panel-row-review"], [data-testid="overview-panel-row-files"], [data-testid="overview-panel-row-terminal"], [data-testid="overview-panel-row-plugins"], [data-testid="subagent-node"], [data-testid="background-task-row"]) {
