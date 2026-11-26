@@ -268,14 +268,70 @@ function buildPluginGlassExpr() {
     const cfg = readConfig();
     const isLight = Boolean(cfg && cfg.themeName && /light|paper|sakura|snow|ivory|day/i.test(String(cfg.themeName)));
     const accent = (cfg && cfg.customThemes && cfg.themeName && cfg.customThemes[cfg.themeName]?.primary) || '#ff6b35';
+    const hairline = isLight ? 'rgba(15, 23, 42, 0.12)' : 'rgba(255, 255, 255, 0.10)';
     const css = `
       html, body, #root, #app, main, header, .header, nav, .tabs, .app, .board, [class*="container"], [class*="shell"] {
         background: transparent !important;
         background-color: transparent !important;
       }
+      /* Keep Swarm Board header + search toolbar pinned above the scroll container so feed text never overlaps behind transparent Glass */
+      html:has(> body > #board),
+      html:has(> body > #board) > body {
+        height: 100% !important;
+        overflow: hidden !important;
+      }
+      #board {
+        display: flex !important;
+        flex-direction: column !important;
+        height: 100vh !important;
+        overflow: hidden !important;
+      }
+      #board > header.header {
+        position: relative !important;
+        top: auto !important;
+        flex-shrink: 0 !important;
+        background: transparent !important;
+        border-bottom: 1px solid ${hairline} !important;
+      }
+      #board > main.main {
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        padding-top: 12px !important;
+      }
+      #board > main.main:has(> #tab-feed.active) {
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+      }
+      #board #tab-feed.active {
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+      }
+      #board #tab-feed > .toolbar {
+        position: relative !important;
+        top: auto !important;
+        flex-shrink: 0 !important;
+        margin-top: 0 !important;
+        padding: 0 0 10px 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        clip-path: none !important;
+        border-bottom: 1px solid ${hairline} !important;
+      }
+      #board #tab-feed > #feed {
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        padding-top: 10px !important;
+      }
       :is(.card, .panel, .surface, [class*="card"], [class*="panel"], [class*="box"]):not(button):not(.header-row) {
         background: ${isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.04)'} !important;
-        border-color: ${isLight ? 'rgba(15, 23, 42, 0.12)' : 'rgba(255, 255, 255, 0.10)'} !important;
+        border-color: ${hairline} !important;
         backdrop-filter: none !important;
       }
       ::-webkit-scrollbar { width: 5px; height: 5px; }
