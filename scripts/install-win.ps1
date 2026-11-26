@@ -191,7 +191,19 @@ if ($Foreground) {
 }
 
 Write-Host "[install-win] Launching daemon via wscript.exe..."
-Start-Process -FilePath 'wscript.exe' -ArgumentList """$VbsPath""" -WorkingDirectory $RepoRoot
+$LaunchedViaWmi = $false
+try {
+    $WmiRes = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
+        CommandLine = "wscript.exe `"$VbsPath`""
+        CurrentDirectory = $RepoRoot
+    } -ErrorAction Stop
+    if ($WmiRes -and $WmiRes.ReturnValue -eq 0) {
+        $LaunchedViaWmi = $true
+    }
+} catch {}
+if (-not $LaunchedViaWmi) {
+    Start-Process -FilePath 'wscript.exe' -ArgumentList """$VbsPath""" -WorkingDirectory $RepoRoot
+}
 
 for ($i = 0; $i -lt 15; $i++) {
     Start-Sleep -Milliseconds 250

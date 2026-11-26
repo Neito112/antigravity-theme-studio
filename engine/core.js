@@ -5375,7 +5375,7 @@
         visibility: hidden !important;
         pointer-events: none !important;
       }
-      /* Compact YouTube Music Bar (no preview, title + time only) */
+      /* Compact YouTube Music Bar — Glass Buttons + Theme-Synced Audio Waveform */
       #agy-yt-bar {
         position: fixed;
         bottom: 10px;
@@ -5385,66 +5385,138 @@
         display: flex;
         align-items: center;
         gap: 6px;
-        height: 38px;
-        max-width: min(540px, calc(100vw - 32px));
-        padding: 0 10px;
+        height: 40px;
+        max-width: min(600px, calc(100vw - 32px));
+        padding: 0 12px 0 8px;
         border-radius: 9999px;
         background: var(--agy-yt-bg, rgba(12, 16, 26, 0.88));
         border: 1px solid ${glassRimBorder};
-        box-shadow: ${glassRimShadow}, 0 6px 24px rgba(0, 0, 0, 0.36);
+        box-shadow: ${glassRimShadow}, 0 8px 26px rgba(0, 0, 0, 0.38);
         color: var(--agy-yt-ink, #f8fafc);
         font-size: 12px;
         overflow: hidden;
         user-select: none;
         -webkit-app-region: no-drag;
         backdrop-filter: none !important;
-        transition: width 0.2s cubic-bezier(0.22, 1, 0.36, 1), padding 0.2s ease, opacity 0.16s ease;
+        transition: padding 0.2s ease, opacity 0.16s ease;
       }
       #agy-yt-bar[data-collapsed="1"] {
         width: auto;
-        padding: 0 10px;
-        gap: 6px;
+        padding: 0 10px 0 8px;
+        gap: 8px;
       }
       #agy-yt-bar[data-collapsed="1"] .agy-yt-expand-only {
         display: none !important;
       }
+      #agy-yt-bar .agy-yt-search-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
       #agy-yt-bar .agy-yt-search {
-        width: 142px;
+        width: 138px;
         min-width: 96px;
-        height: 24px;
-        padding: 0 9px;
+        height: 26px;
+        padding: 0 28px 0 10px;
         border-radius: 9999px;
         border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(255, 255, 255, 0.06);
+        background: rgba(255, 255, 255, 0.05);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
         color: inherit;
         font-size: 11.5px;
         outline: none;
-        transition: width 0.18s ease, border-color 0.15s ease;
+        transition: width 0.18s ease, border-color 0.15s ease, background 0.15s ease;
       }
       #agy-yt-bar .agy-yt-search:focus {
-        width: 178px;
+        width: 174px;
+        background: rgba(255, 255, 255, 0.08);
         border-color: var(--agy-yt-accent, #38bdf8);
+      }
+      #agy-yt-bar .agy-yt-search-go {
+        position: absolute;
+        right: 3px;
+        width: 20px;
+        height: 20px;
+        border: 0;
+        border-radius: 9999px;
+        background: transparent;
+        color: inherit;
+        opacity: 0.68;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        padding: 0;
+        transition: opacity 0.14s ease, color 0.14s ease;
+      }
+      #agy-yt-bar .agy-yt-search-go:hover {
+        opacity: 1;
+        color: var(--agy-yt-accent, #38bdf8);
       }
       #agy-yt-bar .agy-yt-btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 24px;
-        height: 24px;
+        width: 26px;
+        height: 26px;
         padding: 0;
-        border: 0;
+        border: 1px solid rgba(255, 255, 255, 0.14);
         border-radius: 9999px;
-        background: transparent;
+        background: rgba(255, 255, 255, 0.06);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
         color: inherit;
         cursor: pointer;
         flex-shrink: 0;
-        opacity: 0.86;
-        transition: background 0.14s ease, color 0.14s ease, opacity 0.14s ease;
+        opacity: 0.9;
+        transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease, transform 0.12s ease;
       }
       #agy-yt-bar .agy-yt-btn:hover {
-        background: rgba(255, 255, 255, 0.10);
+        background: rgba(255, 255, 255, 0.13);
+        border-color: var(--agy-yt-accent, #38bdf8);
         color: var(--agy-yt-accent, #38bdf8);
         opacity: 1;
+      }
+      #agy-yt-bar .agy-yt-btn:active {
+        transform: scale(0.92);
+      }
+      #agy-yt-bar .agy-yt-btn--primary {
+        border-color: color-mix(in srgb, var(--agy-yt-accent, #38bdf8) 55%, rgba(255, 255, 255, 0.2));
+        background: color-mix(in srgb, var(--agy-yt-accent, #38bdf8) 18%, rgba(255, 255, 255, 0.06));
+        color: var(--agy-yt-accent, #38bdf8);
+      }
+      #agy-yt-bar .agy-yt-wave {
+        display: inline-flex;
+        align-items: center;
+        gap: 2.5px;
+        height: 16px;
+        padding: 0 2px;
+        flex-shrink: 0;
+      }
+      #agy-yt-bar .agy-yt-wave span {
+        width: 2.5px;
+        height: 14px;
+        border-radius: 9999px;
+        background: linear-gradient(180deg, var(--agy-yt-accent, #38bdf8), var(--agy-yt-secondary, #818cf8));
+        box-shadow: 0 0 6px var(--agy-yt-glow, rgba(56, 189, 248, 0.35));
+        transform-origin: center bottom;
+        transform: scaleY(0.28);
+        opacity: 0.55;
+        transition: transform 0.22s ease, opacity 0.22s ease;
+        will-change: transform;
+      }
+      #agy-yt-bar[data-playing="1"] .agy-yt-wave span {
+        opacity: 0.96;
+        animation: agyYtWaveBar 0.85s ease-in-out infinite alternate;
+      }
+      #agy-yt-bar[data-playing="1"] .agy-yt-wave span:nth-child(1) { animation-duration: 0.72s; animation-delay: 0.00s; }
+      #agy-yt-bar[data-playing="1"] .agy-yt-wave span:nth-child(2) { animation-duration: 0.94s; animation-delay: 0.16s; }
+      #agy-yt-bar[data-playing="1"] .agy-yt-wave span:nth-child(3) { animation-duration: 0.64s; animation-delay: 0.32s; }
+      #agy-yt-bar[data-playing="1"] .agy-yt-wave span:nth-child(4) { animation-duration: 0.88s; animation-delay: 0.10s; }
+      #agy-yt-bar[data-playing="1"] .agy-yt-wave span:nth-child(5) { animation-duration: 0.76s; animation-delay: 0.24s; }
+      @keyframes agyYtWaveBar {
+        0% { transform: scaleY(0.24); }
+        50% { transform: scaleY(0.96); }
+        100% { transform: scaleY(0.42); }
       }
       #agy-yt-bar .agy-yt-meta {
         display: flex;
@@ -5638,15 +5710,19 @@
     const st = stOverride || getStateSafe();
     const th = themeOverride || getActiveThemeRecord(st);
     const primary = th.primary || '#38bdf8';
+    const secondary = th.secondary || primary;
+    const glow = th.glow || 'rgba(56, 189, 248, 0.35)';
     const isLight = Boolean(th.isLight);
     const bg = isLight ? 'rgba(248, 250, 252, 0.90)' : 'rgba(12, 16, 26, 0.88)';
     const ink = isLight ? '#0f172a' : '#f8fafc';
 
-    const YT_BAR_VERSION = 'yt-v3';
+    const YT_BAR_VERSION = 'yt-v4';
     let bar = document.getElementById('agy-yt-bar');
     let dropdown = document.getElementById('agy-yt-dropdown');
     if (bar && window.__AGY_YT_CTRL__ && window.__AGY_YT_CTRL__.version === YT_BAR_VERSION) {
       bar.style.setProperty('--agy-yt-accent', primary);
+      bar.style.setProperty('--agy-yt-secondary', secondary);
+      bar.style.setProperty('--agy-yt-glow', glow);
       bar.style.setProperty('--agy-yt-bg', bg);
       bar.style.setProperty('--agy-yt-ink', ink);
       if (dropdown) {
@@ -5662,18 +5738,32 @@
       ? String(window.__AGY_INIT__.mediaBaseUrl).replace(/\/+$/, '')
       : 'http://127.0.0.1:47821';
 
+    const ICON_NOTE = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+    const ICON_SEARCH = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
+    const ICON_PREV = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>';
+    const ICON_PLAY = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>';
+    const ICON_PAUSE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
+    const ICON_NEXT = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>';
+
     bar = document.createElement('div');
     bar.id = 'agy-yt-bar';
     bar.dataset.collapsed = '0';
+    bar.dataset.playing = '0';
     bar.style.setProperty('--agy-yt-accent', primary);
+    bar.style.setProperty('--agy-yt-secondary', secondary);
+    bar.style.setProperty('--agy-yt-glow', glow);
     bar.style.setProperty('--agy-yt-bg', bg);
     bar.style.setProperty('--agy-yt-ink', ink);
     bar.innerHTML = `
-      <button type="button" class="agy-yt-btn" data-yt-act="collapse" title="Thu gọn / Mở thanh nhạc">🎵</button>
-      <input type="text" class="agy-yt-search agy-yt-expand-only" placeholder="Tìm nhạc YouTube..." aria-label="Tìm nhạc YouTube" />
-      <button type="button" class="agy-yt-btn agy-yt-expand-only" data-yt-act="prev" title="Bài trước">⏮</button>
-      <button type="button" class="agy-yt-btn" data-yt-act="play" title="Phát / Tạm dừng">▶</button>
-      <button type="button" class="agy-yt-btn agy-yt-expand-only" data-yt-act="next" title="Bài tiếp">⏭</button>
+      <button type="button" class="agy-yt-btn" data-yt-act="collapse" title="Thu gọn / Mở thanh nhạc">${ICON_NOTE}</button>
+      <div class="agy-yt-search-wrap agy-yt-expand-only">
+        <input type="text" class="agy-yt-search" placeholder="Tìm nhạc YouTube..." aria-label="Tìm nhạc YouTube" />
+        <button type="button" class="agy-yt-search-go" data-yt-act="search" title="Tìm">${ICON_SEARCH}</button>
+      </div>
+      <button type="button" class="agy-yt-btn agy-yt-expand-only" data-yt-act="prev" title="Bài trước">${ICON_PREV}</button>
+      <button type="button" class="agy-yt-btn agy-yt-btn--primary" data-yt-act="play" title="Phát / Tạm dừng">${ICON_PLAY}</button>
+      <button type="button" class="agy-yt-btn agy-yt-expand-only" data-yt-act="next" title="Bài tiếp">${ICON_NEXT}</button>
+      <span class="agy-yt-wave" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></span>
       <div class="agy-yt-meta" data-yt-act="toggle-list" style="cursor:pointer;" title="Bấm để xem danh sách vừa tìm">
         <span class="agy-yt-title">Chưa phát nhạc</span>
         <span class="agy-yt-time agy-yt-expand-only">0:00 / 0:00</span>
@@ -5738,7 +5828,8 @@
     };
 
     const syncPlayIcon = () => {
-      playBtn.textContent = isPlaying ? '⏸' : '▶';
+      bar.dataset.playing = isPlaying ? '1' : '0';
+      playBtn.innerHTML = isPlaying ? ICON_PAUSE : ICON_PLAY;
     };
 
     const renderDropdown = () => {
@@ -5981,6 +6072,8 @@
       if (act === 'collapse') {
         bar.dataset.collapsed = bar.dataset.collapsed === '1' ? '0' : '1';
         if (bar.dataset.collapsed === '1') dropdown.hidden = true;
+      } else if (act === 'search') {
+        searchAndShowList(inputEl.value);
       } else if (act === 'toggle-list') {
         if (queue.length) {
           if (dropdown.hidden) renderDropdown();
