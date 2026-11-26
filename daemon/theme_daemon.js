@@ -9,6 +9,7 @@
 
 const fs = require('fs');
 const http = require('http');
+const https = require('https');
 const os = require('os');
 const path = require('path');
 const { execFile, spawn } = require('child_process');
@@ -666,6 +667,140 @@ const MEDIA_MIME_TYPES = {
 
 const MAX_UPLOAD_BYTES = 150 * 1024 * 1024;
 let mediaServer = null;
+const ytStreamCache = new Map();
+
+function ytPostJson(apiPath, payload, userAgent) {
+    return new Promise((resolve, reject) => {
+        const data = JSON.stringify(payload);
+        const req = https.request({
+            hostname: 'www.youtube.com',
+            path: apiPath,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(data),
+                'User-Agent': userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+            },
+        }, (res) => {
+            let buf = '';
+            res.on('data', (c) => { buf += c; });
+            res.on('end', () => {
+                try { resolve(JSON.parse(buf)); } catch (err) { reject(err); }
+            });
+        });
+        req.setTimeout(12000, () => req.destroy(new Error('YouTube API timeout')));
+        req.on('error', reject);
+        req.write(data);
+        req.end();
+    });
+}
+
+function parseDurationText(text) {
+    if (!text) return 0;
+    const parts = String(text).trim().split(':').map((n) => parseInt(n, 10));
+    if (parts.some((n) => !Number.isFinite(n))) return 0;
+    return parts.reduce((acc, n) => acc * 60 + n, 0);
+}
+
+function extractYouTubeId(input) {
+    const raw = String(input || '').trim();
+    const m = raw.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    if (m) return m[1];
+    if (/^[A-Za-z0-9_-]{11}$/.test(raw)) return raw;
+    return '';
+}
+
+async function resolveYtAudioStream(videoId, forceRefresh) {
+    const now = Date.now();
+    if (!forceRefresh) {
+        const cached = ytStreamCache.get(videoId);
+        if (cached && cached.expiresAt > now) return cached;
+    }
+    const vrUa = 'com.google.android.apps.youtube.vr.oculus/1.60.19 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip';
+    const data = await ytPostJson('/youtubei/v1/player?prettyPrint=false', {
+        context: {
+            client: {
+                clientName: 'ANDROID_VR',
+                clientVersion: '1.60.19',
+                deviceMake: 'Oculus',
+                deviceModel: 'Quest 3',
+                osName: 'Android',
+                osVersion: '12L',
+                androidSdkVersion: 32,
+            },
+        },
+        videoId,
+        contentCheckOk: true,
+        racyCheckOk: true,
+    }, vrUa);
+    if (data?.playabilityStatus?.status !== 'OK') {
+        throw new Error(data?.playabilityStatus?.reason || data?.playabilityStatus?.status || 'Video unavailable');
+    }
+    const adaptive = Array.isArray(data?.streamingData?.adaptiveFormats) ? data.streamingData.adaptiveFormats : [];
+    const audios = adaptive
+        .filter((f) => f && f.mimeType && f.mimeType.startsWith('audio/') && f.url)
+        .sort((a, b) => {
+            const aMp4 = a.mimeType.includes('audio/mp4') ? 1 : 0;
+            const bMp4 = b.mimeType.includes('audio/mp4') ? 1 : 0;
+            if (aMp4 !== bMp4) return bMp4 - aMp4;
+            return (b.bitrate || 0) - (a.bitrate || 0);
+        });
+    const chosen = audios[0];
+    if (!chosen || !chosen.url) {
+        throw new Error('No direct audio stream found');
+    }
+    const info = {
+        videoId,
+        url: chosen.url,
+        mimeType: String(chosen.mimeType).split(';')[0] || 'audio/mp4',
+        title: data?.videoDetails?.title || videoId,
+        author: data?.videoDetails?.author || '',
+        durationSec: parseInt(data?.videoDetails?.lengthSeconds || '0', 10) || 0,
+        expiresAt: now + 90 * 60 * 1000,
+    };
+    ytStreamCache.set(videoId, info);
+    return info;
+}
+
+function proxyYtAudio(req, res, streamInfo, allowRetry) {
+    const u = new URL(streamInfo.url);
+    const headers = {
+        'User-Agent': 'com.google.android.apps.youtube.vr.oculus/1.60.19 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip',
+    };
+    if (req.headers.range) headers.Range = req.headers.range;
+    const upReq = https.request({
+        hostname: u.hostname,
+        path: u.pathname + u.search,
+        method: 'GET',
+        headers,
+    }, async (upRes) => {
+        if ((upRes.statusCode === 403 || upRes.statusCode === 410) && allowRetry) {
+            upRes.resume();
+            try {
+                const fresh = await resolveYtAudioStream(streamInfo.videoId, true);
+                proxyYtAudio(req, res, fresh, false);
+            } catch (err) {
+                if (!res.headersSent) sendJson(res, 502, { ok: false, error: err.message });
+            }
+            return;
+        }
+        const outHeaders = {
+            'Content-Type': upRes.headers['content-type'] || streamInfo.mimeType || 'audio/mp4',
+            'Accept-Ranges': upRes.headers['accept-ranges'] || 'bytes',
+            'Cache-Control': 'no-store',
+        };
+        if (upRes.headers['content-length']) outHeaders['Content-Length'] = upRes.headers['content-length'];
+        if (upRes.headers['content-range']) outHeaders['Content-Range'] = upRes.headers['content-range'];
+        res.writeHead(upRes.statusCode || 200, outHeaders);
+        upRes.pipe(res);
+    });
+    upReq.setTimeout(20000, () => upReq.destroy(new Error('Stream timeout')));
+    upReq.on('error', (err) => {
+        if (!res.headersSent) sendJson(res, 502, { ok: false, error: err.message });
+    });
+    req.on('close', () => { try { upReq.destroy(); } catch (_) {} });
+    upReq.end();
+}
 
 function setCorsHeaders(res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -1021,6 +1156,73 @@ async function handleMediaRequest(req, res) {
             s.evalExpr && s.evalExpr(dismissExpr);
         }
         sendJson(res, 200, { ok: true, prelaunchDoneAt });
+        return;
+    }
+
+    if (req.method === 'GET' && pathname === '/api/yt-search') {
+        const q = String(reqUrl.searchParams.get('q') || '').trim();
+        if (!q) {
+            sendJson(res, 400, { ok: false, error: 'Missing q' });
+            return;
+        }
+        try {
+            const directId = extractYouTubeId(q);
+            if (directId) {
+                const info = await resolveYtAudioStream(directId, false);
+                sendJson(res, 200, {
+                    ok: true,
+                    results: [{
+                        videoId: info.videoId,
+                        title: info.title,
+                        author: info.author,
+                        durationSec: info.durationSec,
+                    }],
+                });
+                return;
+            }
+            const searchRes = await ytPostJson('/youtubei/v1/search?prettyPrint=false', {
+                context: { client: { clientName: 'WEB', clientVersion: '2.20241126.01.00', hl: 'vi', gl: 'VN' } },
+                query: q,
+            });
+            const contents = searchRes?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || [];
+            const results = [];
+            for (const sec of contents) {
+                const items = sec?.itemSectionRenderer?.contents || [];
+                for (const item of items) {
+                    const v = item?.videoRenderer;
+                    if (!v || !v.videoId) continue;
+                    const durationText = v.lengthText?.simpleText || '';
+                    if (!durationText) continue; // skip livestreams without finite duration
+                    results.push({
+                        videoId: v.videoId,
+                        title: v.title?.runs?.map((r) => r.text).join('') || v.videoId,
+                        author: v.ownerText?.runs?.map((r) => r.text).join('') || '',
+                        durationText,
+                        durationSec: parseDurationText(durationText),
+                    });
+                    if (results.length >= 8) break;
+                }
+                if (results.length >= 8) break;
+            }
+            sendJson(res, 200, { ok: true, results });
+        } catch (err) {
+            sendJson(res, 500, { ok: false, error: err.message });
+        }
+        return;
+    }
+
+    if (req.method === 'GET' && pathname === '/api/yt-stream') {
+        const videoId = extractYouTubeId(reqUrl.searchParams.get('v') || '');
+        if (!videoId) {
+            sendJson(res, 400, { ok: false, error: 'Invalid video id' });
+            return;
+        }
+        try {
+            const info = await resolveYtAudioStream(videoId, false);
+            proxyYtAudio(req, res, info, true);
+        } catch (err) {
+            sendJson(res, 502, { ok: false, error: err.message });
+        }
         return;
     }
 
