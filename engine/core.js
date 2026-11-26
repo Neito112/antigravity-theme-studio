@@ -4733,18 +4733,287 @@
         backdrop-filter: none !important;
       }
 
+      #agy-custom-theme-modal-backdrop {
+        --agy-st-accent: ${mainTheme.primary || '#38bdf8'};
+        --agy-st-accent-2: ${mainTheme.secondary || mainTheme.primary || '#38bdf8'};
+        --agy-st-glow: ${mainTheme.glow || 'rgba(56, 189, 248, 0.22)'};
+        --agy-st-border: rgba(255, 255, 255, 0.14);
+        --agy-st-border-strong: ${mainTheme.borderColor || 'rgba(255, 255, 255, 0.24)'};
+        --agy-st-surface: rgba(11, 14, 23, 0.80);
+        --agy-st-rail: rgba(255, 255, 255, 0.025);
+        --agy-st-card: rgba(255, 255, 255, 0.036);
+        --agy-st-card-hover: rgba(255, 255, 255, 0.062);
+        --agy-st-ink: #f8fafc;
+        --agy-st-muted: #94a3b8;
+        background: rgba(4, 6, 12, 0.62) !important;
+        backdrop-filter: none !important;
+      }
       #agy-custom-theme-modal-dialog {
-        background: ${modalBg} !important;
-        border-color: ${mainTheme.borderColor} !important;
-        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.9), 0 0 32px ${mainTheme.glow} !important;
+        background:
+          radial-gradient(640px 260px at 86% -4%, ${mainTheme.glow ? mainTheme.glow.replace(/[\d.]+\)$/, '0.18)') : 'rgba(56, 189, 248, 0.16)'}, transparent 72%),
+          radial-gradient(520px 280px at 10% 106%, ${(mainTheme.secondaryGlow || mainTheme.glow || 'rgba(56, 189, 248, 0.14)').replace(/[\d.]+\)$/, '0.13)')}, transparent 70%),
+          linear-gradient(162deg, rgba(16, 20, 32, 0.86), rgba(9, 11, 19, 0.84)) !important;
+        border: 1px solid rgba(255, 255, 255, 0.16) !important;
+        border-radius: 20px !important;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.20), 0 30px 84px rgba(0, 0, 0, 0.78), 0 0 38px ${mainTheme.glow || 'rgba(56, 189, 248, 0.18)'} !important;
+        color: var(--agy-st-ink) !important;
       }
       #agy-custom-theme-modal-header {
-        background: ${mainTheme.modalHeaderBg || 'rgba(22, 16, 14, 0.85)'} !important;
+        background: rgba(255, 255, 255, 0.028) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.09) !important;
+        box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.03) !important;
+      }
+      #agy-studio-brand-mark {
+        background: linear-gradient(135deg, ${mainTheme.primary || '#38bdf8'}26, ${mainTheme.secondary || mainTheme.primary || '#38bdf8'}18) !important;
+        border: 1px solid ${mainTheme.borderColor || 'rgba(255, 255, 255, 0.22)'} !important;
+        color: var(--agy-st-accent) !important;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 0 16px ${mainTheme.glow || 'rgba(56, 189, 248, 0.20)'} !important;
       }
       #agy-custom-theme-badge {
-        color: ${mainTheme.primary} !important;
-        border-color: ${mainTheme.borderColor} !important;
-        background: ${mainTheme.glow} !important;
+        color: var(--agy-st-accent) !important;
+        border: 1px solid ${mainTheme.borderColor || 'rgba(255, 255, 255, 0.24)'} !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+      }
+      #agy-studio-nav-rail {
+        background: rgba(255, 255, 255, 0.022) !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+      }
+      #agy-theme-modal-body {
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+      }
+      #agy-theme-scroll-container {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        scrollbar-width: thin !important;
+        scrollbar-color: rgba(255, 255, 255, 0.18) transparent !important;
+      }
+      #agy-theme-scroll-container::-webkit-scrollbar {
+        width: 5px !important;
+      }
+      #agy-theme-scroll-container::-webkit-scrollbar-track {
+        background: transparent !important;
+      }
+      #agy-theme-scroll-container::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.16) !important;
+        border-radius: 9999px !important;
+      }
+      #agy-theme-scroll-container::-webkit-scrollbar-thumb:hover {
+        background: var(--agy-st-accent) !important;
+      }
+      #agy-custom-theme-modal-backdrop input[type="range"] {
+        accent-color: var(--agy-st-accent) !important;
+      }
+      #agy-custom-theme-modal-backdrop input[type="checkbox"] {
+        accent-color: var(--agy-st-accent) !important;
+      }
+      .agy-studio-tab-btn {
+        position: relative;
+        width: 100%;
+        text-align: left;
+        padding: 9px 12px;
+        border-radius: 11px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: #94a3b8;
+        font-size: 13px;
+        font-weight: 550;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+      }
+      .agy-studio-tab-btn:hover {
+        background: rgba(255, 255, 255, 0.055);
+        color: #f8fafc;
+      }
+      .agy-studio-tab-btn.is-active {
+        background: rgba(255, 255, 255, 0.085);
+        border-color: rgba(255, 255, 255, 0.16);
+        color: #f8fafc;
+        font-weight: 650;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 4px 16px rgba(0, 0, 0, 0.25);
+      }
+      .agy-studio-tab-btn.is-active::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 7px;
+        bottom: 7px;
+        width: 3px;
+        border-radius: 0 3px 3px 0;
+        background: var(--agy-st-accent);
+        box-shadow: 0 0 8px var(--agy-st-glow);
+      }
+      .agy-studio-tab-btn.is-active .agy-st-tab-ico {
+        color: var(--agy-st-accent);
+      }
+      .agy-st-switch-row {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 7px 9px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.03);
+        color: #cbd5e1;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+      }
+      .agy-st-switch-row:hover {
+        background: rgba(255, 255, 255, 0.065);
+        border-color: rgba(255, 255, 255, 0.16);
+      }
+      .agy-st-switch-row[aria-pressed="true"] {
+        color: #f8fafc;
+        border-color: rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.055);
+      }
+      .agy-st-pill-track {
+        position: relative;
+        width: 30px;
+        height: 17px;
+        border-radius: 9999px;
+        background: rgba(255, 255, 255, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        flex-shrink: 0;
+        transition: background-color 0.18s ease, border-color 0.18s ease;
+      }
+      .agy-st-pill-knob {
+        position: absolute;
+        top: 1.5px;
+        left: 2px;
+        width: 12px;
+        height: 12px;
+        border-radius: 9999px;
+        background: #cbd5e1;
+        transition: transform 0.18s ease, background-color 0.18s ease;
+      }
+      .agy-st-switch-row[aria-pressed="true"] .agy-st-pill-track,
+      .agy-st-pill-track.is-on {
+        background: var(--agy-st-accent);
+        border-color: var(--agy-st-accent);
+        box-shadow: 0 0 10px var(--agy-st-glow);
+      }
+      .agy-st-switch-row[aria-pressed="true"] .agy-st-pill-knob,
+      .agy-st-pill-track.is-on .agy-st-pill-knob {
+        transform: translateX(12px);
+        background: #090d16;
+      }
+      .agy-st-glass-card {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.032);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 24px rgba(0, 0, 0, 0.28);
+        border-radius: 15px;
+        padding: 18px 20px;
+        margin-bottom: 16px;
+      }
+      .agy-st-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        color: #f1f5f9;
+        font-size: 12px;
+        font-weight: 550;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
+      }
+      .agy-st-btn:hover {
+        background: rgba(255, 255, 255, 0.11);
+        border-color: var(--agy-st-accent);
+      }
+      .agy-st-btn-primary {
+        background: var(--agy-st-accent);
+        border-color: var(--agy-st-accent);
+        color: #090d16;
+        font-weight: 700;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 14px var(--agy-st-glow);
+      }
+      .agy-st-btn-primary:hover {
+        filter: brightness(1.08);
+        border-color: var(--agy-st-accent);
+      }
+      .agy-st-btn-danger {
+        background: rgba(239, 68, 68, 0.12);
+        border-color: rgba(239, 68, 68, 0.30);
+        color: #fca5a5;
+      }
+      .agy-st-btn-danger:hover {
+        background: rgba(239, 68, 68, 0.22);
+        border-color: rgba(248, 113, 113, 0.60);
+        color: #fecaca;
+      }
+      .agy-preset-card,
+      .agy-bubble-card,
+      .agy-input-card {
+        position: relative;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.032);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 6px 20px rgba(0, 0, 0, 0.25);
+        cursor: pointer;
+        transition: border-color 0.16s ease, background-color 0.16s ease, transform 0.14s ease, box-shadow 0.16s ease;
+      }
+      .agy-preset-card:hover,
+      .agy-bubble-card:hover,
+      .agy-input-card:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 255, 255, 0.26);
+        transform: translateY(-1px);
+      }
+      .agy-preset-card.is-selected,
+      .agy-bubble-card.is-selected,
+      .agy-input-card.is-selected {
+        background: rgba(255, 255, 255, 0.075);
+        border: 1.5px solid var(--agy-st-accent) !important;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 24px var(--agy-st-glow);
+      }
+      .agy-card-check-slot {
+        width: 20px;
+        height: 20px;
+        border-radius: 9999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.04);
+        color: transparent;
+      }
+      .is-selected .agy-card-check-slot {
+        background: var(--agy-st-accent);
+        border-color: var(--agy-st-accent);
+        color: #090d16;
+        box-shadow: 0 0 10px var(--agy-st-glow);
+      }
+      .agy-delete-preset-btn {
+        opacity: 0.55;
+        transition: opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+      }
+      .agy-preset-card:hover .agy-delete-preset-btn,
+      .agy-delete-preset-btn:hover {
+        opacity: 1;
+      }
+      .agy-delete-preset-btn:hover {
+        background: rgba(239, 68, 68, 0.85) !important;
+        border-color: rgba(254, 202, 202, 0.75) !important;
+        color: #ffffff !important;
       }
       #agy-custom-theme-sidebar-btn svg {
         color: ${mainTheme.primary} !important;
@@ -6473,6 +6742,29 @@
     }, { once: true });
   }
 
+  const STUDIO_ICONS = {
+    palette: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>',
+    layers: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>',
+    paw: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"/></svg>',
+    chat: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>',
+    sparkles: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>',
+    zap: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>',
+    snowflake: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="22"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4 4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/></svg>',
+    play: '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 4 20 12 6 20 6 4"/></svg>',
+    terminal: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>',
+    close: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+    mic: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>',
+    volumeOn: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>',
+    volumeOff: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="22" x2="16" y1="9" y2="15"/><line x1="16" x2="22" y1="9" y2="15"/></svg>',
+    trash: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>',
+    restore: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>',
+    image: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>',
+    video: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>',
+    music: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+    upload: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>',
+    dock: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 15h18"/></svg>'
+  };
+
   function syncThemeModeToggleBtn(mode, primaryColor) {
     const btn = document.getElementById('agy-theme-mode-toggle');
     if (!btn) return;
@@ -6484,67 +6776,81 @@
     const statPill = btn.querySelector('[data-mode-pill="static"]');
     if (dynPill) {
       dynPill.style.background = isDyn ? accent : 'transparent';
-      dynPill.style.color = isDyn ? '#090d16' : '#a1a1aa';
+      dynPill.style.color = isDyn ? '#090d16' : '#94a3b8';
       dynPill.style.fontWeight = isDyn ? '700' : '500';
+      dynPill.style.boxShadow = isDyn ? '0 2px 10px rgba(0,0,0,0.3)' : 'none';
     }
     if (statPill) {
       statPill.style.background = !isDyn ? 'rgba(255, 255, 255, 0.16)' : 'transparent';
-      statPill.style.color = !isDyn ? '#f4f4f5' : '#a1a1aa';
+      statPill.style.color = !isDyn ? '#f8fafc' : '#94a3b8';
       statPill.style.fontWeight = !isDyn ? '700' : '500';
+      statPill.style.boxShadow = !isDyn ? 'inset 0 1px 0 rgba(255,255,255,0.2)' : 'none';
     }
     syncExtraToggleBtns(primaryColor);
   }
 
   function syncExtraToggleBtns(primaryColor) {
     const st = getStateSafe();
-    const accent = primaryColor || '#38bdf8';
-    const voiceBtn = document.getElementById('agy-voice-toggle-btn');
-    if (voiceBtn) {
-      const on = !!st.voiceEnabled;
-      voiceBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      voiceBtn.style.borderColor = on ? accent : 'rgba(255, 255, 255, 0.12)';
-      voiceBtn.style.color = on ? '#f4f4f5' : '#71717a';
-      voiceBtn.style.background = on ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.04)';
-      voiceBtn.innerHTML = on ? '🗣️ Giọng nói' : '🗣️ Tắt giọng';
+    const syncSwitchBtn = (btnId, on, mirrorId) => {
+      const btn = document.getElementById(btnId);
+      if (btn) {
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      }
+      if (mirrorId) {
+        const mirror = document.getElementById(mirrorId);
+        if (mirror) mirror.setAttribute('aria-pressed', on ? 'true' : 'false');
+      }
+    };
+    syncSwitchBtn('agy-voice-toggle-btn', !!st.voiceEnabled, 'agy-comp-voice-switch');
+    syncSwitchBtn('agy-intro-toggle-btn', !!st.introEnabled, 'agy-comp-intro-switch');
+    syncSwitchBtn('agy-pet-toggle-btn', st.petEnabled !== false, 'agy-comp-pet-switch');
+    syncSwitchBtn('agy-pet-chat-dock-btn', st.petChatDocked !== false, 'agy-comp-dock-switch');
+  }
+
+  function syncStudioAccentVars(themeObj, stateObj) {
+    const backdrop = document.getElementById('agy-custom-theme-modal-backdrop');
+    if (!backdrop) return;
+    const th = themeObj || {};
+    const st = stateObj || getStateSafe();
+    const accent = th.primary || '#38bdf8';
+    const accent2 = th.secondary || accent;
+    const glow = th.glow || 'rgba(56, 189, 248, 0.22)';
+    backdrop.style.setProperty('--agy-st-accent', accent);
+    backdrop.style.setProperty('--agy-st-accent-2', accent2);
+    backdrop.style.setProperty('--agy-st-glow', glow);
+    backdrop.style.setProperty('--agy-st-border-strong', th.borderColor || 'rgba(255,255,255,0.24)');
+
+    const drop = document.getElementById('agy-studio-ai-drop');
+    if (drop) {
+      drop.style.borderColor = accent;
+      const dropIco = drop.querySelector('.agy-ai-drop-ico');
+      if (dropIco) {
+        dropIco.style.borderColor = th.borderColor || 'rgba(255,255,255,0.2)';
+        dropIco.style.color = accent;
+      }
     }
-    const introBtn = document.getElementById('agy-intro-toggle-btn');
-    if (introBtn) {
-      const on = !!st.introEnabled;
-      introBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      introBtn.style.borderColor = on ? accent : 'rgba(255, 255, 255, 0.12)';
-      introBtn.style.color = on ? '#f4f4f5' : '#71717a';
-      introBtn.style.background = on ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.04)';
-      introBtn.innerHTML = on ? '✨ Intro' : '✨ Tắt Intro';
+    const strip = document.getElementById('agy-live-preview-strip');
+    if (strip) {
+      const pack = resolveDynamicPack(th);
+      const isDyn = st.themeMode !== 'static';
+      strip.innerHTML = isDyn
+        ? `<span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:650;color:#f8fafc;"><span style="width:7px;height:7px;border-radius:9999px;background:${accent};box-shadow:0 0 10px ${accent};"></span>${escHtml(pack.archetypeLabel)}</span><span style="font-size:11.5px;color:#94a3b8;">${escHtml(pack.uiDesign.layoutPreset)} · ${escHtml(pack.uiDesign.sidebarStyle)} · ${escHtml(pack.uiDesign.composerStyle)}</span><span style="margin-left:auto;font-size:10px;font-weight:700;letter-spacing:0.5px;color:${accent};background:rgba(255,255,255,0.06);border:1px solid ${th.borderColor || 'rgba(255,255,255,0.18)'};border-radius:9999px;padding:2px 9px;">DYNAMIC ON</span>`
+        : `<span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:#94a3b8;"><span style="width:7px;height:7px;border-radius:9999px;background:#64748b;"></span>Static Mode</span><span style="font-size:11.5px;color:#64748b;">Tắt mọi chuyển động để tối ưu pin &amp; GPU</span><span style="margin-left:auto;font-size:10px;font-weight:700;letter-spacing:0.5px;color:#94a3b8;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:9999px;padding:2px 9px;">STATIC</span>`;
+      strip.style.borderColor = isDyn ? (th.borderColor || 'rgba(255,255,255,0.16)') : 'rgba(255,255,255,0.10)';
     }
-    const petBtn = document.getElementById('agy-pet-toggle-btn');
-    if (petBtn) {
-      const on = st.petEnabled !== false;
-      petBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      petBtn.style.borderColor = on ? accent : 'rgba(255, 255, 255, 0.12)';
-      petBtn.style.color = on ? '#f4f4f5' : '#71717a';
-      petBtn.style.background = on ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.04)';
-      petBtn.innerHTML = on ? '🐾 Pet' : '🐾 Tắt Pet';
-    }
-    const petChatDockBtn = document.getElementById('agy-pet-chat-dock-btn');
-    if (petChatDockBtn) {
-      const on = st.petChatDocked !== false;
-      petChatDockBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      petChatDockBtn.style.borderColor = on ? accent : 'rgba(255, 255, 255, 0.12)';
-      petChatDockBtn.style.color = on ? '#f4f4f5' : '#71717a';
-      petChatDockBtn.style.background = on ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.04)';
-      petChatDockBtn.innerHTML = on ? '💬 Pet Chat' : '💬 Chat gốc';
-    }
+    syncThemeModeToggleBtn(st.themeMode, accent);
   }
 
   function openCustomThemeModal(initialFile) {
     let backdrop = document.getElementById('agy-custom-theme-modal-backdrop');
-    if (backdrop && !document.getElementById('agy-studio-nav-rail')) {
+    if (backdrop && backdrop.dataset.studioVersion !== 'studio-glass-v2') {
       backdrop.remove();
       backdrop = null;
     }
     if (!backdrop) {
       backdrop = document.createElement('div');
       backdrop.id = 'agy-custom-theme-modal-backdrop';
+      backdrop.dataset.studioVersion = 'studio-glass-v2';
       backdrop.style.cssText = `
         position: fixed;
         inset: 0;
@@ -6552,54 +6858,70 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 32px;
-        background: rgba(0, 0, 0, 0.72);
+        padding: 28px;
+        background: rgba(4, 6, 12, 0.62);
         backdrop-filter: none;
       `;
 
       backdrop.innerHTML = `
-        <div id="agy-custom-theme-modal-dialog" style="background: rgba(11, 13, 22, 0.96); border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 20px; width: 100%; max-width: 1040px; height: 86vh; max-height: 820px; display: flex; flex-direction: column; overflow: hidden; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 28px 72px rgba(0, 0, 0, 0.88); font-family: system-ui, -apple-system, sans-serif;">
-          <div id="agy-custom-theme-modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 22px; border-bottom: 1px solid rgba(255, 255, 255, 0.10); background: rgba(255, 255, 255, 0.03); box-shadow: inset 0 -1px 0 rgba(255,255,255,0.04);">
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <div style="width: 30px; height: 30px; border-radius: 9px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.18); box-shadow: inset 0 1px 0 rgba(255,255,255,0.2); display: inline-flex; align-items: center; justify-content: center; font-size: 15px;">🎨</div>
-              <div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span id="agy-studio-modal-title" style="font-size: 16px; font-weight: 700; color: #f8fafc; letter-spacing: -0.2px; white-space: nowrap;">Theme Studio</span>
-                  <span id="agy-custom-theme-badge" style="font-size: 11px; padding: 2px 9px; border-radius: 9999px; background: rgba(224, 142, 85, 0.18); color: #e08e55; font-weight: 600; border: 1px solid rgba(224, 142, 85, 0.34); white-space: nowrap;">${THEME_KEYS.length} Preset${THEME_KEYS.length > 1 ? 's' : ''}</span>
+        <div id="agy-custom-theme-modal-dialog" style="background: rgba(11, 14, 23, 0.84); border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 20px; width: 100%; max-width: 1060px; height: 86vh; max-height: 820px; display: flex; flex-direction: column; overflow: hidden; font-family: system-ui, -apple-system, sans-serif;">
+          <div id="agy-custom-theme-modal-header" style="display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 13px 20px; flex-shrink: 0;">
+            <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+              <div id="agy-studio-brand-mark" style="width: 34px; height: 34px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;">${STUDIO_ICONS.palette}</div>
+              <div style="min-width: 0;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
+                  <span id="agy-studio-modal-title" style="font-size: 15px; font-weight: 700; color: #f8fafc; letter-spacing: -0.2px; white-space: nowrap;">Theme Studio</span>
+                  <span id="agy-custom-theme-badge" style="font-size: 11px; padding: 2px 9px; border-radius: 9999px; font-weight: 600; white-space: nowrap;">${THEME_KEYS.length} Preset${THEME_KEYS.length > 1 ? 's' : ''}</span>
                 </div>
-                <div style="font-size: 11px; color: #94a3b8;">Studio hiệu ứng, nền, Pet &amp; giao diện Glass</div>
+                <div style="font-size: 11px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Không gian tùy biến giao diện Glass, hình nền, Pet &amp; hiệu ứng</div>
               </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <button id="agy-theme-mode-toggle" type="button" title="Chuyển chế độ Động / Tĩnh (Dynamic / Static)" style="display: inline-flex; align-items: center; gap: 2px; padding: 3px; border-radius: 9999px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.16); cursor: pointer; font-size: 12px; line-height: 1; user-select: none;">
-                <span data-mode-pill="dynamic" style="padding: 5px 11px; border-radius: 9999px; transition: background-color 0.15s ease, color 0.15s ease;">⚡ Động</span>
-                <span data-mode-pill="static" style="padding: 5px 11px; border-radius: 9999px; transition: background-color 0.15s ease, color 0.15s ease;">🧊 Tĩnh</span>
+            <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+              <button id="agy-theme-mode-toggle" type="button" title="Chuyển chế độ Động / Tĩnh (Dynamic / Static)" style="display: inline-flex; align-items: center; gap: 2px; padding: 3px; border-radius: 9999px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.14); cursor: pointer; font-size: 11.5px; line-height: 1; user-select: none;">
+                <span data-mode-pill="dynamic" style="display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px; border-radius: 9999px; transition: background-color 0.15s ease, color 0.15s ease;">${STUDIO_ICONS.zap} Động</span>
+                <span data-mode-pill="static" style="display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px; border-radius: 9999px; transition: background-color 0.15s ease, color 0.15s ease;">${STUDIO_ICONS.snowflake} Tĩnh</span>
               </button>
-              <button id="agy-intro-preview-btn" type="button" title="Xem thử hiệu ứng Intro của theme hiện tại" style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 10px; background: rgba(56, 189, 248, 0.14); border: 1px solid rgba(56, 189, 248, 0.38); box-shadow: inset 0 1px 0 rgba(255,255,255,0.18); color: #e0f2fe; cursor: pointer; font-size: 12px; font-weight: 600; white-space: nowrap;">▶ Thử Intro</button>
-              <button id="agy-boot-hud-btn" type="button" title="Chạy thử Boot Intro HUD" style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 10px; background: rgba(168, 85, 247, 0.14); border: 1px solid rgba(168, 85, 247, 0.38); box-shadow: inset 0 1px 0 rgba(255,255,255,0.18); color: #f3e8ff; cursor: pointer; font-size: 12px; font-weight: 600; white-space: nowrap;">▶ Boot HUD</button>
-              <button id="agy-theme-modal-close-btn" type="button" style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.16); color: #e2e8f0; cursor: pointer; width: 32px; height: 32px; border-radius: 10px; font-size: 15px; display: flex; align-items: center; justify-content: center;">✕</button>
+              <button id="agy-intro-preview-btn" class="agy-st-btn" type="button" title="Xem thử hiệu ứng Intro của theme hiện tại">${STUDIO_ICONS.play} <span>Thử Intro</span></button>
+              <button id="agy-boot-hud-btn" class="agy-st-btn" type="button" title="Chạy thử Boot Intro HUD">${STUDIO_ICONS.terminal} <span>Boot HUD</span></button>
+              <button id="agy-theme-modal-close-btn" class="agy-st-btn" type="button" title="Đóng (Esc)" style="width: 32px; height: 32px; padding: 0; border-radius: 9999px;">${STUDIO_ICONS.close}</button>
             </div>
           </div>
           <div id="agy-studio-shell" style="flex: 1; min-height: 0; display: flex; overflow: hidden;">
-            <aside id="agy-studio-nav-rail" style="width: 210px; flex-shrink: 0; border-right: 1px solid rgba(255, 255, 255, 0.10); background: rgba(255, 255, 255, 0.025); padding: 16px 12px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
-              <div style="display: flex; flex-direction: column; gap: 6px;">
-                <button type="button" class="agy-studio-tab-btn" data-studio-tab="presets" style="text-align: left; padding: 10px 12px; border-radius: 11px; border: 1px solid transparent; background: transparent; color: #cbd5e1; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 9px;">🎨 <span>Presets &amp; AI Ảnh</span></button>
-                <button type="button" class="agy-studio-tab-btn" data-studio-tab="backdrop" style="text-align: left; padding: 10px 12px; border-radius: 11px; border: 1px solid transparent; background: transparent; color: #cbd5e1; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 9px;">🌌 <span>Nền &amp; Viền Glass</span></button>
-                <button type="button" class="agy-studio-tab-btn" data-studio-tab="companion" style="text-align: left; padding: 10px 12px; border-radius: 11px; border: 1px solid transparent; background: transparent; color: #cbd5e1; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 9px;">🐾 <span>Pet, Voice &amp; Intro</span></button>
-                <button type="button" class="agy-studio-tab-btn" data-studio-tab="chat" style="text-align: left; padding: 10px 12px; border-radius: 11px; border: 1px solid transparent; background: transparent; color: #cbd5e1; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 9px;">💬 <span>Chat, Avatar &amp; JSON</span></button>
+            <aside id="agy-studio-nav-rail" style="width: 222px; flex-shrink: 0; padding: 16px 12px; display: flex; flex-direction: column; justify-content: space-between; gap: 14px;">
+              <div>
+                <div style="font-size: 10px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase; color: #64748b; padding: 0 10px 8px 10px;">Danh mục</div>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <button type="button" class="agy-studio-tab-btn" data-studio-tab="presets"><span class="agy-st-tab-ico" style="display:inline-flex;">${STUDIO_ICONS.palette}</span> <span>Giao diện &amp; AI</span></button>
+                  <button type="button" class="agy-studio-tab-btn" data-studio-tab="backdrop"><span class="agy-st-tab-ico" style="display:inline-flex;">${STUDIO_ICONS.layers}</span> <span>Nền &amp; Glass</span></button>
+                  <button type="button" class="agy-studio-tab-btn" data-studio-tab="companion"><span class="agy-st-tab-ico" style="display:inline-flex;">${STUDIO_ICONS.paw}</span> <span>Pet, Voice &amp; Chào</span></button>
+                  <button type="button" class="agy-studio-tab-btn" data-studio-tab="chat"><span class="agy-st-tab-ico" style="display:inline-flex;">${STUDIO_ICONS.chat}</span> <span>Chat, Avatar &amp; JSON</span></button>
+                </div>
               </div>
-              <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
-                <button id="agy-voice-toggle-btn" type="button" title="Bật/tắt giọng nói chào mừng (Web Speech)" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border-radius: 9px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); color: #f4f4f5; cursor: pointer; font-size: 12px;">🗣️ Giọng nói</button>
-                <button id="agy-intro-toggle-btn" type="button" title="Bật/tắt Intro khởi động khi đổi theme" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border-radius: 9px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); color: #f4f4f5; cursor: pointer; font-size: 12px;">✨ Intro</button>
-                <button id="agy-pet-toggle-btn" type="button" title="Bật/tắt Pixel Companion Pet" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border-radius: 9px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); color: #f4f4f5; cursor: pointer; font-size: 12px;">🐾 Pet</button>
-                <button id="agy-pet-chat-dock-btn" type="button" title="Dock khung chat ngay dưới chân Pet" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border-radius: 9px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); color: #f4f4f5; cursor: pointer; font-size: 12px;">💬 Pet Chat</button>
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; padding-top: 4px;">
-                  <button id="agy-sound-mute-btn" type="button" title="Bật/tắt âm thanh" style="display: inline-flex; align-items: center; gap: 4px; padding: 5px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #d4d4d8; cursor: pointer; font-size: 11.5px; white-space: nowrap;">🔊 <span id="agy-sound-mute-label">Âm</span></button>
-                  <input id="agy-sound-vol-slider" type="range" min="0" max="100" value="38" title="Âm lượng" style="flex: 1; min-width: 56px; cursor: pointer; accent-color: #38bdf8; height: 4px;" />
+              <div style="display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
+                <div style="font-size: 10px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase; color: #64748b; padding: 0 6px 2px 6px;">Bật / Tắt nhanh</div>
+                <button id="agy-voice-toggle-btn" class="agy-st-switch-row" type="button" title="Bật/tắt giọng nói chào mừng (Web Speech)">
+                  <span style="display:inline-flex;align-items:center;gap:7px;">${STUDIO_ICONS.mic} <span>Giọng nói</span></span>
+                  <span class="agy-st-pill-track"><span class="agy-st-pill-knob"></span></span>
+                </button>
+                <button id="agy-intro-toggle-btn" class="agy-st-switch-row" type="button" title="Bật/tắt Intro khởi động khi đổi theme">
+                  <span style="display:inline-flex;align-items:center;gap:7px;">${STUDIO_ICONS.sparkles} <span>Intro chuyển</span></span>
+                  <span class="agy-st-pill-track"><span class="agy-st-pill-knob"></span></span>
+                </button>
+                <button id="agy-pet-toggle-btn" class="agy-st-switch-row" type="button" title="Bật/tắt Pixel Companion Pet">
+                  <span style="display:inline-flex;align-items:center;gap:7px;">${STUDIO_ICONS.paw} <span>Pet đồng hành</span></span>
+                  <span class="agy-st-pill-track"><span class="agy-st-pill-knob"></span></span>
+                </button>
+                <button id="agy-pet-chat-dock-btn" class="agy-st-switch-row" type="button" title="Dock khung chat ngay dưới chân Pet">
+                  <span style="display:inline-flex;align-items:center;gap:7px;">${STUDIO_ICONS.dock} <span>Khung Pet Chat</span></span>
+                  <span class="agy-st-pill-track"><span class="agy-st-pill-knob"></span></span>
+                </button>
+                <div style="display: flex; align-items: center; gap: 8px; padding: 6px 8px; margin-top: 4px; border-radius: 10px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);">
+                  <button id="agy-sound-mute-btn" type="button" title="Bật/tắt âm thanh" style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px; border-radius: 7px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.10); color: #e2e8f0; cursor: pointer; font-size: 11px; white-space: nowrap;">${STUDIO_ICONS.volumeOn} <span id="agy-sound-mute-label">Âm</span></button>
+                  <input id="agy-sound-vol-slider" type="range" min="0" max="100" value="38" title="Âm lượng" style="flex: 1; min-width: 56px; cursor: pointer; height: 4px;" />
                 </div>
               </div>
             </aside>
-            <div id="agy-theme-modal-body" style="flex: 1; min-width: 0; overflow-y: auto; height: 100%;"></div>
+            <div id="agy-theme-modal-body" style="flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden;"></div>
           </div>
         </div>
       `;
@@ -6609,15 +6931,8 @@
       const applyStudioTabUi = (tabId) => {
         const activeTab = tabId || window.__AGY_STUDIO_TAB__ || 'presets';
         window.__AGY_STUDIO_TAB__ = activeTab;
-        const stCur = getStateSafe();
-        const thCur = THEMES[stCur.themeName] || THEMES[getDefaultThemeKey()] || {};
-        const acc = thCur.primary || '#38bdf8';
         backdrop.querySelectorAll('.agy-studio-tab-btn').forEach((btn) => {
-          const isAct = btn.dataset.studioTab === activeTab;
-          btn.style.background = isAct ? 'rgba(255, 255, 255, 0.09)' : 'transparent';
-          btn.style.borderColor = isAct ? acc : 'transparent';
-          btn.style.color = isAct ? '#f8fafc' : '#94a3b8';
-          btn.style.boxShadow = isAct ? 'inset 0 1px 0 rgba(255,255,255,0.18)' : 'none';
+          btn.classList.toggle('is-active', btn.dataset.studioTab === activeTab);
         });
         backdrop.querySelectorAll('[data-studio-panel]').forEach((sec) => {
           sec.style.display = sec.dataset.studioPanel === activeTab ? 'block' : 'none';
@@ -6644,98 +6959,76 @@
         applyTheme({ themeMode: nextMode });
         const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
         syncThemeModeToggleBtn(nextMode, th.primary);
-        // Re-render panels to refresh Dynamic/Static preview card indicators
         const body = backdrop.querySelector('#agy-theme-modal-body');
         if (body) renderThemePanels(body);
         if (nextMode === 'dynamic') {
           speakThemeVoice('Dynamic protocol engaged.', th);
         }
       });
+      const toggleStateFlag = (key, onVoice) => {
+        const cur = getState();
+        const curVal = (key === 'petEnabled' || key === 'petChatDocked') ? (cur[key] !== false) : !!cur[key];
+        const next = !curVal;
+        const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
+        applyTheme({ [key]: next });
+        syncExtraToggleBtns(th.primary);
+        playClickSound(th);
+        if (onVoice && next) speakThemeVoice(onVoice, th);
+      };
+      backdrop._toggleStudioFlag = toggleStateFlag;
       const voiceToggleBtn = backdrop.querySelector('#agy-voice-toggle-btn');
-      if (voiceToggleBtn) {
-        voiceToggleBtn.addEventListener('click', () => {
-          const cur = getState();
-          const next = !cur.voiceEnabled;
-          const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
-          applyTheme({ voiceEnabled: next });
-          syncExtraToggleBtns(th.primary);
-          playClickSound(th);
-          if (next) speakThemeVoice('Voice feedback enabled.', th);
-        });
-      }
+      if (voiceToggleBtn) voiceToggleBtn.addEventListener('click', () => toggleStateFlag('voiceEnabled', 'Voice feedback enabled.'));
       const introToggleBtn = backdrop.querySelector('#agy-intro-toggle-btn');
-      if (introToggleBtn) {
-        introToggleBtn.addEventListener('click', () => {
-          const cur = getState();
-          const next = !cur.introEnabled;
-          const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
-          applyTheme({ introEnabled: next });
-          syncExtraToggleBtns(th.primary);
-          playClickSound(th);
-        });
-      }
+      if (introToggleBtn) introToggleBtn.addEventListener('click', () => toggleStateFlag('introEnabled'));
       const petToggleBtn = backdrop.querySelector('#agy-pet-toggle-btn');
-      if (petToggleBtn) {
-        petToggleBtn.addEventListener('click', () => {
-          const cur = getState();
-          const next = cur.petEnabled === false;
-          const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
-          applyTheme({ petEnabled: next });
-          syncExtraToggleBtns(th.primary);
-          playClickSound(th);
-        });
-      }
+      if (petToggleBtn) petToggleBtn.addEventListener('click', () => toggleStateFlag('petEnabled'));
       const petChatDockBtn = backdrop.querySelector('#agy-pet-chat-dock-btn');
-      if (petChatDockBtn) {
-        petChatDockBtn.addEventListener('click', () => {
-          const cur = getState();
-          const next = cur.petChatDocked === false;
-          const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
-          applyTheme({ petChatDocked: next });
-          syncExtraToggleBtns(th.primary);
-          playClickSound(th);
-        });
-      }
+      if (petChatDockBtn) petChatDockBtn.addEventListener('click', () => toggleStateFlag('petChatDocked'));
+
+      const triggerIntroPreview = () => {
+        const cur = getState();
+        const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
+        if (cur.themeMode === 'static') {
+          applyTheme({ themeMode: 'dynamic' });
+          syncThemeModeToggleBtn('dynamic', th.primary);
+          const body = backdrop.querySelector('#agy-theme-modal-body');
+          if (body) renderThemePanels(body);
+        }
+        playThemeSelectSound(th.primary, th);
+        showThemeIntro(th, true);
+      };
+      const triggerBootHud = () => {
+        const cur = getState();
+        const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
+        if (cur.themeMode === 'static') {
+          applyTheme({ themeMode: 'dynamic' });
+          syncThemeModeToggleBtn('dynamic', th.primary);
+          const body = backdrop.querySelector('#agy-theme-modal-body');
+          if (body) renderThemePanels(body);
+        }
+        backdrop.style.display = 'none';
+        mountBootSequence(true);
+      };
+      backdrop._triggerIntroPreview = triggerIntroPreview;
+      backdrop._triggerBootHud = triggerBootHud;
       const introPreviewBtn = backdrop.querySelector('#agy-intro-preview-btn');
-      if (introPreviewBtn) {
-        introPreviewBtn.addEventListener('click', () => {
-          const cur = getState();
-          const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
-          if (cur.themeMode === 'static') {
-            applyTheme({ themeMode: 'dynamic' });
-            syncThemeModeToggleBtn('dynamic', th.primary);
-            const body = backdrop.querySelector('#agy-theme-modal-body');
-            if (body) renderThemePanels(body);
-          }
-          playThemeSelectSound(th.primary, th);
-          showThemeIntro(th, true);
-        });
-      }
+      if (introPreviewBtn) introPreviewBtn.addEventListener('click', triggerIntroPreview);
       const bootHudBtn = backdrop.querySelector('#agy-boot-hud-btn');
-      if (bootHudBtn) {
-        bootHudBtn.addEventListener('click', () => {
-          const cur = getState();
-          const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
-          if (cur.themeMode === 'static') {
-            applyTheme({ themeMode: 'dynamic' });
-            syncThemeModeToggleBtn('dynamic', th.primary);
-            const body = backdrop.querySelector('#agy-theme-modal-body');
-            if (body) renderThemePanels(body);
-          }
-          backdrop.style.display = 'none';
-          mountBootSequence(true);
-        });
-      }
-      // Wire up sound mute button
+      if (bootHudBtn) bootHudBtn.addEventListener('click', triggerBootHud);
+
       const soundMuteBtn = backdrop.querySelector('#agy-sound-mute-btn');
       const soundVolSlider = backdrop.querySelector('#agy-sound-vol-slider');
+      const paintMuteBtn = (muted) => {
+        if (!soundMuteBtn) return;
+        soundMuteBtn.innerHTML = muted
+          ? `${STUDIO_ICONS.volumeOff} <span id="agy-sound-mute-label">Tắt</span>`
+          : `${STUDIO_ICONS.volumeOn} <span id="agy-sound-mute-label">Âm</span>`;
+        soundMuteBtn.style.color = muted ? '#71717a' : '#e2e8f0';
+      };
       if (soundMuteBtn) {
-        // Initialize from storage
         const initMuted = localStorage.getItem(STORAGE_SOUND_MUTED) === 'true';
         const initVol = localStorage.getItem(STORAGE_SOUND_VOLUME);
-        if (initMuted) {
-          soundMuteBtn.innerHTML = '🔇 <span id="agy-sound-mute-label">Tắt tiếng</span>';
-        }
+        paintMuteBtn(initMuted);
         if (soundVolSlider && initVol !== null) {
           soundVolSlider.value = Math.round(parseFloat(initVol) * 100);
         }
@@ -6743,9 +7036,7 @@
           const curMuted = localStorage.getItem(STORAGE_SOUND_MUTED) === 'true';
           const nextMuted = !curMuted;
           localStorage.setItem(STORAGE_SOUND_MUTED, String(nextMuted));
-          soundMuteBtn.innerHTML = nextMuted
-            ? '🔇 <span id="agy-sound-mute-label">Tắt tiếng</span>'
-            : '🔊 <span id="agy-sound-mute-label">Âm thanh</span>';
+          paintMuteBtn(nextMuted);
           if (!nextMuted) playClickSound();
         });
       }
@@ -6754,9 +7045,7 @@
           const vol = parseInt(e.target.value, 10) / 100;
           localStorage.setItem(STORAGE_SOUND_VOLUME, String(vol));
           if (vol > 0) localStorage.setItem(STORAGE_SOUND_MUTED, 'false');
-          if (soundMuteBtn && vol > 0) {
-            soundMuteBtn.innerHTML = '🔊 <span id="agy-sound-mute-label">Âm thanh</span>';
-          }
+          paintMuteBtn(vol <= 0);
           playClickSound();
         });
       }
@@ -6805,64 +7094,51 @@
     const st = getState();
     const defKey = getDefaultThemeKey();
     const mainTheme = THEMES[st.themeName] || THEMES[defKey] || {};
+    const accent = mainTheme.primary || '#38bdf8';
     const effUserAv = st.userAvatar === 'none' ? '' : (st.userAvatar || mainTheme.userAvatar || '');
     const effAgentAv = st.agentAvatar === 'none' ? '' : (st.agentAvatar || mainTheme.agentAvatar || '');
     const hiddenBuiltins = loadHiddenBuiltins();
     const customCount = THEME_KEYS.filter((k) => !BUILTIN_KEYS.has(k)).length;
     const badge = document.getElementById('agy-custom-theme-badge');
     if (badge) badge.textContent = `${THEME_KEYS.length} Preset${THEME_KEYS.length > 1 ? 's' : ''}`;
-    syncThemeModeToggleBtn(st.themeMode, mainTheme.primary);
+    syncStudioAccentVars(mainTheme, st);
 
-    const glassCardStyle = 'border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.035); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 8px 24px rgba(0, 0, 0, 0.34); border-radius: 14px; padding: 16px 20px; margin-bottom: 16px;';
     const activeTab = window.__AGY_STUDIO_TAB__ || 'presets';
+    const prevScrollEl = container.querySelector('#agy-theme-scroll-container');
+    const prevScrollTop = prevScrollEl ? prevScrollEl.scrollTop : 0;
 
     container.innerHTML = `
-      <div id="agy-theme-scroll-container" style="padding: 20px 26px 40px 26px; max-width: 820px; margin: 0 auto; overflow-y: auto; height: 100%; color: #f4f4f5;">
+      <div id="agy-theme-scroll-container" style="padding: 20px 26px 36px 26px; width: 100%; max-width: 840px; margin: 0 auto; color: #f4f4f5; box-sizing: border-box;">
         <section data-studio-panel="presets" style="display: ${activeTab === 'presets' ? 'block' : 'none'};">
-          <div id="agy-studio-ai-drop" tabindex="0" style="border: 1.5px dashed ${mainTheme.primary || '#38bdf8'}; background: rgba(255, 255, 255, 0.04); box-shadow: inset 0 1px 0 rgba(255,255,255,0.15); border-radius: 14px; padding: 14px 18px; margin-bottom: 16px; cursor: pointer; display: flex; flex-direction: column; gap: 8px; transition: border-color 0.15s ease, background-color 0.15s ease;">
-            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-              <div style="display: flex; align-items: center; gap: 12px;">
-                <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(255,255,255,0.06); border: 1px solid ${mainTheme.borderColor}; display: flex; align-items: center; justify-content: center; font-size: 18px;">✨</div>
-                <div>
-                  <div style="font-size: 14.5px; font-weight: 600; color: #f4f4f5;">Tạo Theme mới từ Ảnh (AI • Logo • Pet 8×11)</div>
-                  <div style="font-size: 12px; color: #94a3b8;">Thả ảnh vào đây, Ctrl+V hoặc bấm chọn ảnh — tự phân tích bảng màu, logo SVG &amp; Pet đồng bộ</div>
+          <div id="agy-studio-ai-drop" tabindex="0" style="border: 1.5px dashed ${accent}; background: rgba(255, 255, 255, 0.032); box-shadow: inset 0 1px 0 rgba(255,255,255,0.12); border-radius: 15px; padding: 14px 18px; margin-bottom: 14px; cursor: pointer; display: flex; flex-direction: column; gap: 8px; transition: border-color 0.15s ease, background-color 0.15s ease;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+                <div class="agy-ai-drop-ico" style="width: 38px; height: 38px; border-radius: 11px; background: rgba(255,255,255,0.05); border: 1px solid ${mainTheme.borderColor || 'rgba(255,255,255,0.18)'}; color: ${accent}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">${STUDIO_ICONS.sparkles}</div>
+                <div style="min-width: 0;">
+                  <div style="font-size: 14px; font-weight: 650; color: #f8fafc;">Tạo Theme mới từ Ảnh (AI • Logo SVG • Pet 8×11)</div>
+                  <div style="font-size: 12px; color: #94a3b8; margin-top: 1px;">Thả ảnh vào đây, Ctrl+V hoặc chọn tệp để tự sinh bảng màu, logo &amp; Pet đồng bộ</div>
                 </div>
               </div>
-              <span style="padding: 6px 13px; border-radius: 9px; background: ${mainTheme.primary || '#38bdf8'}; color: #090d16; font-weight: 700; font-size: 12px; white-space: nowrap;">Chọn ảnh…</span>
+              <span class="agy-st-btn agy-st-btn-primary" style="padding: 7px 14px;">${STUDIO_ICONS.upload} Chọn ảnh</span>
               <input id="agy-studio-ai-file" type="file" accept="image/*" style="display: none;" />
             </div>
             <div id="agy-studio-ai-status" style="font-size: 12.5px; color: #e4e4e7; ${aiStatusHtml ? '' : 'display:none;'}">${aiStatusHtml}</div>
           </div>
 
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+          <div id="agy-live-preview-strip" style="position: relative; overflow: hidden; border-radius: 12px; height: 36px; margin-bottom: 16px; background: rgba(255, 255, 255, 0.036); border: 1px solid ${st.themeMode === 'dynamic' ? (mainTheme.borderColor || 'rgba(255,255,255,0.16)') : 'rgba(255,255,255,0.10)'}; box-shadow: inset 0 1px 0 rgba(255,255,255,0.10); display: flex; align-items: center; padding: 0 14px; gap: 10px;"></div>
+
+          <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
             <div>
-              <div style="font-size: 15px; font-weight: 600; color: #ffffff; margin-bottom: 2px;">Theme Presets (${THEME_KEYS.length})</div>
-              <div style="font-size: 12px; color: #94a3b8;">Bấm chọn để áp dụng toàn bộ nền, bảng màu, logo, Pet &amp; hiệu ứng Glass.</div>
+              <div style="font-size: 15px; font-weight: 650; color: #f8fafc;">Theme Presets (${THEME_KEYS.length})</div>
+              <div style="font-size: 12px; color: #94a3b8;">Áp dụng đồng bộ hình nền, bảng màu, logo, Pet &amp; bề mặt Glass.</div>
             </div>
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              ${hiddenBuiltins.length ? `<button id="agy-restore-builtins-btn" type="button" style="padding: 5px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.16); color: #f4f4f5; font-size: 12px; cursor: pointer; white-space: nowrap;">↺ Khôi phục (${hiddenBuiltins.length})</button>` : ''}
-              ${customCount ? `<button id="agy-clear-custom-btn" type="button" style="padding: 5px 10px; border-radius: 8px; background: rgba(239, 68, 68, 0.14); border: 1px solid rgba(239, 68, 68, 0.35); color: #fca5a5; font-size: 12px; cursor: pointer; white-space: nowrap;">🗑️ Xóa tự tạo (${customCount})</button>` : ''}
+              ${hiddenBuiltins.length ? `<button id="agy-restore-builtins-btn" class="agy-st-btn" type="button">${STUDIO_ICONS.restore} Khôi phục (${hiddenBuiltins.length})</button>` : ''}
+              ${customCount ? `<button id="agy-clear-custom-btn" class="agy-st-btn agy-st-btn-danger" type="button">${STUDIO_ICONS.trash} Xóa tự tạo (${customCount})</button>` : ''}
             </div>
           </div>
 
-          ${(() => {
-            const activePack = resolveDynamicPack(mainTheme);
-            return st.themeMode === 'dynamic' ? `
-          <div id="agy-live-preview-strip" style="position: relative; overflow: hidden; border-radius: 10px; height: 34px; margin-bottom: 14px; background: linear-gradient(90deg, ${mainTheme.glow}, ${mainTheme.secondaryGlow || mainTheme.primary}, ${mainTheme.glow}); background-size: 300% 100%; animation: agyPreviewStripFlow 4s ease-in-out infinite; display: flex; align-items: center; padding: 0 14px; gap: 10px; border: 1px solid rgba(255,255,255,0.22);">
-            <span style="position: absolute; left: 0; top: 0; bottom: 0; width: 25%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent); animation: agyLiveStripScan 2.4s ease-in-out infinite; pointer-events: none;"></span>
-            <span style="font-size: 11.5px; font-weight: 700; color: #090d16; letter-spacing: 0.4px;">⚡ ${escHtml(activePack.archetypeLabel)}</span>
-            <span style="font-size: 11px; color: rgba(0,0,0,0.72); margin-left: 4px;">${escHtml(activePack.uiDesign.layoutPreset)} · ${escHtml(activePack.uiDesign.sidebarStyle)} · ${escHtml(activePack.uiDesign.composerStyle)}</span>
-            <span style="margin-left: auto; font-size: 10.5px; font-weight: 700; color: rgba(0,0,0,0.7); background: rgba(255,255,255,0.36); border-radius: 999px; padding: 2px 8px;">ANIMATE ON</span>
-          </div>
-          ` : `
-          <div id="agy-live-preview-strip" style="border-radius: 10px; height: 34px; margin-bottom: 14px; background: rgba(30, 30, 35, 0.72); border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; padding: 0 14px; gap: 10px;">
-            <span style="font-size: 11.5px; font-weight: 700; color: #94a3b8;">🧊 Static</span>
-            <span style="font-size: 11px; color: #64748b;">Tắt mọi hiệu ứng · Tiết kiệm pin &amp; GPU</span>
-          </div>
-          `;
-          })()}
-
-          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
             ${THEME_KEYS.map(name => {
               const th = THEMES[name];
               const cardPack = resolveDynamicPack(th);
@@ -6872,11 +7148,11 @@
               const thumbRaw = th.wallpaper || th.posterUrl || '';
               const thumbUrl = thumbRaw ? resolveMediaUrl(thumbRaw) : '';
               const thumbBg = thumbUrl
-                ? `linear-gradient(180deg, rgba(0,0,0,0.08), rgba(10,12,18,0.82)), url('${thumbUrl}')`
+                ? `linear-gradient(180deg, rgba(6,8,14,0.06) 10%, rgba(8,10,16,0.88) 100%), url('${thumbUrl}')`
                 : (th.pureBg || th.bg);
               const thumbOrnamentStyle = th.isOrnament
-                ? 'right: 10px; bottom: 8px; width: 76px; height: 24px; background-position: center;'
-                : 'right: 12px; bottom: 4px; width: 42px; height: 38px; background-position: bottom center;';
+                ? 'right: 10px; bottom: 8px; width: 72px; height: 22px; background-position: center;'
+                : 'right: 12px; bottom: 4px; width: 40px; height: 36px; background-position: bottom center;';
               const dynCardStyle = st.themeMode === 'dynamic'
                 ? `animation: agyPreviewCardPulse 3.5s ease-in-out infinite; animation-delay: ${(THEME_KEYS.indexOf(name) % 4) * 0.6}s;`
                 : 'animation: none;';
@@ -6884,33 +7160,23 @@
                 ? `<div style="position: absolute; inset: 0; background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,0.08) 50%, transparent 80%); background-size: 200% 100%; animation: agyPreviewCardShimmer 2.5s linear infinite; animation-delay: ${(THEME_KEYS.indexOf(name) % 4) * 0.4}s; pointer-events: none;"></div>`
                 : '';
               const modeIndicator = st.themeMode === 'dynamic'
-                ? `<span style="position: absolute; top: 8px; left: 10px; z-index: 2; font-size: 10px; font-weight: 700; color: ${th.primary || '#38bdf8'}; background: rgba(0,0,0,0.68); border-radius: 999px; padding: 1px 7px; border: 1px solid ${th.glow || 'rgba(56,189,248,0.4)'};">⚡ ${escHtml(cardPack.archetypeLabel)}</span>`
-                : `<span style="position: absolute; top: 8px; left: 10px; z-index: 2; font-size: 10px; font-weight: 700; color: #94a3b8; background: rgba(0,0,0,0.68); border-radius: 999px; padding: 1px 7px; border: 1px solid rgba(148,163,184,0.3);">🧊 Static</span>`;
-              const packTags = st.themeMode === 'dynamic'
-                ? `<div style="font-size: 10.5px; color: #94a3b8; margin-top: 2px;">${escHtml(cardPack.uiDesign.layoutPreset)} · ${escHtml(cardPack.uiDesign.sidebarStyle)}</div>`
-                : '';
-              const cardUi = cardPack.uiDesign || { cardRadiusPx: 12, borderStyle: 'solid', fontVibe: 'sans' };
-              const cardRadius = Number.isFinite(cardUi.cardRadiusPx) ? cardUi.cardRadiusPx : 12;
-              const cardBorderStyle = cardUi.borderStyle === 'dashed' ? 'dashed' : 'solid';
-              const cardBorderWidth = isSelected ? '1.5px' : '1px';
-              const cardBorderColor = isSelected ? '#f8fafc' : 'rgba(255, 255, 255, 0.16)';
-              const cardClip = cardUi.borderStyle === 'chamfered'
-                ? 'clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px); border-radius: 0;'
-                : `border-radius: ${cardRadius}px;`;
+                ? `<span style="position: absolute; top: 9px; left: 10px; z-index: 2; display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 650; color: ${th.primary || '#38bdf8'}; background: rgba(7, 9, 15, 0.72); border-radius: 9999px; padding: 2px 8px; border: 1px solid ${th.borderColor || 'rgba(255,255,255,0.18)'};">${escHtml(cardPack.archetypeLabel)}</span>`
+                : `<span style="position: absolute; top: 9px; left: 10px; z-index: 2; display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 650; color: #cbd5e1; background: rgba(7, 9, 15, 0.72); border-radius: 9999px; padding: 2px 8px; border: 1px solid rgba(255,255,255,0.14);">Static</span>`;
+              const cardUi = cardPack.uiDesign || { cardRadiusPx: 12, fontVibe: 'sans' };
               const cardFont = getFontVibeStack(cardUi.fontVibe);
               return `
-                <div class="agy-preset-card" data-name="${escHtml(name)}" style="position: relative; ${cardClip} border: ${cardBorderWidth} ${cardBorderStyle} ${cardBorderColor}; background: rgba(14, 16, 24, 0.78); box-shadow: inset 0 1px 0 rgba(255,255,255,0.16); overflow: hidden; cursor: pointer; display: flex; flex-direction: column; transition: border-color 0.15s ease; font-family: ${cardFont}; ${dynCardStyle}">
-                  ${canDelete ? `<button class="agy-delete-preset-btn" data-del-preset="${escHtml(name)}" type="button" title="${isBuiltin ? 'Ẩn preset gốc' : 'Xóa preset'}" style="position: absolute; top: 8px; right: 8px; z-index: 3; width: 26px; height: 26px; border-radius: 7px; border: 1px solid rgba(255, 255, 255, 0.22); background: rgba(10, 12, 18, 0.72); color: #fca5a5; font-size: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer;">🗑️</button>` : ''}
-                  <div style="height: 74px; width: 100%; background-image: ${thumbBg}; background-size: cover; background-position: ${th.bgPosition || 'center'}; position: relative; display: flex; align-items: flex-end; padding: 8px 14px;">
+                <div class="agy-preset-card ${isSelected ? 'is-selected' : ''}" data-name="${escHtml(name)}" style="overflow: hidden; display: flex; flex-direction: column; font-family: ${cardFont}; ${dynCardStyle}">
+                  ${canDelete ? `<button class="agy-delete-preset-btn" data-del-preset="${escHtml(name)}" type="button" title="${isBuiltin ? 'Ẩn preset gốc' : 'Xóa preset'}" style="position: absolute; top: 8px; right: 8px; z-index: 3; width: 26px; height: 26px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.20); background: rgba(7, 9, 15, 0.74); color: #fca5a5; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">${STUDIO_ICONS.trash}</button>` : ''}
+                  <div style="height: 86px; width: 100%; background-image: ${thumbBg}; background-size: cover; background-position: ${th.bgPosition || 'center'}; position: relative; display: flex; align-items: flex-end; padding: 9px 14px;">
                     ${dynThumbExtra}
                     ${th.sticker ? `<div style="position: absolute; ${thumbOrnamentStyle} background-image: url('${th.sticker}'); background-size: contain; background-repeat: no-repeat; pointer-events: none;"></div>` : ''}
                     ${modeIndicator}
-                    <span style="font-size: 13.5px; font-weight: 600; color: #fff; position: relative; z-index: 1; text-shadow: 0 1px 4px rgba(0,0,0,0.85);">${escHtml(name)}</span>
+                    <span style="font-size: 14px; font-weight: 700; color: #ffffff; position: relative; z-index: 1; text-shadow: 0 2px 6px rgba(0,0,0,0.9); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 44px;">${escHtml(name)}</span>
                   </div>
-                  <div style="padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                      <span style="font-size: 12px; color: #cbd5e1;">${escHtml(th.concept || '')}</span>
-                      ${packTags}
+                  <div style="padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 52px;">
+                    <div style="min-width: 0;">
+                      <div style="font-size: 12px; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escHtml(th.concept || '')}</div>
+                      ${st.themeMode === 'dynamic' ? `<div style="font-size: 10.5px; color: #64748b; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escHtml(cardPack.uiDesign.layoutPreset)} · ${escHtml(cardPack.uiDesign.sidebarStyle)}</div>` : ''}
                     </div>
                     <div class="agy-card-check-slot">${isSelected ? CHECK_SVG : ''}</div>
                   </div>
@@ -6921,112 +7187,175 @@
         </section>
 
         <section data-studio-panel="backdrop" style="display: ${activeTab === 'backdrop' ? 'block' : 'none'};">
-          <div style="${glassCardStyle}">
-            <div style="font-size: 15px; font-weight: 600; color: #f8fafc; margin-bottom: 4px;">Ảnh nền sắc nét &amp; Độ mờ cục bộ dưới chữ</div>
-            <div style="font-size: 12.5px; color: #94a3b8; margin-bottom: 16px;">Ảnh nền luôn hiển thị trong suốt, không lớp phủ mờ. Thanh Text Scrim chỉ điều chỉnh độ tối phía sau khung chữ &amp; thẻ Glass.</div>
-            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px;">
-              <label style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); font-size: 13px; color: #e2e8f0; cursor: pointer;">
+          <div class="agy-st-glass-card">
+            <div style="font-size: 15px; font-weight: 650; color: #f8fafc; margin-bottom: 4px;">Ảnh nền sắc nét &amp; Lớp phủ Glass</div>
+            <div style="font-size: 12.5px; color: #94a3b8; margin-bottom: 16px;">Ảnh nền giữ nguyên độ nét gốc. Thanh Độ tối nền chữ chỉ điều chỉnh độ tương phản phía sau thẻ Glass &amp; khung chat.</div>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+              <label style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; border-radius: 11px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.03); font-size: 13px; color: #e2e8f0; cursor: pointer;">
                 <span>Hiển thị Ảnh nền (Backdrop)</span>
-                <input id="agy-wp-toggle" type="checkbox" ${st.wpEnabled ? 'checked' : ''} style="accent-color: ${mainTheme.primary}; cursor: pointer;" />
+                <input id="agy-wp-toggle" type="checkbox" ${st.wpEnabled ? 'checked' : ''} style="cursor: pointer;" />
               </label>
-              <label style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); font-size: 13px; color: #e2e8f0; cursor: pointer;">
+              <label style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; border-radius: 11px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.03); font-size: 13px; color: #e2e8f0; cursor: pointer;">
                 <span>Hiệu ứng Sketch Reveal</span>
-                <input id="agy-sketch-reveal-toggle" type="checkbox" ${st.sketchReveal ? 'checked' : ''} style="accent-color: ${mainTheme.primary}; cursor: pointer;" />
+                <input id="agy-sketch-reveal-toggle" type="checkbox" ${st.sketchReveal ? 'checked' : ''} style="cursor: pointer;" />
               </label>
-              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03);">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 14px; border-radius: 11px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.03);">
                 <span style="font-size: 12.5px; color: #cbd5e1;">Độ tối nền chữ</span>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <input id="agy-dim-slider" type="range" min="15" max="92" value="${st.dimming}" style="width: 110px; cursor: pointer; accent-color: ${mainTheme.primary}; height: 5px;" />
-                  <span id="agy-dim-val" style="min-width: 34px; text-align: right; font-size: 12px; color: #f8fafc;">${st.dimming}%</span>
+                  <input id="agy-dim-slider" type="range" min="15" max="92" value="${st.dimming}" style="width: 110px; cursor: pointer; height: 5px;" />
+                  <span id="agy-dim-val" style="min-width: 36px; text-align: right; font-size: 12px; font-weight: 600; color: #f8fafc;">${st.dimming}%</span>
                 </div>
               </div>
-              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03);">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 14px; border-radius: 11px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.03);">
                 <span style="font-size: 12.5px; color: #cbd5e1;">Pre-baked Glass Blur</span>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <input id="agy-blur-slider" type="range" min="0" max="16" value="${st.glassBlur}" style="width: 110px; cursor: pointer; accent-color: ${mainTheme.primary}; height: 5px;" />
-                  <span id="agy-blur-val" style="min-width: 32px; text-align: right; font-size: 12px; color: #f8fafc;">${st.glassBlur}px</span>
+                  <input id="agy-blur-slider" type="range" min="0" max="16" value="${st.glassBlur}" style="width: 110px; cursor: pointer; height: 5px;" />
+                  <span id="agy-blur-val" style="min-width: 34px; text-align: right; font-size: 12px; font-weight: 600; color: #f8fafc;">${st.glassBlur}px</span>
                 </div>
               </div>
             </div>
+          </div>
+
+          <div class="agy-st-glass-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px;">
+              <div>
+                <div style="font-size: 15px; font-weight: 650; color: #f8fafc; margin-bottom: 2px;">Nguồn Ảnh / Video Nền Cá Nhân</div>
+                <div style="font-size: 12px; color: #94a3b8;">Chuyển chế độ hiển thị Ảnh tĩnh hoặc Video MP4/WebM cho không gian làm việc.</div>
+              </div>
+              ${(st.customWp || st.customVideo) ? `<button id="agy-clear-custom-media-btn" class="agy-st-btn" type="button">${STUDIO_ICONS.restore} Về nền Preset</button>` : ''}
+            </div>
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-              <button id="agy-wp-mode-btn" type="button" style="padding: 7px 14px; border-radius: 9px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255,255,255,0.18); color: #f4f4f5; font-size: 12.5px; cursor: pointer;">${st.wpMode === 'video' ? '🎬 Chế độ Video' : '🖼️ Chế độ Ảnh'}</button>
-              <label style="padding: 7px 14px; border-radius: 9px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255,255,255,0.18); color: #f4f4f5; font-size: 12.5px; cursor: pointer;">Tải Ảnh Nền Riêng <input id="agy-wp-upload" type="file" accept="image/*" style="display: none;" /></label>
-              <label style="padding: 7px 14px; border-radius: 9px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255,255,255,0.18); color: #f4f4f5; font-size: 12.5px; cursor: pointer;">Tải Video Nền (MP4/WebM) <input id="agy-video-upload" type="file" accept="video/mp4,video/webm,.mp4,.webm" style="display: none;" /></label>
+              <button id="agy-wp-mode-btn" class="agy-st-btn" type="button">${st.wpMode === 'video' ? `${STUDIO_ICONS.video} Chế độ Video` : `${STUDIO_ICONS.image} Chế độ Ảnh`}</button>
+              <label class="agy-st-btn" style="cursor: pointer;">${STUDIO_ICONS.upload} Tải Ảnh Nền Riêng <input id="agy-wp-upload" type="file" accept="image/*" style="display: none;" /></label>
+              <label class="agy-st-btn" style="cursor: pointer;">${STUDIO_ICONS.video} Tải Video Nền (MP4/WebM) <input id="agy-video-upload" type="file" accept="video/mp4,video/webm,.mp4,.webm" style="display: none;" /></label>
             </div>
           </div>
         </section>
 
         <section data-studio-panel="companion" style="display: ${activeTab === 'companion' ? 'block' : 'none'};">
-          <div style="${glassCardStyle}">
+          <div class="agy-st-glass-card">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
               <div>
-                <div style="font-size: 15px; font-weight: 600; color: #f8fafc; margin-bottom: 2px;">Task Voice &amp; Câu Chào (AgyTawaMali Font)</div>
+                <div style="font-size: 15px; font-weight: 650; color: #f8fafc; margin-bottom: 2px;">Pet Đồng Hành &amp; Hiệu Ứng Khởi Động</div>
+                <div style="font-size: 12px; color: #94a3b8;">Điều khiển Pixel Pet, khung chat gắn dưới chân Pet và hiệu ứng chào mở màn.</div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <button id="agy-comp-preview-intro-btn" class="agy-st-btn" type="button">${STUDIO_ICONS.play} Xem Intro</button>
+                <button id="agy-comp-boot-hud-btn" class="agy-st-btn" type="button">${STUDIO_ICONS.terminal} Chạy Boot HUD</button>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+              <button id="agy-comp-pet-switch" class="agy-st-switch-row" type="button" aria-pressed="${st.petEnabled !== false ? 'true' : 'false'}" style="padding: 11px 14px;">
+                <span style="display:inline-flex;align-items:center;gap:8px;">${STUDIO_ICONS.paw} <span>Hiển thị Pixel Companion Pet</span></span>
+                <span class="agy-st-pill-track"><span class="agy-st-pill-knob"></span></span>
+              </button>
+              <button id="agy-comp-dock-switch" class="agy-st-switch-row" type="button" aria-pressed="${st.petChatDocked !== false ? 'true' : 'false'}" style="padding: 11px 14px;">
+                <span style="display:inline-flex;align-items:center;gap:8px;">${STUDIO_ICONS.dock} <span>Neo khung nhập ngay dưới chân Pet</span></span>
+                <span class="agy-st-pill-track"><span class="agy-st-pill-knob"></span></span>
+              </button>
+              <button id="agy-comp-intro-switch" class="agy-st-switch-row" type="button" aria-pressed="${st.introEnabled ? 'true' : 'false'}" style="padding: 11px 14px;">
+                <span style="display:inline-flex;align-items:center;gap:8px;">${STUDIO_ICONS.sparkles} <span>Phát Intro khi đổi Theme</span></span>
+                <span class="agy-st-pill-track"><span class="agy-st-pill-knob"></span></span>
+              </button>
+              <button id="agy-comp-voice-switch" class="agy-st-switch-row" type="button" aria-pressed="${st.voiceEnabled ? 'true' : 'false'}" style="padding: 11px 14px;">
+                <span style="display:inline-flex;align-items:center;gap:8px;">${STUDIO_ICONS.mic} <span>Giọng nói chào mừng (Web Speech)</span></span>
+                <span class="agy-st-pill-track"><span class="agy-st-pill-knob"></span></span>
+              </button>
+            </div>
+          </div>
+
+          <div class="agy-st-glass-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
+              <div>
+                <div style="font-size: 15px; font-weight: 650; color: #f8fafc; margin-bottom: 2px;">Task Voice &amp; Câu Chào (AgyTawaMali Font)</div>
                 <div style="font-size: 12px; color: #94a3b8;">Phát âm báo khi hoàn thành tác vụ và tùy biến lời chào đầu ngày.</div>
               </div>
               <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <label style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #e2e8f0; cursor: pointer;"><input id="agy-task-voice-toggle" type="checkbox" ${st.taskVoiceEnabled ? 'checked' : ''} style="accent-color: ${mainTheme.primary}; cursor: pointer;" /> Bật Task Voice</label>
-                <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #94a3b8;">Vol <input id="agy-task-voice-vol" type="range" min="0" max="100" value="${st.taskVoiceVol}" style="width: 82px; cursor: pointer; accent-color: ${mainTheme.primary}; height: 5px;" /><span id="agy-task-voice-vol-val" style="min-width: 30px;">${st.taskVoiceVol}%</span></label>
-                <button id="agy-task-voice-test" type="button" style="padding: 5px 11px; border-radius: 8px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.16); color: #f4f4f5; font-size: 12px; cursor: pointer;">▶ Nghe thử</button>
-                <label style="padding: 5px 11px; border-radius: 8px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.16); color: #f4f4f5; font-size: 12px; cursor: pointer;">+ Thêm Audio <input id="agy-task-voice-upload" type="file" accept="audio/*,.mp3,.wav,.ogg" style="display: none;" /></label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #e2e8f0; cursor: pointer;"><input id="agy-task-voice-toggle" type="checkbox" ${st.taskVoiceEnabled ? 'checked' : ''} style="cursor: pointer;" /> Bật Task Voice</label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #94a3b8;">Vol <input id="agy-task-voice-vol" type="range" min="0" max="100" value="${st.taskVoiceVol}" style="width: 82px; cursor: pointer; height: 5px;" /><span id="agy-task-voice-vol-val" style="min-width: 30px; color: #e2e8f0;">${st.taskVoiceVol}%</span></label>
+                <button id="agy-task-voice-test" class="agy-st-btn" type="button">${STUDIO_ICONS.play} Nghe thử</button>
+                <label class="agy-st-btn" style="cursor: pointer;">${STUDIO_ICONS.upload} Thêm Audio <input id="agy-task-voice-upload" type="file" accept="audio/*,.mp3,.wav,.ogg" style="display: none;" /></label>
               </div>
             </div>
             <div id="agy-task-voice-list" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px;">
               ${st.taskVoices.length ? st.taskVoices.map((v) => `
-                <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14); font-size: 11.5px; color: #e4e4e7;">
-                  <span>🎵 ${escHtml(v.name)}</span>
-                  <button class="agy-task-voice-play-one" data-url="${escHtml(v.url)}" type="button" style="background:none;border:none;color:${mainTheme.primary};cursor:pointer;font-size:11px;padding:0;">▶</button>
+                <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); font-size: 11.5px; color: #e4e4e7;">
+                  <span style="display:inline-flex;align-items:center;gap:5px;">${STUDIO_ICONS.music} ${escHtml(v.name)}</span>
+                  <button class="agy-task-voice-play-one" data-url="${escHtml(v.url)}" type="button" style="background:none;border:none;color:${accent};cursor:pointer;display:inline-flex;align-items:center;padding:0;">${STUDIO_ICONS.play}</button>
                 </span>
-              `).join('') : '<span style="font-size:12px;color:#71717a;">Chưa có clip voice nào — tải lên .mp3/.wav/.ogg hoặc bỏ vào themes/user_media/.</span>'}
+              `).join('') : '<span style="font-size:12px;color:#64748b;">Chưa có clip voice nào — tải lên .mp3/.wav/.ogg hoặc bỏ vào themes/user_media/.</span>'}
             </div>
             <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08);">
               <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <label style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #e2e8f0; cursor: pointer;"><input id="agy-tawa-greeting-toggle" type="checkbox" ${st.tawaGreeting ? 'checked' : ''} style="accent-color: ${mainTheme.primary}; cursor: pointer;" /> Hiện lời chào tùy chỉnh (Font Mali)</label>
-                <button id="agy-custom-greetings-save" type="button" style="padding: 5px 13px; border-radius: 8px; background: ${mainTheme.primary}; color: #090d16; font-weight: 600; font-size: 12px; border: none; cursor: pointer;">Lưu lời chào</button>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #e2e8f0; cursor: pointer;"><input id="agy-tawa-greeting-toggle" type="checkbox" ${st.tawaGreeting ? 'checked' : ''} style="cursor: pointer;" /> Hiện lời chào tùy chỉnh (Font Mali)</label>
+                <button id="agy-custom-greetings-save" class="agy-st-btn agy-st-btn-primary" type="button">Lưu lời chào</button>
               </div>
-              <textarea id="agy-custom-greetings-input" rows="3" placeholder="Mỗi dòng 1 câu chào..." style="width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.34); color: #f4f4f5; border: 1px solid rgba(255,255,255,0.16); border-radius: 9px; padding: 9px 12px; font-size: 12.5px; resize: vertical;">${escHtml((st.customGreetings || []).join('\n'))}</textarea>
+              <textarea id="agy-custom-greetings-input" rows="3" placeholder="Mỗi dòng 1 câu chào..." style="width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.28); color: #f4f4f5; border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; padding: 9px 12px; font-size: 12.5px; resize: vertical;">${escHtml((st.customGreetings || []).join('\n'))}</textarea>
             </div>
           </div>
         </section>
 
         <section data-studio-panel="chat" style="display: ${activeTab === 'chat' ? 'block' : 'none'};">
-          <div style="${glassCardStyle}">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 10px;">
+          <div class="agy-st-glass-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
               <div>
-                <div style="font-size: 14.5px; font-weight: 600; color: #f8fafc;">Avatar Chat &amp; Chia sẻ Config JSON</div>
+                <div style="font-size: 15px; font-weight: 650; color: #f8fafc;">Avatar Chat &amp; Chia sẻ Config JSON</div>
                 <div style="font-size: 12px; color: #94a3b8;">Tùy chỉnh ảnh đại diện User/AI và xuất/nhập cấu hình Studio.</div>
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
-                <button id="agy-export-btn" type="button" style="padding: 5px 11px; border-radius: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.16); color: #f4f4f5; font-size: 12px; cursor: pointer;">Export JSON</button>
-                <button id="agy-import-toggle" type="button" style="padding: 5px 11px; border-radius: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.16); color: #f4f4f5; font-size: 12px; cursor: pointer;">Import JSON</button>
-                <button id="agy-reset-btn" type="button" style="padding: 5px 11px; border-radius: 8px; background: rgba(239, 68, 68, 0.14); border: 1px solid rgba(239, 68, 68, 0.35); color: #fca5a5; font-size: 12px; cursor: pointer;">Reset</button>
+                <button id="agy-export-btn" class="agy-st-btn" type="button">Export JSON</button>
+                <button id="agy-import-toggle" class="agy-st-btn" type="button">Import JSON</button>
+                <button id="agy-reset-btn" class="agy-st-btn agy-st-btn-danger" type="button">Reset</button>
               </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding: 10px 0; border-top: 1px solid rgba(255,255,255,0.08); border-bottom: 1px solid rgba(255,255,255,0.08);">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <div id="agy-user-av-preview" style="width: 30px; height: 30px; border-radius: ${st.avatarRadius}%; border: 1.5px solid ${mainTheme.primary}; background: rgba(255,255,255,0.06) ${effUserAv ? `url('${effUserAv}') center/cover no-repeat` : ''}; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #a1a1aa;">${effUserAv ? '' : 'U'}</div>
-                <label style="padding: 4px 10px; border-radius: 7px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255,255,255,0.16); color: #f4f4f5; font-size: 12px; cursor: pointer;">User <input id="agy-user-av-upload" type="file" accept="image/*" style="display: none;" /></label>
-                <button id="agy-user-av-clear" type="button" style="padding: 4px 8px; border-radius: 7px; background: transparent; border: 1px solid rgba(255, 255, 255, 0.14); color: #a1a1aa; font-size: 11.5px; cursor: pointer;">Off</button>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08);">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);">
+                <div style="display: flex; align-items: center; gap: 9px;">
+                  <div id="agy-user-av-preview" style="width: 32px; height: 32px; border-radius: ${st.avatarRadius}%; border: 1.5px solid ${accent}; background: rgba(255,255,255,0.06) ${effUserAv ? `url('${effUserAv}') center/cover no-repeat` : ''}; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #a1a1aa;">${effUserAv ? '' : 'U'}</div>
+                  <span style="font-size: 12.5px; color: #e2e8f0; font-weight: 500;">User</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <label class="agy-st-btn" style="padding: 4px 9px; font-size: 11.5px; cursor: pointer;">Đổi <input id="agy-user-av-upload" type="file" accept="image/*" style="display: none;" /></label>
+                  <button id="agy-user-av-clear" class="agy-st-btn" type="button" style="padding: 4px 8px; font-size: 11.5px; color: #94a3b8;">Gỡ</button>
+                </div>
               </div>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <div id="agy-agent-av-preview" style="width: 30px; height: 30px; border-radius: ${st.avatarRadius}%; border: 1.5px solid ${mainTheme.secondary || mainTheme.primary}; background: rgba(255,255,255,0.06) ${effAgentAv ? `url('${effAgentAv}') center/cover no-repeat` : ''}; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #a1a1aa;">${effAgentAv ? '' : 'AI'}</div>
-                <label style="padding: 4px 10px; border-radius: 7px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255,255,255,0.16); color: #f4f4f5; font-size: 12px; cursor: pointer;">Agent <input id="agy-agent-av-upload" type="file" accept="image/*" style="display: none;" /></label>
-                <button id="agy-agent-av-clear" type="button" style="padding: 4px 8px; border-radius: 7px; background: transparent; border: 1px solid rgba(255, 255, 255, 0.14); color: #a1a1aa; font-size: 11.5px; cursor: pointer;">Off</button>
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);">
+                <div style="display: flex; align-items: center; gap: 9px;">
+                  <div id="agy-agent-av-preview" style="width: 32px; height: 32px; border-radius: ${st.avatarRadius}%; border: 1.5px solid ${mainTheme.secondary || accent}; background: rgba(255,255,255,0.06) ${effAgentAv ? `url('${effAgentAv}') center/cover no-repeat` : ''}; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #a1a1aa;">${effAgentAv ? '' : 'AI'}</div>
+                  <span style="font-size: 12.5px; color: #e2e8f0; font-weight: 500;">Agent</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <label class="agy-st-btn" style="padding: 4px 9px; font-size: 11.5px; cursor: pointer;">Đổi <input id="agy-agent-av-upload" type="file" accept="image/*" style="display: none;" /></label>
+                  <button id="agy-agent-av-clear" class="agy-st-btn" type="button" style="padding: 4px 8px; font-size: 11.5px; color: #94a3b8;">Gỡ</button>
+                </div>
               </div>
-              <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #94a3b8;">Size <input id="agy-av-size" type="range" min="22" max="52" value="${st.avatarSize}" style="width: 84px; cursor: pointer; accent-color: ${mainTheme.primary}; height: 5px;" /><span id="agy-av-size-val">${st.avatarSize}px</span></label>
-              <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #94a3b8;">Bo <input id="agy-av-rad" type="range" min="0" max="50" value="${st.avatarRadius}" style="width: 84px; cursor: pointer; accent-color: ${mainTheme.primary}; height: 5px;" /><span id="agy-av-rad-val">${st.avatarRadius}%</span></label>
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);">
+                <span style="font-size: 12px; color: #94a3b8;">Kích thước</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <input id="agy-av-size" type="range" min="22" max="52" value="${st.avatarSize}" style="width: 96px; cursor: pointer; height: 5px;" />
+                  <span id="agy-av-size-val" style="min-width: 34px; text-align: right; font-size: 12px; color: #e2e8f0;">${st.avatarSize}px</span>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);">
+                <span style="font-size: 12px; color: #94a3b8;">Độ bo góc</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <input id="agy-av-rad" type="range" min="0" max="50" value="${st.avatarRadius}" style="width: 96px; cursor: pointer; height: 5px;" />
+                  <span id="agy-av-rad-val" style="min-width: 34px; text-align: right; font-size: 12px; color: #e2e8f0;">${st.avatarRadius}%</span>
+                </div>
+              </div>
             </div>
-            <div id="agy-import-box" style="display: none; flex-direction: column; gap: 8px; padding-top: 10px;">
-              <textarea id="agy-import-text" rows="3" placeholder='Dán JSON theme config tại đây...' style="width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.35); color: #f4f4f5; border: 1px solid rgba(255,255,255,0.16); border-radius: 8px; padding: 8px 10px; font-family: monospace; font-size: 12px; resize: vertical;"></textarea>
+            <div id="agy-import-box" style="display: none; flex-direction: column; gap: 8px; padding-top: 12px;">
+              <textarea id="agy-import-text" rows="3" placeholder='Dán JSON theme config tại đây...' style="width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.32); color: #f4f4f5; border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; padding: 8px 10px; font-family: monospace; font-size: 12px; resize: vertical;"></textarea>
               <div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px;">
                 <span id="agy-import-msg" style="font-size: 12px; color: #fca5a5;"></span>
-                <button id="agy-import-apply" type="button" style="padding: 5px 12px; border-radius: 7px; background: ${mainTheme.primary}; color: #090d16; font-weight: 600; font-size: 12px; border: none; cursor: pointer;">Apply JSON</button>
+                <button id="agy-import-apply" class="agy-st-btn agy-st-btn-primary" type="button">Apply JSON</button>
               </div>
             </div>
           </div>
 
           <div style="margin-bottom: 18px;">
-            <div style="font-size: 14.5px; font-weight: 600; color: #ffffff; margin-bottom: 10px;">User Chat Bubble</div>
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+            <div style="font-size: 14.5px; font-weight: 650; color: #f8fafc; margin-bottom: 10px;">User Chat Bubble</div>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
               ${THEME_KEYS.map(name => {
                 const th = THEMES[name];
                 const isSelected = name === st.bubbleName;
@@ -7038,9 +7367,9 @@
                   ? `animation: agyPreviewCardPulse 4s ease-in-out infinite; animation-delay: ${(bubbleIdx % 4) * 0.55}s;`
                   : 'animation: none;';
                 return `
-                  <div class="agy-bubble-card" data-name="${name}" style="position: relative; border-radius: 12px; border: ${isSelected ? '1.5px solid #f4f4f5' : '1px solid rgba(255, 255, 255, 0.16)'}; background: rgba(14, 16, 24, 0.76); box-shadow: inset 0 1px 0 rgba(255,255,255,0.14); padding: 18px 16px 12px 16px; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; min-height: 98px; ${dynBubbleAnim}">
-                    <div style="display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 8px;">
-                      <div style="position: relative; width: 186px; height: 42px; padding: 1.2px; border-radius: ${th.isScroll ? '6px' : '12px'}; background: ${th.frameBg};">
+                  <div class="agy-bubble-card ${isSelected ? 'is-selected' : ''}" data-name="${escHtml(name)}" style="padding: 18px 14px 12px 14px; display: flex; flex-direction: column; justify-content: space-between; min-height: 104px; ${dynBubbleAnim}">
+                    <div style="display: flex; justify-content: center; align-items: center; width: 100%; height: 48px; margin-bottom: 8px;">
+                      <div style="position: relative; width: 188px; height: 40px; padding: 1.2px; border-radius: ${th.isScroll ? '6px' : '12px'}; background: ${th.frameBg};">
                         <div style="position: relative; width: 100%; height: 100%; background: ${th.bg}; border: ${th.innerBorder || '1px solid ' + th.borderColor}; border-radius: ${th.isScroll ? '4px' : '11px'}; display: flex; align-items: center; padding: 0 14px;">
                           ${th.sticker ? `<div style="position: absolute; top: ${stickerTop}px; right: 8px; width: ${stickerW}px; height: ${stickerH}px; background-image: url('${th.sticker}'); background-size: contain; background-position: ${th.isOrnament ? 'center' : 'bottom center'}; background-repeat: no-repeat; pointer-events: none;"></div>` : ''}
                           <span style="font-size: 13px; font-weight: 500; color: ${th.textColor};">Hello ✨</span>
@@ -7048,7 +7377,7 @@
                       </div>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                      <span style="font-size: 13px; font-weight: 500; color: #e4e4e7;">${name}</span>
+                      <span style="font-size: 13px; font-weight: 600; color: #e2e8f0;">${escHtml(name)}</span>
                       <div class="agy-card-check-slot">${isSelected ? CHECK_SVG : ''}</div>
                     </div>
                   </div>
@@ -7058,23 +7387,23 @@
           </div>
 
           <div>
-            <div style="font-size: 14.5px; font-weight: 600; color: #ffffff; margin-bottom: 10px;">Composer Style</div>
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+            <div style="font-size: 14.5px; font-weight: 650; color: #f8fafc; margin-bottom: 10px;">Composer Style</div>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
               ${Object.entries(INPUT_STYLES).map(([key, item]) => {
                 const isSelected = key === st.inputStyle;
                 const activeBubbleTh = THEMES[st.bubbleName] || mainTheme;
                 const previewInnerBg = key === 'glass' ? (activeBubbleTh.inputGlassBg || 'rgba(20, 15, 13, 0.45)') : (activeBubbleTh.inputCardBg || 'rgba(26, 18, 15, 0.92)');
                 return `
-                  <div class="agy-input-card" data-style="${key}" style="border-radius: 12px; border: ${isSelected ? '1.5px solid #f4f4f5' : '1px solid rgba(255, 255, 255, 0.16)'}; background: rgba(14, 16, 24, 0.76); box-shadow: inset 0 1px 0 rgba(255,255,255,0.14); padding: 14px 16px; cursor: pointer; display: flex; flex-direction: column; gap: 10px;">
+                  <div class="agy-input-card ${isSelected ? 'is-selected' : ''}" data-style="${key}" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
                     <div class="agy-input-preview-outer" style="position: relative; padding: 1.5px; border-radius: 10px; background: ${key === 'double_gold' ? 'linear-gradient(135deg, #f59e0b, #fbbf24)' : activeBubbleTh.frameBg};">
-                      <div class="agy-input-preview-inner" style="background: ${previewInnerBg}; border-radius: 9px; padding: 7px 12px; font-size: 12px; color: #a1a1aa; display: flex; justify-content: space-between; align-items: center;">
+                      <div class="agy-input-preview-inner" style="background: ${previewInnerBg}; border-radius: 9px; padding: 8px 12px; font-size: 12px; color: #a1a1aa; display: flex; justify-content: space-between; align-items: center;">
                         <span>Ask anything...</span>
-                        <span class="agy-input-preview-turbo" style="color: ${activeBubbleTh.primary}; font-size: 11px;">Send →</span>
+                        <span class="agy-input-preview-turbo" style="color: ${activeBubbleTh.primary}; font-size: 11px; font-weight: 600;">Send →</span>
                       </div>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                       <div>
-                        <div style="font-size: 13px; font-weight: 500; color: #e4e4e7;">${item.label}</div>
+                        <div style="font-size: 13px; font-weight: 600; color: #e2e8f0;">${item.label}</div>
                         <div style="font-size: 11px; color: #94a3b8;">${item.desc}</div>
                       </div>
                       <div class="agy-card-check-slot">${isSelected ? CHECK_SVG : ''}</div>
@@ -7087,10 +7416,13 @@
         </section>
       </div>
     `;
+    const newScrollEl = container.querySelector('#agy-theme-scroll-container');
+    if (newScrollEl && prevScrollTop > 0) newScrollEl.scrollTop = prevScrollTop;
     const curBackdrop = document.getElementById('agy-custom-theme-modal-backdrop');
     if (curBackdrop && typeof curBackdrop._applyStudioTabUi === 'function') {
       curBackdrop._applyStudioTabUi(activeTab);
     }
+    syncStudioAccentVars(mainTheme, st);
 
     function updateInputPreviews(bName) {
       const activeTh = THEMES[bName] || THEMES[getDefaultThemeKey()] || {};
@@ -7171,10 +7503,10 @@
     if (aiDrop && aiInput) {
       aiDrop.addEventListener('click', (e) => { if (e.target !== aiInput) aiInput.click(); });
       aiDrop.addEventListener('dragover', (e) => { e.preventDefault(); aiDrop.style.background = 'rgba(255, 255, 255, 0.08)'; });
-      aiDrop.addEventListener('dragleave', () => { aiDrop.style.background = mainTheme.cardBg || 'rgba(22, 16, 14, 0.72)'; });
+      aiDrop.addEventListener('dragleave', () => { aiDrop.style.background = 'rgba(255, 255, 255, 0.032)'; });
       aiDrop.addEventListener('drop', (e) => {
         e.preventDefault();
-        aiDrop.style.background = mainTheme.cardBg || 'rgba(22, 16, 14, 0.72)';
+        aiDrop.style.background = 'rgba(255, 255, 255, 0.032)';
         handleAiFile(e.dataTransfer.files && e.dataTransfer.files[0]);
       });
       aiInput.addEventListener('change', () => handleAiFile(aiInput.files && aiInput.files[0]));
@@ -7206,8 +7538,42 @@
         const cur = getState();
         const nextMode = cur.wpMode === 'video' ? 'image' : 'video';
         applyTheme({ wpMode: nextMode });
-        wpModeBtn.textContent = nextMode === 'video' ? '🎬 Video' : '🖼️ Image';
+        wpModeBtn.innerHTML = nextMode === 'video'
+          ? `${STUDIO_ICONS.video} Chế độ Video`
+          : `${STUDIO_ICONS.image} Chế độ Ảnh`;
       });
+    }
+
+    const clearCustomMediaBtn = container.querySelector('#agy-clear-custom-media-btn');
+    if (clearCustomMediaBtn) {
+      clearCustomMediaBtn.addEventListener('click', () => {
+        const cur = getState();
+        const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
+        const nextMode = (th.wallpaperVideo || th.videoUrl) ? 'video' : 'image';
+        applyTheme({ customWp: '', customVideo: '', wpMode: nextMode });
+        renderThemePanels(container);
+      });
+    }
+
+    const compSwitches = [
+      ['#agy-comp-pet-switch', 'petEnabled'],
+      ['#agy-comp-dock-switch', 'petChatDocked'],
+      ['#agy-comp-intro-switch', 'introEnabled'],
+      ['#agy-comp-voice-switch', 'voiceEnabled']
+    ];
+    compSwitches.forEach(([sel, key]) => {
+      const el = container.querySelector(sel);
+      if (el && modalBackdrop && typeof modalBackdrop._toggleStudioFlag === 'function') {
+        el.addEventListener('click', () => modalBackdrop._toggleStudioFlag(key, key === 'voiceEnabled' ? 'Voice feedback enabled.' : ''));
+      }
+    });
+    const compIntroBtn = container.querySelector('#agy-comp-preview-intro-btn');
+    if (compIntroBtn && modalBackdrop && typeof modalBackdrop._triggerIntroPreview === 'function') {
+      compIntroBtn.addEventListener('click', modalBackdrop._triggerIntroPreview);
+    }
+    const compBootBtn = container.querySelector('#agy-comp-boot-hud-btn');
+    if (compBootBtn && modalBackdrop && typeof modalBackdrop._triggerBootHud === 'function') {
+      compBootBtn.addEventListener('click', modalBackdrop._triggerBootHud);
     }
 
     const wpUpload = container.querySelector('#agy-wp-upload');
@@ -7217,9 +7583,7 @@
       const reader = new FileReader();
       reader.onload = () => {
         applyTheme({ customWp: reader.result, wpEnabled: true, wpMode: 'image' });
-        const toggle = container.querySelector('#agy-wp-toggle');
-        if (toggle) toggle.checked = true;
-        if (wpModeBtn) wpModeBtn.textContent = '🖼️ Image';
+        renderThemePanels(container);
       };
       reader.readAsDataURL(file);
     });
@@ -7243,7 +7607,7 @@
             if (data && data.url) {
               const savedVideos = upsertSavedMedia('video', { url: data.url, name: file.name, addedAt: Date.now() });
               applyTheme({ customVideo: data.url, savedVideos, wpEnabled: true, wpMode: 'video', themeMode: 'dynamic' });
-              if (wpModeBtn) wpModeBtn.textContent = '🎬 Video';
+              renderThemePanels(container);
               return;
             }
           }
@@ -7458,6 +7822,15 @@
       });
     }
 
+    const syncCardSelection = (selector, attr, activeVal) => {
+      container.querySelectorAll(selector).forEach((el) => {
+        const isSel = el.dataset[attr] === activeVal;
+        el.classList.toggle('is-selected', isSel);
+        const slot = el.querySelector('.agy-card-check-slot');
+        if (slot) slot.innerHTML = isSel ? CHECK_SVG : '';
+      });
+    };
+
     const resetBtn = container.querySelector('#agy-reset-btn');
     resetBtn.addEventListener('click', () => {
       localStorage.removeItem(STORAGE_CUSTOM_WP);
@@ -7496,43 +7869,7 @@
         petEnabled: true,
         petChatDocked: true
       });
-      const defTh = THEMES[resetDefKey] || {};
-      syncThemeModeToggleBtn('dynamic', defTh.primary);
-      syncAvPreview(userAvPreview, defTh.userAvatar || '', 'U');
-      syncAvPreview(agentAvPreview, defTh.agentAvatar || '', 'AI');
-      if (userAvPreview) userAvPreview.style.borderRadius = '50%';
-      if (agentAvPreview) agentAvPreview.style.borderRadius = '50%';
-      if (slider) slider.value = 69;
-      if (valLabel) valLabel.textContent = '69%';
-      if (blurSlider) blurSlider.value = 3;
-      if (blurLabel) blurLabel.textContent = '3px';
-      if (avSizeSlider) avSizeSlider.value = 32;
-      if (avSizeVal) avSizeVal.textContent = '32px';
-      if (avRadSlider) avRadSlider.value = 50;
-      if (avRadVal) avRadVal.textContent = '50%';
-      if (wpToggle) wpToggle.checked = true;
-
-      container.querySelectorAll('.agy-preset-card').forEach(c => {
-        const isSel = c.dataset.name === resetDefKey;
-        c.style.border = isSel ? '1.5px solid #f4f4f5' : '1px solid rgba(255, 255, 255, 0.12)';
-        const slot = c.querySelector('.agy-card-check-slot');
-        if (slot) slot.innerHTML = isSel ? CHECK_SVG : '';
-      });
-      container.querySelectorAll('.agy-bubble-card').forEach(b => {
-        const isSel = b.dataset.name === resetDefKey;
-        b.style.border = isSel ? '1.5px solid #f4f4f5' : '1px solid rgba(255, 255, 255, 0.12)';
-        b.style.background = isSel ? 'rgba(42, 34, 30, 0.68)' : 'rgba(14, 12, 12, 0.78)';
-        const slot = b.querySelector('.agy-card-check-slot');
-        if (slot) slot.innerHTML = isSel ? CHECK_SVG : '';
-      });
-      container.querySelectorAll('.agy-input-card').forEach(c => {
-        const isSel = c.dataset.style === 'sync';
-        c.style.border = isSel ? '1.5px solid #f4f4f5' : '1px solid rgba(255, 255, 255, 0.12)';
-        c.style.background = isSel ? 'rgba(42, 34, 30, 0.68)' : 'rgba(14, 12, 12, 0.78)';
-        const slot = c.querySelector('.agy-card-check-slot');
-        if (slot) slot.innerHTML = isSel ? CHECK_SVG : '';
-      });
-      updateInputPreviews(resetDefKey);
+      renderThemePanels(container);
     });
 
     const clearCustomBtn = container.querySelector('#agy-clear-custom-btn');
@@ -7551,16 +7888,6 @@
     }
 
     container.querySelectorAll('.agy-delete-preset-btn').forEach(btn => {
-      btn.addEventListener('mouseenter', () => {
-        btn.style.background = 'rgba(239, 68, 68, 0.85)';
-        btn.style.borderColor = 'rgba(254, 202, 202, 0.75)';
-        btn.style.color = '#ffffff';
-      });
-      btn.addEventListener('mouseleave', () => {
-        btn.style.background = 'rgba(10, 12, 18, 0.72)';
-        btn.style.borderColor = 'rgba(255, 255, 255, 0.22)';
-        btn.style.color = '#fca5a5';
-      });
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -7579,7 +7906,11 @@
         playThemeSelectSound(th.primary, th);
         const nextWpMode = (th.wallpaperVideo || th.videoUrl) ? 'video' : 'image';
         applyTheme({ themeName: name, bubbleName: name, customWp: '', customVideo: '', wpMode: nextWpMode });
-        if (wpModeBtn) wpModeBtn.textContent = nextWpMode === 'video' ? '🎬 Video' : '🖼️ Image';
+        if (wpModeBtn) {
+          wpModeBtn.innerHTML = nextWpMode === 'video'
+            ? `${STUDIO_ICONS.video} Chế độ Video`
+            : `${STUDIO_ICONS.image} Chế độ Ảnh`;
+        }
         if (curSt.themeMode !== 'static') {
           const pack = resolveDynamicPack(th);
           if (curSt.introEnabled) {
@@ -7588,22 +7919,9 @@
             speakThemeVoice(pack.voiceSwitch, pack);
           }
         }
-
-        container.querySelectorAll('.agy-preset-card').forEach(c => {
-          const isSel = c.dataset.name === name;
-          c.style.borderColor = isSel ? '#f4f4f5' : 'rgba(255, 255, 255, 0.14)';
-          const slot = c.querySelector('.agy-card-check-slot');
-          if (slot) slot.innerHTML = isSel ? CHECK_SVG : '';
-        });
-
-        container.querySelectorAll('.agy-bubble-card').forEach(b => {
-          const isSel = b.dataset.name === name;
-          b.style.border = isSel ? '1.5px solid #f4f4f5' : '1px solid rgba(255, 255, 255, 0.12)';
-          b.style.background = isSel ? 'rgba(42, 34, 30, 0.68)' : 'rgba(14, 12, 12, 0.78)';
-          const slot = b.querySelector('.agy-card-check-slot');
-          if (slot) slot.innerHTML = isSel ? CHECK_SVG : '';
-        });
-
+        syncStudioAccentVars(th, getState());
+        syncCardSelection('.agy-preset-card', 'name', name);
+        syncCardSelection('.agy-bubble-card', 'name', name);
         updateInputPreviews(name);
       });
     });
@@ -7611,18 +7929,9 @@
     container.querySelectorAll('.agy-bubble-card').forEach(card => {
       card.addEventListener('click', () => {
         const name = card.dataset.name;
-        const th = THEMES[name] || {};
         playClickSound();
         applyTheme({ bubbleName: name });
-
-        container.querySelectorAll('.agy-bubble-card').forEach(b => {
-          const isSel = b.dataset.name === name;
-          b.style.border = isSel ? '1.5px solid #f4f4f5' : '1px solid rgba(255, 255, 255, 0.12)';
-          b.style.background = isSel ? 'rgba(42, 34, 30, 0.68)' : 'rgba(14, 12, 12, 0.78)';
-          const slot = b.querySelector('.agy-card-check-slot');
-          if (slot) slot.innerHTML = isSel ? CHECK_SVG : '';
-        });
-
+        syncCardSelection('.agy-bubble-card', 'name', name);
         updateInputPreviews(name);
       });
     });
@@ -7631,14 +7940,7 @@
       card.addEventListener('click', () => {
         const styleKey = card.dataset.style;
         applyTheme({ inputStyle: styleKey });
-
-        container.querySelectorAll('.agy-input-card').forEach(c => {
-          const isSel = c.dataset.style === styleKey;
-          c.style.border = isSel ? '1.5px solid #f4f4f5' : '1px solid rgba(255, 255, 255, 0.12)';
-          c.style.background = isSel ? 'rgba(42, 34, 30, 0.68)' : 'rgba(14, 12, 12, 0.78)';
-          const slot = c.querySelector('.agy-card-check-slot');
-          if (slot) slot.innerHTML = isSel ? CHECK_SVG : '';
-        });
+        syncCardSelection('.agy-input-card', 'style', styleKey);
       });
     });
   }
