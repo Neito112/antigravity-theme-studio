@@ -4254,12 +4254,13 @@
       }
       .agy-shell [data-testid="overview-panel-host-sibling"] {
         position: absolute !important;
-        top: 14px !important;
-        left: 50% !important;
-        right: auto !important;
-        transform: translateX(-50%) !important;
+        top: 10px !important;
+        right: 12px !important;
+        left: auto !important;
+        transform: none !important;
+        transform-origin: top right !important;
         z-index: 60 !important;
-        width: min(400px, calc(100% - 32px)) !important;
+        width: min(340px, calc(100% - 24px)) !important;
         max-height: min(560px, calc(100% - 76px)) !important;
         background: ${isLight ? 'rgba(255, 255, 255, 0.92)' : `rgba(${overlayRgb}, 0.88)`} !important;
         border: 1px solid ${glassRimBorder} !important;
@@ -4270,8 +4271,8 @@
         animation: agyOverviewPopIn 0.2s cubic-bezier(0.22, 1, 0.36, 1) !important;
       }
       @keyframes agyOverviewPopIn {
-        from { opacity: 0; transform: translateX(-50%) translateY(-8px) scale(0.96); }
-        to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+        from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
       }
       .agy-shell [data-testid="overview-panel"] {
         background: transparent !important;
