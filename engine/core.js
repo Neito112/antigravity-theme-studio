@@ -3373,13 +3373,45 @@
     const defaultCornerSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M2 20 L2 6 Q2 2 6 2 L20 2' stroke='%23fbbf24' stroke-width='1.5' fill='none' opacity='0.65'/%3E%3Ccircle cx='6' cy='6' r='2' fill='%23fbbf24' opacity='0.75'/%3E%3C/svg%3E";
     const cornerFiligreeUrl = bubbleTheme.cornerSvg || defaultCornerSvg;
 
-    /* bubbleStickerCss — sticker only on composer, never on user chat bubble */
-    const bubbleStickerCss = `
-      .agy-user-bubble-frame::before,
-      .agy-user-bubble-frame::after {
-        display: none !important;
-        content: none !important;
+    const bubbleStickerCss = bubbleTheme.sticker ? (bubbleTheme.isOrnament ? `
+      .group\\/user-input-step {
+        padding-top: 18px !important;
       }
+      .agy-user-bubble-frame::before {
+        content: "";
+        position: absolute;
+        top: ${bubbleTheme.stickerTop}px;
+        right: ${bubbleTheme.stickerRight}px;
+        width: ${bubbleTheme.stickerW}px;
+        height: ${bubbleTheme.stickerH}px;
+        background-image: url("${bubbleTheme.sticker}");
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
+        z-index: 25;
+        pointer-events: none;
+      }
+    ` : `
+      .group\\/user-input-step {
+        padding-top: ${Math.max(36, Math.abs(bubbleTheme.stickerTop) + 8)}px !important;
+      }
+      .agy-user-bubble-frame::before {
+        content: "";
+        position: absolute;
+        top: ${bubbleTheme.stickerTop}px;
+        right: ${bubbleTheme.stickerRight}px;
+        width: ${bubbleTheme.stickerW}px;
+        height: ${bubbleTheme.stickerH}px;
+        background-image: url("${bubbleTheme.sticker}");
+        background-size: contain;
+        background-position: bottom center;
+        background-repeat: no-repeat;
+        z-index: 25;
+        pointer-events: none;
+        ${st.themeMode === 'dynamic' ? 'transition: transform 0.2s ease;' : 'transition: none;'}
+      }
+    `) : `
+      .agy-user-bubble-frame::before { display: none !important; }
     `;
 
     const showInputSticker = st.inputStyle !== 'minimal' && bubbleTheme.sticker;
@@ -3573,40 +3605,35 @@
         }
         .agy-shell .agy-user-bubble-frame {
           margin-block: 6px !important;
-          padding: 0 !important;
-          border: 0 none !important;
-          box-shadow: none !important;
-          background: transparent !important;
-          outline: none !important;
+          padding: 1.2px !important;
+          border: 0 !important;
+          border-radius: ${csRadius}px !important;
+          background: ${bubbleTheme.frameBg || hairline} !important;
+          box-shadow: 0 2px 12px rgba(0, 0, 0, ${lightMode ? '0.08' : '0.28'}), 0 0 10px ${bubbleTheme.glow || 'transparent'} !important;
+          ${transitionCss}
         }
-        .agy-shell .agy-user-bubble-frame::before,
-        .agy-shell .agy-user-bubble-frame::after {
-          display: none !important;
-          content: none !important;
-        }
-        .agy-shell .agy-user-bubble,
-        .agy-user-bubble {
-          border: 0 none !important;
-          box-shadow: none !important;
-          outline: none !important;
+        .agy-shell .agy-user-bubble {
+          background: ${bubbleTheme.bg || cleanBubbleBg} !important;
+          border: ${innerBubbleBorder} !important;
+          border-radius: ${Math.max(3, csRadius - 1)}px !important;
+          color: ${bubbleTheme.textColor || uiInk} !important;
         }
         .agy-shell .surface-composer {
-          padding: 0 !important;
-          border-radius: ${csRadius}px !important;
-          background: ${st.inputStyle === 'glass' ? cleanComposerBg : (bubbleTheme.inputCardBg || cleanComposerBg)} !important;
-          border: 1px solid ${st.inputStyle === 'double_gold' ? 'rgba(245, 158, 11, 0.72)' : (bubbleTheme.borderColor || cleanComposerBorder)} !important;
-          box-shadow: ${glassRimShadow}, 0 0 12px ${bubbleTheme.glow || 'transparent'} !important;
+          padding: 1.2px !important;
+          border-radius: ${csRadius + 1}px !important;
+          background: ${st.inputStyle === 'double_gold' ? 'linear-gradient(135deg, #f59e0b, #fbbf24)' : (bubbleTheme.frameBg || hairline)} !important;
+          border: 0 !important;
+          box-shadow: 0 6px 22px rgba(0, 0, 0, ${lightMode ? '0.10' : '0.32'}), 0 0 12px ${bubbleTheme.glow || 'transparent'} !important;
           backdrop-filter: none !important;
           ${transitionCss}
         }
         .agy-shell .surface-composer:focus-within {
-          background: ${st.inputStyle === 'glass' ? cleanComposerBg : (bubbleTheme.inputCardBg || cleanComposerBg)} !important;
-          border-color: ${st.inputStyle === 'double_gold' ? 'rgba(245, 158, 11, 0.72)' : (bubbleTheme.borderColor || cleanComposerBorder)} !important;
-          box-shadow: ${glassRimShadow}, 0 0 14px ${bubbleTheme.glow || 'transparent'} !important;
+          background: ${st.inputStyle === 'double_gold' ? 'linear-gradient(135deg, #f59e0b, #fbbf24)' : (bubbleTheme.frameBg || hairline)} !important;
+          box-shadow: 0 8px 26px rgba(0, 0, 0, ${lightMode ? '0.12' : '0.38'}), 0 0 14px ${bubbleTheme.glow || 'transparent'} !important;
           animation: none !important;
         }
         .agy-shell .surface-composer-card {
-          background: transparent !important;
+          background: ${st.inputStyle === 'glass' ? (bubbleTheme.inputGlassBg || cleanComposerBg) : (bubbleTheme.inputCardBg || cleanComposerBg)} !important;
           border-radius: ${csRadius}px !important;
           border: none !important;
           box-shadow: none !important;
@@ -4548,48 +4575,65 @@
         background: ${isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.06)'} !important;
       }
 
-      /* Native Antigravity User Chat Bubble — zero theme override, fully native */
+      /* User Chat Bubble Double-Border Frame & Ornament (nguyên bản Theme Studio) */
       .agy-user-bubble-frame {
+        background: ${bubbleTheme.frameBg} !important;
+        border-radius: ${bubbleTheme.isScroll ? '6px' : `var(--agy-card-radius, ${cardRadiusPx}px)`} !important;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), 0 0 12px ${bubbleTheme.glow} !important;
         position: relative !important;
         overflow: visible !important;
-        padding: 0 !important;
-        border: 0 none !important;
-        box-shadow: none !important;
-        background: transparent !important;
+        padding: 1.2px !important;
+        border: 0 !important;
         outline: none !important;
       }
-      .agy-user-bubble-frame::before,
       .agy-user-bubble-frame::after {
-        display: none !important;
-        content: none !important;
+        content: "";
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: ${bubbleTheme.isOrnament ? '16px' : '14px'};
+        height: ${bubbleTheme.isOrnament ? '16px' : '14px'};
+        background-image: url("${cornerFiligreeUrl}");
+        background-size: contain;
+        background-repeat: no-repeat;
+        pointer-events: none;
+        opacity: ${bubbleTheme.isOrnament ? '0.85' : '0.65'};
       }
       .agy-shell .agy-user-bubble,
       .agy-user-bubble {
-        border: 0 none !important;
+        background: ${bubbleTheme.bg} !important;
+        border-radius: ${bubbleTheme.isScroll ? '5px' : `calc(var(--agy-card-radius, ${cardRadiusPx}px) - 1px)`} !important;
+        padding: 8px 16px !important;
+        color: ${bubbleTheme.textColor} !important;
+        border: ${innerBubbleBorder} !important;
         box-shadow: none !important;
         outline: none !important;
+        overflow: visible !important;
+        font-weight: 450 !important;
+      }
+      .agy-user-bubble * {
+        color: ${bubbleTheme.textColor} !important;
       }
 
-      /* Composer — khôi phục đúng bộ card chuẩn của Theme Studio cũ (inputCardBg + borderColor + glow) */
+      /* Composer — đúng bộ vỏ gradient frameBg + ruột inputCardBg + sticker của Theme Studio cũ */
       .surface-composer {
-        background: ${st.inputStyle === 'glass' ? cleanComposerBg : (bubbleTheme.inputCardBg || cleanComposerBg)} !important;
-        border: 1px solid ${st.inputStyle === 'double_gold' ? 'rgba(245, 158, 11, 0.72)' : (bubbleTheme.borderColor || cleanComposerBorder)} !important;
+        background: ${st.inputStyle === 'double_gold' ? 'linear-gradient(135deg, #f59e0b, #fbbf24)' : (bubbleTheme.frameBg || cleanComposerBorder)} !important;
+        border: 0 !important;
         border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
-        padding: 0 !important;
+        padding: 1.2px !important;
         box-shadow: 0 8px 26px rgba(0, 0, 0, ${isLight ? '0.09' : '0.28'}), 0 0 12px ${bubbleTheme.glow || 'transparent'} !important;
         position: relative !important;
       }
       .surface-composer:focus-within {
-        background: ${st.inputStyle === 'glass' ? cleanComposerBg : (bubbleTheme.inputCardBg || cleanComposerBg)} !important;
-        border-color: ${st.inputStyle === 'double_gold' ? 'rgba(245, 158, 11, 0.72)' : (bubbleTheme.borderColor || cleanComposerBorder)} !important;
+        background: ${st.inputStyle === 'double_gold' ? 'linear-gradient(135deg, #f59e0b, #fbbf24)' : (bubbleTheme.frameBg || cleanComposerBorder)} !important;
         box-shadow: 0 8px 28px rgba(0, 0, 0, ${isLight ? '0.11' : '0.32'}), 0 0 14px ${bubbleTheme.glow || 'transparent'} !important;
         animation: none !important;
       }
 
       .surface-composer-card {
-        background: transparent !important;
+        background: ${st.inputStyle === 'glass' ? (bubbleTheme.inputGlassBg || cleanComposerBg) : (bubbleTheme.inputCardBg || cleanComposerBg)} !important;
         backdrop-filter: none !important;
-        border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
+        border-radius: calc(var(--agy-card-radius, ${cardRadiusPx}px) - 1px) !important;
         border: none !important;
         box-shadow: none !important;
       }
@@ -5187,19 +5231,14 @@
         will-change: opacity, transform;
         animation: agyAmbientAura 10s ease-in-out infinite;
       }
+      .agy-shell .agy-user-bubble-frame::before,
       .agy-shell .surface-composer::before {
         will-change: transform;
         animation: agyOrnamentFloat 4.5s ease-in-out infinite;
       }
+      .agy-shell .agy-user-bubble-frame::after,
       .agy-shell .surface-composer::after {
         animation: agyFiligreeShimmer 3.8s ease-in-out infinite;
-      }
-      /* user-bubble-frame pseudo: always off */
-      .agy-shell .agy-user-bubble-frame::before,
-      .agy-shell .agy-user-bubble-frame::after {
-        display: none !important;
-        content: none !important;
-        animation: none !important;
       }
       #agy-custom-theme-topbar-btn {
         position: relative;
@@ -5301,17 +5340,8 @@
       .agy-shell [data-side-panel-open] .surface-composer::after {
         display: none !important;
       }
-      /* Khi pet đang hiển thị: ẩn sticker và bỏ margin-top thừa trên surface-composer */
-      .agy-shell.agy-pet-chat-docked .surface-composer,
-      .agy-shell.agy-pet-active .surface-composer {
-        margin-top: 0 !important;
-      }
-      .agy-shell.agy-pet-chat-docked .surface-composer::before,
-      .agy-shell.agy-pet-chat-docked .surface-composer::after,
-      .agy-shell.agy-pet-active .surface-composer::before,
-      .agy-shell.agy-pet-active .surface-composer::after {
-        display: none !important;
-        content: none !important;
+      .agy-shell.agy-pet-chat-docked .surface-composer {
+        margin-top: 8px !important;
       }
       /* Khi dùng khung chat gốc ở dưới: chừa chỗ cho thanh nhạc YouTube */
       .agy-shell:not(.agy-pet-chat-docked) [data-agy-composer-wrap="1"] {
