@@ -2228,7 +2228,7 @@
       const compEl = getRealComposer();
       const wrapEl = compEl ? (compEl.closest('[data-agy-composer-wrap="1"]') || compEl) : null;
       const neededBelow = Math.max(195, (wrapEl && wrapEl.scrollHeight > 95 ? Math.min(280, wrapEl.scrollHeight + 18) : 195));
-      const top = Math.min(Math.max(8, Math.round(pillBottom + 8)), Math.max(8, vh - neededBelow));
+      const top = Math.min(Math.max(8, Math.round(pillBottom + 16)), Math.max(8, vh - neededBelow));
 
       shell.dataset.agyPetChatOpen = '1';
       document.body.dataset.agyPetChatOpen = '1';
@@ -3343,7 +3343,7 @@
       .agy-user-bubble-frame::before { display: none !important; }
     `;
 
-    const showInputSticker = st.inputStyle !== 'minimal' && st.petEnabled === false && bubbleTheme.sticker;
+    const showInputSticker = st.inputStyle !== 'minimal' && bubbleTheme.sticker;
     const inputStickerCss = showInputSticker ? (bubbleTheme.isOrnament ? `
       .surface-composer {
         margin-top: 14px !important;
@@ -3543,9 +3543,9 @@
         .agy-shell .surface-composer {
           padding: 0 !important;
           border-radius: ${csRadius}px !important;
-          background: ${cleanComposerBg} !important;
-          border: 1px solid ${cleanComposerBorder} !important;
-          box-shadow: ${glassRimShadow} !important;
+          background: ${st.inputStyle === 'glass' ? cleanComposerBg : (bubbleTheme.inputCardBg || cleanComposerBg)} !important;
+          border: 1px solid ${st.inputStyle === 'double_gold' ? 'rgba(245, 158, 11, 0.72)' : (bubbleTheme.borderColor || cleanComposerBorder)} !important;
+          box-shadow: ${glassRimShadow}, 0 0 12px ${bubbleTheme.glow || 'transparent'} !important;
           backdrop-filter: none !important;
           ${transitionCss}
         }
@@ -4471,19 +4471,19 @@
         content: none !important;
       }
 
-      /* Clean Smoked Input Composer — zero bright colored border or thick padding frame */
+      /* Composer — matches selected Composer Style & Bubble ornament cleanly (with no thick outer slab) */
       .surface-composer {
-        background: ${cleanComposerBg} !important;
-        border: 1px solid ${cleanComposerBorder} !important;
+        background: ${st.inputStyle === 'glass' ? cleanComposerBg : (bubbleTheme.inputCardBg || cleanComposerBg)} !important;
+        border: 1px solid ${st.inputStyle === 'double_gold' ? 'rgba(245, 158, 11, 0.72)' : (bubbleTheme.borderColor || cleanComposerBorder)} !important;
         border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
         padding: 0 !important;
-        box-shadow: 0 8px 26px rgba(0, 0, 0, ${isLight ? '0.09' : '0.28'}) !important;
+        box-shadow: 0 8px 26px rgba(0, 0, 0, ${isLight ? '0.09' : '0.28'}), 0 0 12px ${bubbleTheme.glow || 'transparent'} !important;
         position: relative !important;
       }
       .surface-composer:focus-within {
-        background: ${cleanComposerBg} !important;
-        border-color: rgba(255, 255, 255, 0.28) !important;
-        box-shadow: 0 8px 28px rgba(0, 0, 0, ${isLight ? '0.11' : '0.32'}) !important;
+        background: ${st.inputStyle === 'glass' ? cleanComposerBg : (bubbleTheme.inputCardBg || cleanComposerBg)} !important;
+        border-color: ${st.inputStyle === 'double_gold' ? 'rgba(251, 191, 36, 0.92)' : (bubbleTheme.primary || 'rgba(255, 255, 255, 0.34)')} !important;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, ${isLight ? '0.11' : '0.32'}), 0 0 14px ${bubbleTheme.glow || 'transparent'} !important;
         animation: none !important;
       }
 
@@ -5188,11 +5188,10 @@
       .agy-shell.agy-pet-chat-docked[data-agy-pet-chat-open="1"] .surface-composer[data-agy-composer-host="1"] {
         width: 100% !important;
         max-width: 100% !important;
-        background: ${isLight ? 'rgba(248, 250, 252, 0.94)' : 'rgba(10, 12, 22, 0.94)'} !important;
         overflow: visible !important;
       }
-      .agy-shell.agy-pet-chat-docked .surface-composer[data-agy-composer-host="1"]::before,
-      .agy-shell.agy-pet-chat-docked .surface-composer[data-agy-composer-host="1"]::after {
+      .agy-shell [data-side-panel-open] .surface-composer::before,
+      .agy-shell [data-side-panel-open] .surface-composer::after {
         display: none !important;
       }
       /* Full-Width Workspace Unlock */
