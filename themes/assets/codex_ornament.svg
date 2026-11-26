@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 38" fill="none">
+  <defs>
+    <linearGradient id="cdxLine" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#2C67C5" stop-opacity="0.15"/>
+      <stop offset="50%" stop-color="#60a5fa" stop-opacity="0.92"/>
+      <stop offset="100%" stop-color="#2C67C5" stop-opacity="0.15"/>
+    </linearGradient>
+  </defs>
+  <path d="M 10 23 L 48 23 L 54 15 L 74 15 L 80 23 L 118 23" stroke="url(#cdxLine)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g transform="translate(64, 17)">
+    <rect x="-12" y="-8" width="24" height="16" rx="4" fill="#181818" stroke="#60a5fa" stroke-width="1.1"/>
+    <polyline points="-7,-3 -3,0 -7,3" stroke="#60a5fa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="0" y="1.5" width="7" height="1.8" rx="0.6" fill="#93c5fd"/>
+  </g>
+  <circle cx="28" cy="18" r="1.3" fill="#60a5fa" opacity="0.8"/>
+  <circle cx="100" cy="18" r="1.3" fill="#2C67C5" opacity="0.85"/>
+</svg>

@@ -218,9 +218,53 @@ async function clearOpenPages() {
     }
 }
 
+function restoreWindowsShortcutIcons() {
+    if (process.platform !== 'win32') return;
+    const rootDir = path.resolve(__dirname, '..');
+    const userMediaDir = path.join(rootDir, 'themes', 'user_media');
+    for (const fname of ['active_app_icon.ico', 'apply_win_icon.ps1']) {
+        const fpath = path.join(userMediaDir, fname);
+        try {
+            if (fs.existsSync(fpath)) fs.unlinkSync(fpath);
+        } catch (_) {}
+    }
+    try {
+        const psScript = `
+$WshShell = New-Object -ComObject WScript.Shell
+$DefaultExe = @(
+  "$env:LOCALAPPDATA\\Programs\\Antigravity\\Antigravity.exe",
+  "$env:ProgramFiles\\Antigravity\\Antigravity.exe",
+  "\${env:ProgramFiles(x86)}\\Antigravity\\Antigravity.exe"
+) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+if ($DefaultExe) {
+  $Dirs = @(
+    [Environment]::GetFolderPath('DesktopDirectory'),
+    [Environment]::GetFolderPath('Programs'),
+    (Join-Path $env:APPDATA 'Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar')
+  ) | Where-Object { $_ -and (Test-Path $_) }
+  foreach ($D in $Dirs) {
+    Get-ChildItem -Path $D -Recurse -Filter '*.lnk' -ErrorAction SilentlyContinue | ForEach-Object {
+      try {
+        $Sc = $WshShell.CreateShortcut($_.FullName)
+        if ($Sc.IconLocation -like '*active_app_icon.ico*' -or ($Sc.Arguments -like '*launch-antigravity-themed.ps1*' -and $Sc.IconLocation -notlike '*Antigravity.exe*')) {
+          $Sc.IconLocation = "$DefaultExe,0"
+          $Sc.Save()
+        }
+      } catch {}
+    }
+  }
+}
+`;
+        const encoded = Buffer.from(psScript, 'utf16le').toString('base64');
+        execSync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encoded}`, { stdio: 'ignore' });
+        console.log('[uninstall] Restored Antigravity shortcut icons.');
+    } catch (_) {}
+}
+
 async function main() {
     removeAutoStart();
     stopDaemon();
+    restoreWindowsShortcutIcons();
     await clearOpenPages();
     console.log('[uninstall] Done. Antigravity theme removed.');
 }

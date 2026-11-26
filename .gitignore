@@ -4,6 +4,9 @@ daemon.log
 daemon.pid
 theme_config.json
 silent-start.vbs
+themes/user_media/active_app_icon.*
+themes/user_media/apply_win_icon.ps1
+themes/user_media/wp_auto-palette-*.webp
 
 # OS / Python / Node junk
 __pycache__/

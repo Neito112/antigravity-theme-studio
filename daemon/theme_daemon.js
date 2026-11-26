@@ -201,6 +201,173 @@ function saveConfig(next) {
     }
 }
 
+let lastAppIconKey = '';
+let appIconUpdateQueued = null;
+let appIconUpdateRunning = false;
+
+function buildIcoFromPngBuffer(pngBuf) {
+    const header = Buffer.alloc(22);
+    header.writeUInt16LE(0, 0); // Reserved
+    header.writeUInt16LE(1, 2); // ICO type
+    header.writeUInt16LE(1, 4); // Image count
+    header.writeUInt8(128, 6);  // Width
+    header.writeUInt8(128, 7);  // Height
+    header.writeUInt8(0, 8);    // Color palette count
+    header.writeUInt8(0, 9);    // Reserved
+    header.writeUInt16LE(1, 10); // Color planes
+    header.writeUInt16LE(32, 12); // Bits per pixel
+    header.writeUInt32LE(pngBuf.length, 14); // Image size
+    header.writeUInt32LE(22, 18); // Offset to image data
+    return Buffer.concat([header, pngBuf]);
+}
+
+function flushWindowsAppIconQueue() {
+    if (appIconUpdateRunning || !appIconUpdateQueued) return;
+    const item = appIconUpdateQueued;
+    appIconUpdateQueued = null;
+    appIconUpdateRunning = true;
+    try {
+        fs.mkdirSync(USER_MEDIA_DIR, { recursive: true });
+        const pngPath = path.join(USER_MEDIA_DIR, 'active_app_icon.png');
+        const icoPath = path.join(USER_MEDIA_DIR, 'active_app_icon.ico');
+        const psPath = path.join(USER_MEDIA_DIR, 'apply_win_icon.ps1');
+        fs.writeFileSync(pngPath, item.pngBuf);
+        fs.writeFileSync(icoPath, buildIcoFromPngBuffer(item.pngBuf));
+
+        if (process.platform === 'win32') {
+            const psCode = `param([string]$PngPath, [string]$IcoPath)
+$ErrorActionPreference = 'SilentlyContinue'
+Add-Type -AssemblyName System.Drawing
+$cs = @"
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Text;
+public static class AgyIconWin32 {
+    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+    [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+    [DllImport("user32.dll", CharSet = CharSet.Auto)] public static extern IntPtr SendMessageTimeoutW(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam, uint fuFlags, uint uTimeout, out IntPtr lpdwResult);
+    [DllImport("shell32.dll")] public static extern void SHChangeNotify(int wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
+    public static int ApplyToAntigravity(IntPtr hSmall, IntPtr hBig) {
+        int updated = 0;
+        var pidCache = new Dictionary<uint, bool>();
+        EnumWindows((hWnd, lParam) => {
+            if (!IsWindowVisible(hWnd)) return true;
+            uint pid;
+            GetWindowThreadProcessId(hWnd, out pid);
+            bool match;
+            if (!pidCache.TryGetValue(pid, out match)) {
+                match = false;
+                try {
+                    using (var p = Process.GetProcessById((int)pid)) {
+                        match = string.Equals(p.ProcessName, "Antigravity", StringComparison.OrdinalIgnoreCase);
+                    }
+                } catch {}
+                pidCache[pid] = match;
+            }
+            if (!match) {
+                var sb = new StringBuilder(256);
+                GetWindowText(hWnd, sb, sb.Capacity);
+                if (sb.ToString().IndexOf("Antigravity", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                    sb.ToString().IndexOf("Prelaunch", StringComparison.OrdinalIgnoreCase) < 0) {
+                    match = true;
+                }
+            }
+            if (match) {
+                IntPtr res;
+                SendMessageTimeoutW(hWnd, 0x0080, (IntPtr)0, hSmall, 2, 600, out res);
+                SendMessageTimeoutW(hWnd, 0x0080, (IntPtr)1, hBig, 2, 600, out res);
+                updated++;
+            }
+            return true;
+        }, IntPtr.Zero);
+        return updated;
+    }
+}
+"@
+Add-Type -TypeDefinition $cs -Language CSharp | Out-Null
+$bmp = New-Object System.Drawing.Bitmap($PngPath)
+$bmpSmall = New-Object System.Drawing.Bitmap($bmp, 32, 32)
+$bmpBig = New-Object System.Drawing.Bitmap($bmp, 128, 128)
+$hSmall = $bmpSmall.GetHicon()
+$hBig = $bmpBig.GetHicon()
+[void][AgyIconWin32]::ApplyToAntigravity($hSmall, $hBig)
+$bmpSmall.Dispose()
+$bmpBig.Dispose()
+$bmp.Dispose()
+
+$WshShell = New-Object -ComObject WScript.Shell
+$Dirs = @(
+    [Environment]::GetFolderPath('DesktopDirectory'),
+    [Environment]::GetFolderPath('Programs'),
+    (Join-Path $env:APPDATA 'Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar')
+) | Where-Object { $_ -and (Test-Path $_) }
+$ChangedLnk = $false
+foreach ($D in $Dirs) {
+    Get-ChildItem -Path $D -Recurse -Filter '*.lnk' -ErrorAction SilentlyContinue | ForEach-Object {
+        if ($_.Name -ieq 'AntigravityCustomTheme.lnk') { return }
+        try {
+            $Sc = $WshShell.CreateShortcut($_.FullName)
+            $IsAgy = ($Sc.Arguments -like '*launch-antigravity-themed.ps1*') -or ($Sc.TargetPath -imatch '\\\\Antigravity\\.exe$') -or ($Sc.IconLocation -like '*active_app_icon.ico*')
+            if ($IsAgy) {
+                $Desired = "$IcoPath,0"
+                if ($Sc.IconLocation -ne $Desired) {
+                    $Sc.IconLocation = $Desired
+                    $Sc.Save()
+                    $ChangedLnk = $true
+                }
+            }
+        } catch {}
+    }
+}
+if ($ChangedLnk) {
+    [AgyIconWin32]::SHChangeNotify(0x08000000, 0x0000, [IntPtr]::Zero, [IntPtr]::Zero)
+}
+`;
+            fs.writeFileSync(psPath, psCode, 'utf8');
+            execFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', psPath, '-PngPath', pngPath, '-IcoPath', icoPath], {
+                timeout: 15000,
+                windowsHide: true,
+            }, (err) => {
+                if (err) {
+                    log(`App icon Win32 update note: ${err.message}`);
+                } else {
+                    log(`Updated Antigravity app & shortcut icon for "${item.themeName || 'active'}"`);
+                }
+                appIconUpdateRunning = false;
+                if (appIconUpdateQueued) flushWindowsAppIconQueue();
+            });
+            return;
+        }
+    } catch (err) {
+        log(`App icon write error: ${err.message}`);
+    }
+    appIconUpdateRunning = false;
+    if (appIconUpdateQueued) flushWindowsAppIconQueue();
+}
+
+function handleUpdateAppIcon(payloadStr) {
+    try {
+        const job = JSON.parse(payloadStr || '{}');
+        const key = String(job.key || '');
+        const pngDataUrl = String(job.pngDataUrl || '');
+        if (!pngDataUrl.startsWith('data:image/png;base64,')) return;
+        if (key && key === lastAppIconKey && fs.existsSync(path.join(USER_MEDIA_DIR, 'active_app_icon.ico'))) return;
+        const b64 = pngDataUrl.slice('data:image/png;base64,'.length);
+        const pngBuf = Buffer.from(b64, 'base64');
+        if (!pngBuf || pngBuf.length < 32) return;
+        if (key) lastAppIconKey = key;
+        appIconUpdateQueued = { key, themeName: String(job.themeName || ''), pngBuf };
+        flushWindowsAppIconQueue();
+    } catch (err) {
+        log(`App icon payload parse error: ${err.message}`);
+    }
+}
+
 let missingPayloadLogged = false;
 function buildInjectedSource() {
     if (!fs.existsSync(PAYLOAD_PATH)) {
@@ -433,24 +600,11 @@ function createSession(target) {
     };
 
     async function ensureBindings() {
-        try {
-            await send('Runtime.evaluate', {
-                expression: 'delete window.agySaveThemeConfig; delete window.agyDesignTheme; delete window.agyDesignThemeV2; delete window.agyYtSearch; delete window.agyYtResolve;',
-                awaitPromise: false,
-            });
-        } catch (_) {}
-        try {
-            await send('Runtime.addBinding', { name: 'agySaveThemeConfig' });
-        } catch (_) {}
-        try {
-            await send('Runtime.addBinding', { name: 'agyDesignThemeV2' });
-        } catch (_) {}
-        try {
-            await send('Runtime.addBinding', { name: 'agyYtSearch' });
-        } catch (_) {}
-        try {
-            await send('Runtime.addBinding', { name: 'agyYtResolve' });
-        } catch (_) {}
+        const names = ['agySaveThemeConfig', 'agyDesignThemeV2', 'agyYtSearch', 'agyYtResolve', 'agyUpdateAppIcon'];
+        for (const name of names) {
+            try { await send('Runtime.removeBinding', { name }); } catch (_) {}
+            try { await send('Runtime.addBinding', { name }); } catch (_) {}
+        }
     }
 
     let reinjecting = false;
@@ -558,12 +712,20 @@ function createSession(target) {
             try {
                 job = JSON.parse(msg.params.payload || '{}');
             } catch (_) {}
-            if (job && job.id && job.image) {
+            if (job && job.id && (job.image || job.existingWallpaperPath)) {
                 const reply = (obj) => {
                     const expr = `window.__AGY_DESIGN_RESULT_V2__ && window.__AGY_DESIGN_RESULT_V2__(${JSON.stringify(job.id)}, ${JSON.stringify(JSON.stringify(obj))})`;
                     send('Runtime.evaluate', { expression: expr }).catch(() => {});
                 };
-                designTheme(job.image, { log, width: job.width, height: job.height })
+                designTheme(job.image || '', {
+                    log,
+                    width: job.width,
+                    height: job.height,
+                    userPrompt: typeof job.userPrompt === 'string' ? job.userPrompt : '',
+                    existingThemeName: typeof job.existingThemeName === 'string' ? job.existingThemeName : '',
+                    existingTheme: job.existingTheme && typeof job.existingTheme === 'object' ? job.existingTheme : null,
+                    existingWallpaperPath: typeof job.existingWallpaperPath === 'string' ? job.existingWallpaperPath : '',
+                })
                     .then((res) => reply({
                         theme: res.theme,
                         wallpaperDataUrl: res.wallpaperDataUrl || '',
@@ -574,6 +736,11 @@ function createSession(target) {
                         reply({ error: err.message });
                     });
             }
+            return;
+        }
+
+        if (msg.method === 'Runtime.bindingCalled' && msg.params && msg.params.name === 'agyUpdateAppIcon') {
+            handleUpdateAppIcon(msg.params.payload || '{}');
             return;
         }
 

@@ -531,12 +531,45 @@ function extractPaletteViaPillow(filePath) {
 
 function buildLocalTheme(pal) {
     const p = pal || { primary: '#94a3b8', secondary: '#cbd5e1', overlayRgb: '7, 13, 22' };
+    const ov = p.overlayRgb || '7, 13, 22';
     const theme = {
         name: 'Auto Palette',
         concept: 'Auto Palette • Local fallback, no AI',
         primary: p.primary,
         secondary: p.secondary,
-        overlayRgb: p.overlayRgb,
+        glow: 'rgba(148, 163, 184, 0.28)',
+        secondaryGlow: 'rgba(203, 213, 225, 0.22)',
+        bg: `linear-gradient(145deg, rgba(${ov}, 0.92) 0%, rgba(6, 10, 18, 0.96) 100%)`,
+        frameBg: `linear-gradient(135deg, ${p.primary} 0%, ${p.secondary} 100%)`,
+        textColor: '#f8fafc',
+        borderColor: 'rgba(255, 255, 255, 0.24)',
+        innerBorder: '1px solid rgba(255, 255, 255, 0.14)',
+        clearBackdrop: true,
+        overlayRgb: ov,
+        bgPosition: 'center center',
+        sidebarBg: `rgba(${ov}, 0.66)`,
+        sidebarBlur: '3px',
+        sidebarHoverBg: 'rgba(255, 255, 255, 0.14)',
+        sidebarEnhanceText: true,
+        aiCardBg: `rgba(${ov}, 0.90)`,
+        aiCardBorder: 'rgba(255, 255, 255, 0.18)',
+        headerBg: `rgba(${ov}, 0.66)`,
+        headerBlur: '3px',
+        headerBorder: 'rgba(255, 255, 255, 0.14)',
+        unifiedGlass: true,
+        btnBg: `rgba(${ov}, 0.78)`,
+        inputGlassBg: `rgba(${ov}, 0.84)`,
+        inputCardBg: `linear-gradient(145deg, rgba(${ov}, 0.92) 0%, rgba(5, 9, 16, 0.96) 100%)`,
+        modalBg: 'rgba(10, 14, 24, 0.97)',
+        modalHeaderBg: `rgba(${ov}, 0.94)`,
+        cardBg: `rgba(${ov}, 0.88)`,
+        cardSelectedBg: 'rgba(255, 255, 255, 0.14)',
+        uiTextColor: '#f8fafc',
+        uiMutedColor: '#cbd5e1',
+        pillBg: `rgba(${ov}, 0.86)`,
+        pillHoverBg: 'rgba(255, 255, 255, 0.16)',
+        pillTextColor: '#f8fafc',
+        pillBorder: 'rgba(255, 255, 255, 0.22)',
         isLight: false
     };
     theme.dynamicPack = normalizeDynamicPack(theme);
@@ -556,11 +589,12 @@ function buildLocalTheme(pal) {
 function readExemplar() {
     try {
         const all = JSON.parse(fs.readFileSync(THEMES_JSON, 'utf8'));
-        const key = Object.keys(all)[0];
+        const keys = Object.keys(all);
+        const key = keys.find((k) => all[k] && all[k].wallpaper && all[k].cornerSvg && all[k].sticker) || keys[0];
         const t = { ...all[key] };
-        delete t.wallpaper;
+        delete t.wallpaper; delete t.wallpaperUrl; delete t.wallpaperVideo; delete t.videoUrl; delete t.posterUrl; delete t.mediaType;
         const readSvg = (rel) => {
-            try { return fs.readFileSync(path.join(ROOT_DIR, 'themes', rel), 'utf8'); } catch (_) { return ''; }
+            try { return rel ? fs.readFileSync(path.join(ROOT_DIR, 'themes', rel), 'utf8') : ''; } catch (_) { return ''; }
         };
         t.cornerSvgMarkup = readSvg(t.cornerSvg || '');
         t.stickerSvgMarkup = readSvg(t.sticker || '');
@@ -572,11 +606,42 @@ function readExemplar() {
     }
 }
 
-function buildPrompt(absImagePath, { srcW, srcH, needsAiPaint }) {
+function buildPrompt(absImagePath, { srcW, srcH, needsAiPaint, userPrompt, existingThemeName, existingTheme }) {
     const ex = readExemplar();
     let schemaDoc = '';
     try { schemaDoc = fs.readFileSync(path.join(ROOT_DIR, 'references', 'theme-schema.md'), 'utf8'); } catch (_) {}
     const sizeText = (srcW && srcH) ? `${srcW}x${srcH}` : 'unknown dimensions';
+    const cleanUserPrompt = typeof userPrompt === 'string' ? userPrompt.trim().slice(0, 600) : '';
+    const refineBlock = [];
+    if (existingThemeName || cleanUserPrompt) {
+        refineBlock.push('[USER REFINEMENT & CUSTOMIZATION DIRECTIVES — HIGHEST PRIORITY]');
+        if (existingThemeName) {
+            refineBlock.push(`- You are refining/regenerating an existing theme preset named "${existingThemeName}". Improve craft, harmony, contrast, ornaments, dynamicPack, and pet faithfulness.`);
+        }
+        if (existingTheme && typeof existingTheme === 'object') {
+            try {
+                const compact = {
+                    primary: existingTheme.primary,
+                    secondary: existingTheme.secondary,
+                    concept: existingTheme.concept,
+                    workIdentity: existingTheme.workIdentity ? {
+                        brandTitle: existingTheme.workIdentity.brandTitle,
+                        franchise: existingTheme.workIdentity.franchise,
+                        characterName: existingTheme.workIdentity.characterName
+                    } : undefined,
+                    petDirective: existingTheme.petDirective ? {
+                        petName: existingTheme.petDirective.petName,
+                        personifiedConcept: existingTheme.petDirective.personifiedConcept
+                    } : undefined
+                };
+                refineBlock.push(`- Previous theme summary: ${JSON.stringify(compact)}`);
+            } catch (_) {}
+        }
+        if (cleanUserPrompt) {
+            refineBlock.push(`- USER REQUEST (MUST FOLLOW CAREFULLY): "${cleanUserPrompt}"`);
+        }
+        refineBlock.push('');
+    }
     const paintInstructions = needsAiPaint ? [
         `1. First, inspect the reference wallpaper image at "${absImagePath}" (${sizeText}) using your file-reading tool (\`read_file\`).`,
         `2. MANDATORY 16:9 WIDESCREEN GENERATIVE PAINTING ("vẽ mới / vẽ bù"): You MUST call \`invoke_subagent\` with \`TypeName: "image-generator"\` and \`Role: "4K 16:9 Wallpaper Artist"\` to paint a brand-new, seamless, ultra-sharp 16:9 widescreen (4K / 3840x2160) desktop wallpaper faithful to the subject, theme, lighting, and art style of "${absImagePath}".`,
@@ -593,6 +658,7 @@ function buildPrompt(absImagePath, { srcW, srcH, needsAiPaint }) {
 
     return [
         'You are a UI theme designer and art director for the Antigravity desktop app (glassmorphic wallpaper themes).',
+        ...refineBlock,
         ...paintInstructions,
         'Do not run shell commands (`run_command`), do not edit or create workspace source files. Your ONLY final output is the JSON object matching the provided JSON schema.',
         '',
@@ -731,30 +797,46 @@ function normalizeTo4k16x9Webp(inputPath, outWebpPath, expectWidescreen) {
     if (py) {
         const script = [
             'import json, sys',
-            'from PIL import Image, ImageOps, ImageFilter',
+            'from PIL import Image, ImageOps, ImageFilter, ImageEnhance',
             'in_path, out_path, expect_wide = sys.argv[1], sys.argv[2], sys.argv[3] == "1"',
             'im = ImageOps.exif_transpose(Image.open(in_path))',
-            'if im.mode != "RGB": im = im.convert("RGB")',
+            'if "A" in im.getbands() or im.mode in ("RGBA", "LA", "PA"):',
+            '    rgba = im.convert("RGBA")',
+            '    bg_rgba = Image.new("RGBA", rgba.size, (8, 12, 22, 255))',
+            '    im = Image.alpha_composite(bg_rgba, rgba).convert("RGB")',
+            'elif im.mode != "RGB":',
+            '    im = im.convert("RGB")',
             'w, h = im.size',
             'if expect_wide and (w / float(max(1, h))) < 1.45:',
             '    raise RuntimeError(f"Generated image is not widescreen ({w}x{h})")',
             'target_w, target_h = 3840, 2160',
             'target_ar = target_w / float(target_h)',
             'cur_ar = w / float(max(1, h))',
-            'if cur_ar > target_ar:',
-            '    crop_w = max(1, int(round(h * target_ar)))',
-            '    left = max(0, (w - crop_w) // 2)',
-            '    im = im.crop((left, 0, left + crop_w, h))',
-            'elif cur_ar < target_ar:',
-            '    crop_h = max(1, int(round(w / target_ar)))',
-            '    top = max(0, (h - crop_h) // 2)',
-            '    im = im.crop((0, top, w, top + crop_h))',
-            'cw, ch = im.size',
             'resample = getattr(getattr(Image, "Resampling", Image), "LANCZOS")',
-            'if cw != target_w or ch != target_h:',
-            '    im = im.resize((target_w, target_h), resample)',
-            'if cw < target_w or ch < target_h:',
-            '    im = im.filter(ImageFilter.UnsharpMask(radius=1.15, percent=68, threshold=3))',
+            'if (not expect_wide) and (cur_ar < 1.25 or cur_ar > 2.35):',
+            '    # Extreme portrait/ultrawide fallback: blurred darkened ambient 4K canvas + crisp centered subject (zero head/body crop)',
+            '    amb = im.resize((target_w, target_h), resample).filter(ImageFilter.GaussianBlur(radius=46))',
+            '    amb = ImageEnhance.Brightness(amb).enhance(0.45)',
+            '    scale = min(target_w / float(max(1, w)), target_h / float(max(1, h)))',
+            '    fg_w = max(1, int(round(w * scale)))',
+            '    fg_h = max(1, int(round(h * scale)))',
+            '    fg = im.resize((fg_w, fg_h), resample)',
+            '    amb.paste(fg, ((target_w - fg_w) // 2, (target_h - fg_h) // 2))',
+            '    im = amb',
+            'else:',
+            '    if cur_ar > target_ar:',
+            '        crop_w = max(1, int(round(h * target_ar)))',
+            '        left = max(0, (w - crop_w) // 2)',
+            '        im = im.crop((left, 0, left + crop_w, h))',
+            '    elif cur_ar < target_ar:',
+            '        crop_h = max(1, int(round(w / target_ar)))',
+            '        top = max(0, (h - crop_h) // 2)',
+            '        im = im.crop((0, top, w, top + crop_h))',
+            '    cw, ch = im.size',
+            '    if cw != target_w or ch != target_h:',
+            '        im = im.resize((target_w, target_h), resample)',
+            '    if cw < target_w or ch < target_h:',
+            '        im = im.filter(ImageFilter.UnsharpMask(radius=1.15, percent=68, threshold=3))',
             'im.save(out_path, format="WEBP", quality=90, method=4)',
             'print(json.dumps({"srcW": w, "srcH": h, "width": target_w, "height": target_h}))'
         ].join('\n');
@@ -1105,20 +1187,91 @@ function persistWallpaperToUserMedia(webpPath, nameHint) {
     }
 }
 
+function resolveLocalWallpaperDiskPath(relOrUrl) {
+    if (typeof relOrUrl !== 'string') return '';
+    let clean = relOrUrl.trim();
+    if (!clean) return '';
+    clean = clean.replace(/^https?:\/\/127\.0\.0\.1:\d+\//i, '').replace(/^\/+/, '').split('?')[0];
+    const normalized = path.normalize(clean).replace(/^(\.\.[\\/])+/, '');
+    const cand = path.join(ROOT_DIR, 'themes', normalized);
+    try {
+        if (cand.startsWith(path.join(ROOT_DIR, 'themes')) && fs.existsSync(cand) && fs.statSync(cand).isFile()) {
+            return cand;
+        }
+    } catch (_) {}
+    return '';
+}
+
+function applyUserHintsToLocalTheme(theme, userPrompt) {
+    if (!theme || typeof theme !== 'object') return theme;
+    const raw = typeof userPrompt === 'string' ? userPrompt.trim() : '';
+    if (!raw) return theme;
+    const p = raw.toLowerCase();
+    const colorMap = [
+        [/\b(tím|purple|violet|lavender|neon\s*tím|cyberpunk)\b/i, '#a855f7', '#22d3ee', '12, 8, 22'],
+        [/\b(hồng|pink|magenta|rose|sakura)\b/i, '#f472b6', '#a855f7', '18, 8, 16'],
+        [/\b(xanh dương|blue|sapphire|ocean|thủy)\b/i, '#38bdf8', '#818cf8', '7, 13, 24'],
+        [/\b(ngọc|cyan|teal|aqua|miku|băng)\b/i, '#2dd4bf', '#38bdf8', '6, 16, 20'],
+        [/\b(vàng|gold|amber|nắng|warm|ấm)\b/i, '#fbbf24', '#fb923c', '18, 13, 8'],
+        [/\b(đỏ|red|crimson|kaiju|lửa)\b/i, '#fb7185', '#f97316', '20, 8, 10'],
+        [/\b(xanh lá|emerald|green|forest|grotto)\b/i, '#34d399', '#2dd4bf', '7, 18, 14'],
+    ];
+    for (const [re, pri, sec, rgb] of colorMap) {
+        if (re.test(p)) {
+            theme.primary = pri;
+            theme.secondary = sec;
+            theme.overlayRgb = rgb;
+            const [r, g, b] = rgb.split(',').map((n) => parseInt(n.trim(), 10));
+            theme.sidebarBg = `rgba(${r}, ${g}, ${b}, 0.66)`;
+            theme.headerBg = `rgba(${r}, ${g}, ${b}, 0.66)`;
+            theme.aiCardBg = `rgba(${r}, ${g}, ${b}, 0.90)`;
+            theme.inputGlassBg = `rgba(${r}, ${g}, ${b}, 0.84)`;
+            theme.inputCardBg = `rgba(${r}, ${g}, ${b}, 0.90)`;
+            theme.pillBg = `rgba(${r}, ${g}, ${b}, 0.86)`;
+            theme.borderColor = `${pri}55`;
+            theme.headerBorder = `${pri}44`;
+            theme.aiCardBorder = `${pri}40`;
+            break;
+        }
+    }
+    const cleanConcept = raw.slice(0, 48);
+    theme.concept = `Refined • ${cleanConcept}`;
+    if (theme.petDirective && typeof theme.petDirective === 'object') {
+        theme.petDirective.spritePrompt = `${theme.petDirective.spritePrompt || ''} | User refinement: ${raw.slice(0, 220)}`.trim();
+    }
+    return theme;
+}
+
 function designTheme(dataUrl, opts = {}) {
     const timeoutMs = opts.timeoutMs || 420000;
     const log = opts.log || (() => {});
     return new Promise((resolve, reject) => {
-        const m = /^data:(image\/[a-z+.-]+);base64,(.+)$/i.exec(String(dataUrl || ''));
-        if (!m) return reject(new Error('Invalid reference image'));
-        const ext = MIME_EXT[m[1].toLowerCase()] || 'jpg';
         const jobDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-theme-'));
-        const imageFile = `reference.${ext}`;
-        const absImagePath = path.join(jobDir, imageFile);
-        const schemaFile = path.join(jobDir, 'schema.json');
         const cleanup = () => { try { fs.rmSync(jobDir, { recursive: true, force: true }); } catch (_) {} };
+        let imageFile = 'reference.jpg';
+        let absImagePath = path.join(jobDir, imageFile);
+        const m = /^data:(image\/[a-z+.-]+);base64,(.+)$/i.exec(String(dataUrl || ''));
+        if (m) {
+            const ext = MIME_EXT[m[1].toLowerCase()] || 'jpg';
+            imageFile = `reference.${ext}`;
+            absImagePath = path.join(jobDir, imageFile);
+            fs.writeFileSync(absImagePath, Buffer.from(m[2], 'base64'));
+        } else {
+            const diskSrc = resolveLocalWallpaperDiskPath(opts.existingWallpaperPath || '');
+            if (!diskSrc) {
+                cleanup();
+                return reject(new Error('Invalid reference image or missing wallpaper file'));
+            }
+            const ext = (path.extname(diskSrc) || '.webp').replace('.', '') || 'webp';
+            imageFile = `reference.${ext}`;
+            absImagePath = path.join(jobDir, imageFile);
+            fs.copyFileSync(diskSrc, absImagePath);
+        }
+        const schemaFile = path.join(jobDir, 'schema.json');
+        const userPrompt = typeof opts.userPrompt === 'string' ? opts.userPrompt.trim().slice(0, 600) : '';
+        const existingThemeName = typeof opts.existingThemeName === 'string' ? opts.existingThemeName.trim().slice(0, 48) : '';
+        const existingTheme = opts.existingTheme && typeof opts.existingTheme === 'object' ? opts.existingTheme : null;
 
-        fs.writeFileSync(absImagePath, Buffer.from(m[2], 'base64'));
         const probed = probeImageDimensions(absImagePath);
         const srcW = (probed && probed.width) || Number(opts.width) || 0;
         const srcH = (probed && probed.height) || Number(opts.height) || 0;
@@ -1126,11 +1279,14 @@ function designTheme(dataUrl, opts = {}) {
 
         fs.writeFileSync(schemaFile, JSON.stringify(buildSchema(needsAiPaint)));
 
-        const prompt = buildPrompt(absImagePath, { srcW, srcH, needsAiPaint });
-        const args = ['-p', prompt, '--mode', 'accept-edits', '--output-format', 'json', '--json-schema', schemaFile, '--disable-slash-commands', '--add-dir', jobDir];
+        const prompt = buildPrompt(absImagePath, { srcW, srcH, needsAiPaint, userPrompt, existingThemeName, existingTheme });
+        const promptFile = path.join(jobDir, 'design_prompt.md');
+        fs.writeFileSync(promptFile, prompt, 'utf8');
+        const shortPrompt = `Read "${promptFile}" with read_file and strictly follow all instructions inside it to design the theme for "${absImagePath}" and return the structured JSON.`;
+        const args = ['-p', shortPrompt, '--mode', 'accept-edits', '--output-format', 'json', '--json-schema', schemaFile, '--disable-slash-commands', '--add-dir', jobDir];
         if (process.env.AGY_THEME_MODEL) args.push('--model', process.env.AGY_THEME_MODEL);
         const bin = findAgy();
-        log(`Designing theme via ${bin} (job ${jobDir}, src=${srcW}x${srcH}, aiOutpaint=${needsAiPaint})`);
+        log(`Designing theme via ${bin} (job ${jobDir}, src=${srcW}x${srcH}, aiOutpaint=${needsAiPaint}, promptLen=${prompt.length}, refine=${existingThemeName || 'none'})`);
         let settled = false;
         const localFallback = (reason) => {
             if (settled) return false;
@@ -1142,22 +1298,27 @@ function designTheme(dataUrl, opts = {}) {
                 try { wallpaperDataUrl = normalizeTo4k16x9Webp(absImagePath, outWebpPath, false); }
                 catch (_) { wallpaperDataUrl = `data:image/jpeg;base64,${fs.readFileSync(absImagePath).toString('base64')}`; }
                 const pal = extractPaletteViaPillow(absImagePath);
-                const theme = buildLocalTheme(pal);
+                const theme = applyUserHintsToLocalTheme(buildLocalTheme(pal), userPrompt);
+                if (existingThemeName && existingTheme) {
+                    theme.concept = userPrompt
+                        ? `Refined (${existingThemeName}) • ${userPrompt.slice(0, 36)}`
+                        : `Regenerated (${existingThemeName})`;
+                }
                 log(`AI design unavailable (${reason}) — local palette fallback applied`);
                 // normalizeTo4k16x9Webp writes a real 3840x2160 WebP when
                 // Pillow is present; without Pillow it returns the original
                 // image, so report the source size in that case.
                 const is4k = fs.existsSync(outWebpPath);
-                const wallpaperUrl = is4k ? persistWallpaperToUserMedia(outWebpPath, theme.name || 'local-palette') : '';
+                const wallpaperUrl = is4k ? persistWallpaperToUserMedia(outWebpPath, existingThemeName || theme.name || 'local-palette') : '';
                 resolve({
                     theme,
                     wallpaperDataUrl,
                     wallpaperUrl,
                     wpMeta: { width: is4k ? TARGET_W : (srcW || TARGET_W), height: is4k ? TARGET_H : (srcH || TARGET_H), aiOutpainted: false, wallpaperUrl },
-                    petSpriteUrl: theme.petSpriteUrl || FALLBACK_SPRITE_URL,
-                    petId: theme.petId || 'rocky',
-                    petMeta: theme.petMeta || null,
-                    brandLogoUrl: theme.brandLogoUrl || ''
+                    petSpriteUrl: (existingTheme && existingTheme.petSpriteUrl) || theme.petSpriteUrl || FALLBACK_SPRITE_URL,
+                    petId: (existingTheme && existingTheme.petId) || theme.petId || 'rocky',
+                    petMeta: (existingTheme && existingTheme.petMeta) || theme.petMeta || null,
+                    brandLogoUrl: (existingTheme && existingTheme.brandLogoUrl) || theme.brandLogoUrl || ''
                 });
                 return true;
             } catch (fbErr) {
@@ -1167,7 +1328,13 @@ function designTheme(dataUrl, opts = {}) {
                 cleanup();
             }
         };
-        const child = spawn(bin, args, { cwd: jobDir, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+        let child;
+        try {
+            child = spawn(bin, args, { cwd: jobDir, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+        } catch (spawnErr) {
+            localFallback(`Cannot spawn agy: ${spawnErr.message}`);
+            return;
+        }
         let out = '', err = '';
         child.stdout.on('data', (d) => { out += d; });
         child.stderr.on('data', (d) => { err += d; });
@@ -1196,6 +1363,9 @@ function designTheme(dataUrl, opts = {}) {
                 theme.dynamicPack = normalizeDynamicPack(theme);
                 theme.vfxSpec = normalizeVfxSpec(theme);
                 theme.petDirective = normalizePetDirective(theme);
+                if (userPrompt) {
+                    theme.petDirective.spritePrompt = `${theme.petDirective.spritePrompt} | User request: ${userPrompt.slice(0, 220)}`.trim();
+                }
                 theme.workIdentity = normalizeWorkIdentity(theme);
                 const wallpaperUrl = persistWallpaperToUserMedia(outWebpPath, theme.name || theme.workIdentity.franchise);
 

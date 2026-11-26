@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 38" fill="none">
+  <defs>
+    <linearGradient id="mikuLine" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#39c5bb" stop-opacity="0.15"/>
+      <stop offset="40%" stop-color="#39c5bb" stop-opacity="0.95"/>
+      <stop offset="70%" stop-color="#e066ff" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#e066ff" stop-opacity="0.18"/>
+    </linearGradient>
+  </defs>
+  <path d="M 6 24 L 36 24 L 44 16 L 84 16 L 92 24 L 122 24" stroke="url(#mikuLine)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <g transform="translate(64, 17)">
+    <rect x="-15" y="-4" width="3" height="8" rx="1" fill="#39c5bb"/>
+    <rect x="-9" y="-8" width="3" height="16" rx="1" fill="#5eead4"/>
+    <rect x="-3" y="-5" width="3" height="10" rx="1" fill="#e066ff"/>
+    <rect x="3" y="-9" width="3" height="18" rx="1" fill="#39c5bb"/>
+    <rect x="9" y="-6" width="3" height="12" rx="1" fill="#f472b6"/>
+    <rect x="15" y="-3" width="3" height="6" rx="1" fill="#39c5bb"/>
+  </g>
+  <circle cx="24" cy="18" r="1.5" fill="#39c5bb" opacity="0.85"/>
+  <circle cx="104" cy="18" r="1.5" fill="#e066ff" opacity="0.85"/>
+</svg>

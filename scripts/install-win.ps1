@@ -81,6 +81,7 @@ Set-Content -Path $VbsPath -Value $VbsContent -Encoding ASCII
 $WshShell = New-Object -ComObject WScript.Shell
 
 $LaunchScript = Join-Path $ScriptDir 'launch-antigravity-themed.ps1'
+$ActiveThemeIco = Join-Path $RepoRoot 'themes\user_media\active_app_icon.ico'
 $AntigravityExePath = $null
 
 # First discover Antigravity.exe path across shortcuts or standard install locations
@@ -133,7 +134,7 @@ if ($AntigravityExePath -and (Test-Path $LaunchScript)) {
                     $Sc.TargetPath = 'powershell.exe'
                     $Sc.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""$LaunchScript"" -AntigravityExe ""$ExeForShortcut"""
                     $Sc.WorkingDirectory = $RepoRoot
-                    $Sc.IconLocation = "$ExeForShortcut,0"
+                    $Sc.IconLocation = if (Test-Path $ActiveThemeIco) { "$ActiveThemeIco,0" } else { "$ExeForShortcut,0" }
                     $Sc.WindowStyle = 7
                     $Sc.Save()
                     Write-Host "[install-win] Wrapped Antigravity shortcut for instant daemon + intro launch: $($_.FullName)"
@@ -155,7 +156,7 @@ if ($AntigravityExePath -and (Test-Path $LaunchScript)) {
             $BootSc.TargetPath = 'powershell.exe'
             $BootSc.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""$LaunchScript"" -AntigravityExe ""$AntigravityExePath"""
             $BootSc.WorkingDirectory = $RepoRoot
-            $BootSc.IconLocation = "$AntigravityExePath,0"
+            $BootSc.IconLocation = if (Test-Path $ActiveThemeIco) { "$ActiveThemeIco,0" } else { "$AntigravityExePath,0" }
             $BootSc.WindowStyle = 7
             $BootSc.Description = 'Antigravity (Themed Boot)'
             $BootSc.Save()

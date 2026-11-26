@@ -1514,6 +1514,7 @@
     }
 
     syncBrandIdentityText(st);
+    syncDynamicAppIcon(st, th, brandKey, primary, secondary, brandLogoUrl, svgSpec);
 
     const activeShell = findActiveShell();
     const existingWatermark = document.getElementById('agy-bg-emblem-watermark');
@@ -1547,6 +1548,192 @@
       } else {
         wm.innerHTML = wmSvg;
       }
+    }
+  }
+
+  let __agyLastFaviconBrandKey = '';
+  let __agyLastSentAppIconKey = '';
+  let __agyFaviconRenderToken = 0;
+
+  function setDynamicFaviconHref(href) {
+    if (!href || !document.head) return;
+    const links = Array.from(document.querySelectorAll('link[rel*="icon"]'));
+    let customLink = document.getElementById('agy-dynamic-favicon');
+    for (const el of links) {
+      if (el.id === 'agy-dynamic-favicon') continue;
+      if (el.dataset.agyOrigHref === undefined) {
+        el.dataset.agyOrigHref = el.getAttribute('href') || '';
+        el.dataset.agyOrigType = el.getAttribute('type') || '';
+      }
+      el.setAttribute('href', href);
+      el.setAttribute('type', href.startsWith('data:image/png') ? 'image/png' : 'image/svg+xml');
+    }
+    if (!customLink) {
+      customLink = document.createElement('link');
+      customLink.id = 'agy-dynamic-favicon';
+      customLink.rel = 'icon';
+      document.head.appendChild(customLink);
+    }
+    customLink.type = href.startsWith('data:image/png') ? 'image/png' : 'image/svg+xml';
+    customLink.href = href;
+  }
+
+  function restoreDynamicFavicon() {
+    __agyLastFaviconBrandKey = '';
+    __agyLastSentAppIconKey = '';
+    __agyFaviconRenderToken += 1;
+    const customLink = document.getElementById('agy-dynamic-favicon');
+    if (customLink) customLink.remove();
+    document.querySelectorAll('link[rel*="icon"]').forEach((el) => {
+      if (el.dataset.agyOrigHref !== undefined) {
+        if (el.dataset.agyOrigHref) el.setAttribute('href', el.dataset.agyOrigHref);
+        else el.removeAttribute('href');
+        if (el.dataset.agyOrigType) el.setAttribute('type', el.dataset.agyOrigType);
+        else el.removeAttribute('type');
+        delete el.dataset.agyOrigHref;
+        delete el.dataset.agyOrigType;
+      }
+    });
+  }
+
+  function buildStandaloneBrandSvgMarkup(svgSpec, primary, secondary, bgHex, includeBadgeFrame) {
+    const resolvedInner = String(svgSpec && svgSpec.inner ? svgSpec.inner : '')
+      .replace(/var\(--agy-c1(?:\s*,[^)]+)?\)/g, primary)
+      .replace(/var\(--agy-c2(?:\s*,[^)]+)?\)/g, secondary);
+    const vbParts = String((svgSpec && svgSpec.viewBox) || '0 0 24 24').trim().split(/\s+/).map(Number);
+    const vx = Number.isFinite(vbParts[0]) ? vbParts[0] : 0;
+    const vy = Number.isFinite(vbParts[1]) ? vbParts[1] : 0;
+    const vw = Number.isFinite(vbParts[2]) && vbParts[2] > 0 ? vbParts[2] : 24;
+    const vh = Number.isFinite(vbParts[3]) && vbParts[3] > 0 ? vbParts[3] : 24;
+    const defs = `<defs><linearGradient id="agyBrandGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${escHtml(primary)}"/><stop offset="100%" stop-color="${escHtml(secondary)}"/></linearGradient><linearGradient id="agyIconBg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0a0e17"/><stop offset="100%" stop-color="${escHtml(bgHex || '#111827')}"/></linearGradient></defs>`;
+    if (!includeBadgeFrame) {
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vx} ${vy} ${vw} ${vh}" width="96" height="96" fill="none" color="${escHtml(primary)}">${defs}${resolvedInner}</svg>`;
+    }
+    const targetSize = 76;
+    const scale = targetSize / Math.max(vw, vh);
+    const tx = 64 - (vx + vw / 2) * scale;
+    const ty = 64 - (vy + vh / 2) * scale;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" fill="none" color="${escHtml(primary)}">${defs}<rect x="4" y="4" width="120" height="120" rx="28" fill="url(#agyIconBg)" stroke="url(#agyBrandGrad)" stroke-width="5"/><circle cx="34" cy="30" r="34" fill="${escHtml(primary)}" opacity="0.16"/><g transform="translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${scale.toFixed(4)})">${resolvedInner}</g></svg>`;
+  }
+
+  function syncDynamicAppIcon(st, th, brandKey, primary, secondary, brandLogoUrl, svgSpec) {
+    if (!st || st.themeMode === 'static') {
+      restoreDynamicFavicon();
+      return;
+    }
+    const bgHex = (th && typeof th.bg === 'string' && /^#[0-9a-fA-F]{6}$/.test(th.bg.trim())) ? th.bg.trim() : '#0f172a';
+    const iconKey = `${brandKey}|${bgHex}|${st.themeMode}`;
+    if (__agyLastFaviconBrandKey === iconKey && __agyLastSentAppIconKey === iconKey) {
+      return;
+    }
+    __agyLastFaviconBrandKey = iconKey;
+    const renderToken = ++__agyFaviconRenderToken;
+
+    const badgeSvg = buildStandaloneBrandSvgMarkup(svgSpec, primary, secondary, bgHex, true);
+    const fallbackSvgHref = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(badgeSvg)}`;
+    setDynamicFaviconHref(fallbackSvgHref);
+
+    const drawCanvasIcon = (imgEl, isCustomLogo) => {
+      if (renderToken !== __agyFaviconRenderToken) return;
+      try {
+        const size = 128;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const r = 28;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(4 + r, 4);
+        ctx.arcTo(124, 4, 124, 124, r);
+        ctx.arcTo(124, 124, 4, 124, r);
+        ctx.arcTo(4, 124, 4, 4, r);
+        ctx.arcTo(4, 4, 124, 4, r);
+        ctx.closePath();
+        const bgGrad = ctx.createLinearGradient(0, 0, size, size);
+        bgGrad.addColorStop(0, '#070a12');
+        bgGrad.addColorStop(1, bgHex);
+        ctx.fillStyle = bgGrad;
+        ctx.fill();
+
+        const toCanvasRgba = (hex, a) => {
+          const clean = String(hex || '').replace('#', '');
+          const norm = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean.padEnd(6, '0').slice(0, 6);
+          const rv = parseInt(norm.slice(0, 2), 16) || 56;
+          const gv = parseInt(norm.slice(2, 4), 16) || 189;
+          const bv = parseInt(norm.slice(4, 6), 16) || 248;
+          return `rgba(${rv},${gv},${bv},${a})`;
+        };
+
+        const glow = ctx.createRadialGradient(34, 30, 4, 34, 30, 74);
+        glow.addColorStop(0, toCanvasRgba(primary, 0.36));
+        glow.addColorStop(1, toCanvasRgba(primary, 0));
+        ctx.fillStyle = glow;
+        ctx.fill();
+        ctx.clip();
+
+        if (imgEl && imgEl.naturalWidth > 0) {
+          const pad = isCustomLogo ? 18 : 20;
+          const maxBox = size - pad * 2;
+          const ratio = Math.min(maxBox / imgEl.naturalWidth, maxBox / imgEl.naturalHeight);
+          const dw = imgEl.naturalWidth * ratio;
+          const dh = imgEl.naturalHeight * ratio;
+          const dx = (size - dw) / 2;
+          const dy = (size - dh) / 2;
+          ctx.drawImage(imgEl, dx, dy, dw, dh);
+        }
+        ctx.restore();
+
+        ctx.beginPath();
+        ctx.moveTo(4 + r, 4);
+        ctx.arcTo(124, 4, 124, 124, r);
+        ctx.arcTo(124, 124, 4, 124, r);
+        ctx.arcTo(4, 124, 4, 4, r);
+        ctx.arcTo(4, 4, 124, 4, r);
+        ctx.closePath();
+        const rimGrad = ctx.createLinearGradient(0, 0, size, size);
+        rimGrad.addColorStop(0, primary);
+        rimGrad.addColorStop(1, secondary);
+        ctx.strokeStyle = rimGrad;
+        ctx.lineWidth = 5;
+        ctx.stroke();
+
+        const pngDataUrl = canvas.toDataURL('image/png');
+        if (pngDataUrl && pngDataUrl.startsWith('data:image/png;base64,')) {
+          if (isCustomLogo) setDynamicFaviconHref(pngDataUrl);
+          if (__agyLastSentAppIconKey !== iconKey && typeof window.agyUpdateAppIcon === 'function') {
+            __agyLastSentAppIconKey = iconKey;
+            try {
+              window.agyUpdateAppIcon(JSON.stringify({ key: iconKey, themeName: st.themeName || '', pngDataUrl }));
+            } catch (_) {}
+          }
+        }
+      } catch (_) {}
+    };
+
+    const renderSvgToCanvas = () => {
+      const iconSvg = buildStandaloneBrandSvgMarkup(svgSpec, primary, secondary, bgHex, false);
+      const svgImg = new Image();
+      svgImg.onload = () => drawCanvasIcon(svgImg, false);
+      svgImg.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(iconSvg)}`;
+    };
+
+    if (brandLogoUrl) {
+      const logoImg = new Image();
+      logoImg.crossOrigin = 'anonymous';
+      logoImg.onload = () => {
+        try {
+          drawCanvasIcon(logoImg, true);
+        } catch (_) {
+          renderSvgToCanvas();
+        }
+      };
+      logoImg.onerror = () => renderSvgToCanvas();
+      logoImg.src = brandLogoUrl;
+    } else {
+      renderSvgToCanvas();
     }
   }
 
@@ -6610,6 +6797,7 @@
     removeBetterPet();
     const brandLogo = document.getElementById('agy-custom-brand-logo');
     if (brandLogo) brandLogo.remove();
+    restoreDynamicFavicon();
     const watermark = document.getElementById('agy-bg-emblem-watermark');
     if (watermark) watermark.remove();
     const scrollCtrl = document.getElementById('agy-scroll-controls');
@@ -7110,17 +7298,23 @@
     container.innerHTML = `
       <div id="agy-theme-scroll-container" style="padding: 20px 26px 36px 26px; width: 100%; max-width: 840px; margin: 0 auto; color: #f4f4f5; box-sizing: border-box;">
         <section data-studio-panel="presets" style="display: ${activeTab === 'presets' ? 'block' : 'none'};">
-          <div id="agy-studio-ai-drop" tabindex="0" style="border: 1.5px dashed ${accent}; background: rgba(255, 255, 255, 0.032); box-shadow: inset 0 1px 0 rgba(255,255,255,0.12); border-radius: 15px; padding: 14px 18px; margin-bottom: 14px; cursor: pointer; display: flex; flex-direction: column; gap: 8px; transition: border-color 0.15s ease, background-color 0.15s ease;">
-            <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap;">
-              <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+          <div id="agy-studio-ai-drop" tabindex="0" style="border: 1.5px dashed ${accent}; background: rgba(255, 255, 255, 0.032); box-shadow: inset 0 1px 0 rgba(255,255,255,0.12); border-radius: 15px; padding: 14px 18px; margin-bottom: 14px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; transition: border-color 0.15s ease, background-color 0.15s ease;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 260px;">
                 <div class="agy-ai-drop-ico" style="width: 38px; height: 38px; border-radius: 11px; background: rgba(255,255,255,0.05); border: 1px solid ${mainTheme.borderColor || 'rgba(255,255,255,0.18)'}; color: ${accent}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">${STUDIO_ICONS.sparkles}</div>
                 <div style="min-width: 0;">
-                  <div style="font-size: 14px; font-weight: 650; color: #f8fafc;">Tạo Theme mới từ Ảnh (AI • Logo SVG • Pet 8×11)</div>
-                  <div style="font-size: 12px; color: #94a3b8; margin-top: 1px;">Thả ảnh vào đây, Ctrl+V hoặc chọn tệp để tự sinh bảng màu, logo &amp; Pet đồng bộ</div>
+                  <div style="font-size: 14px; font-weight: 650; color: #f8fafc;">Tạo mới &amp; Chau chuốt Theme (AI • Logo SVG • Pet 8×11)</div>
+                  <div style="font-size: 12px; color: #94a3b8; margin-top: 1px;">Thả ảnh bất kỳ, Ctrl+V, hoặc nhập yêu cầu để AGY tạo lại / chau chuốt thêm</div>
                 </div>
               </div>
-              <span class="agy-st-btn agy-st-btn-primary" style="padding: 7px 14px;">${STUDIO_ICONS.upload} Chọn ảnh</span>
-              <input id="agy-studio-ai-file" type="file" accept="image/*" style="display: none;" />
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <button id="agy-studio-ai-upload-btn" class="agy-st-btn agy-st-btn-primary" type="button" style="padding: 7px 13px;">${STUDIO_ICONS.upload} Chọn ảnh</button>
+                <button id="agy-studio-refine-btn" class="agy-st-btn" type="button" title="Tạo lại hoặc chau chuốt theme đang chọn theo yêu cầu bên dưới" style="padding: 7px 13px;">${STUDIO_ICONS.restore} Tạo lại / Chau chuốt</button>
+                <input id="agy-studio-ai-file" type="file" accept="image/*" style="display: none;" />
+              </div>
+            </div>
+            <div style="display: flex; align-items: stretch; gap: 8px;">
+              <textarea id="agy-studio-ai-prompt" rows="2" placeholder="Nhập yêu cầu cho AGY chau chuốt thêm (vd: tông neon tím-cyan nổi hơn, giữ nhân vật trong ảnh làm pet chibi, làm glass tối dễ đọc chữ hơn…)" style="flex: 1; min-height: 46px; max-height: 92px; resize: vertical; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(6, 9, 16, 0.64); color: #f8fafc; font-size: 12.5px; line-height: 1.4; padding: 8px 11px; outline: none; font-family: inherit; box-sizing: border-box;">${escHtml(window.__AGY_STUDIO_AI_PROMPT__ || '')}</textarea>
             </div>
             <div id="agy-studio-ai-status" style="font-size: 12.5px; color: #e4e4e7; ${aiStatusHtml ? '' : 'display:none;'}">${aiStatusHtml}</div>
           </div>
@@ -7166,10 +7360,11 @@
               const cardFont = getFontVibeStack(cardUi.fontVibe);
               return `
                 <div class="agy-preset-card ${isSelected ? 'is-selected' : ''}" data-name="${escHtml(name)}" style="overflow: hidden; display: flex; flex-direction: column; font-family: ${cardFont}; ${dynCardStyle}">
+                  ${thumbRaw ? `<button class="agy-refine-preset-btn" data-refine-preset="${escHtml(name)}" type="button" title="Tạo lại / Chau chuốt preset này với AI" style="position: absolute; top: 8px; right: ${canDelete ? '38px' : '8px'}; z-index: 3; width: 26px; height: 26px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.20); background: rgba(7, 9, 15, 0.74); color: #93c5fd; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">${STUDIO_ICONS.restore}</button>` : ''}
                   ${canDelete ? `<button class="agy-delete-preset-btn" data-del-preset="${escHtml(name)}" type="button" title="${isBuiltin ? 'Ẩn preset gốc' : 'Xóa preset'}" style="position: absolute; top: 8px; right: 8px; z-index: 3; width: 26px; height: 26px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.20); background: rgba(7, 9, 15, 0.74); color: #fca5a5; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">${STUDIO_ICONS.trash}</button>` : ''}
                   <div style="height: 86px; width: 100%; background-image: ${thumbBg}; background-size: cover; background-position: ${th.bgPosition || 'center'}; position: relative; display: flex; align-items: flex-end; padding: 9px 14px;">
                     ${dynThumbExtra}
-                    ${th.sticker ? `<div style="position: absolute; ${thumbOrnamentStyle} background-image: url('${th.sticker}'); background-size: contain; background-repeat: no-repeat; pointer-events: none;"></div>` : ''}
+                    ${th.sticker ? `<div style="position: absolute; ${thumbOrnamentStyle} background-image: url('${sanitizeCssUrl(resolveMediaUrl(th.sticker))}'); background-size: contain; background-repeat: no-repeat; pointer-events: none;"></div>` : ''}
                     ${modeIndicator}
                     <span style="font-size: 14px; font-weight: 700; color: #ffffff; position: relative; z-index: 1; text-shadow: 0 2px 6px rgba(0,0,0,0.9); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 44px;">${escHtml(name)}</span>
                   </div>
@@ -7371,7 +7566,7 @@
                     <div style="display: flex; justify-content: center; align-items: center; width: 100%; height: 48px; margin-bottom: 8px;">
                       <div style="position: relative; width: 188px; height: 40px; padding: 1.2px; border-radius: ${th.isScroll ? '6px' : '12px'}; background: ${th.frameBg};">
                         <div style="position: relative; width: 100%; height: 100%; background: ${th.bg}; border: ${th.innerBorder || '1px solid ' + th.borderColor}; border-radius: ${th.isScroll ? '4px' : '11px'}; display: flex; align-items: center; padding: 0 14px;">
-                          ${th.sticker ? `<div style="position: absolute; top: ${stickerTop}px; right: 8px; width: ${stickerW}px; height: ${stickerH}px; background-image: url('${th.sticker}'); background-size: contain; background-position: ${th.isOrnament ? 'center' : 'bottom center'}; background-repeat: no-repeat; pointer-events: none;"></div>` : ''}
+                          ${th.sticker ? `<div style="position: absolute; top: ${stickerTop}px; right: 8px; width: ${stickerW}px; height: ${stickerH}px; background-image: url('${sanitizeCssUrl(resolveMediaUrl(th.sticker))}'); background-size: contain; background-position: ${th.isOrnament ? 'center' : 'bottom center'}; background-repeat: no-repeat; pointer-events: none;"></div>` : ''}
                           <span style="font-size: 13px; font-weight: 500; color: ${th.textColor};">Hello ✨</span>
                         </div>
                       </div>
@@ -7444,7 +7639,7 @@
         if (sticker) {
           if (key !== 'minimal' && activeTh.sticker) {
             sticker.style.display = 'block';
-            sticker.style.backgroundImage = `url('${activeTh.sticker}')`;
+            sticker.style.backgroundImage = `url('${sanitizeCssUrl(resolveMediaUrl(activeTh.sticker))}')`;
             if (activeTh.isOrnament) {
               sticker.style.top = '-12px';
               sticker.style.width = '72px';
@@ -7469,12 +7664,22 @@
 
     const aiDrop = container.querySelector('#agy-studio-ai-drop');
     const aiInput = container.querySelector('#agy-studio-ai-file');
+    const aiUploadBtn = container.querySelector('#agy-studio-ai-upload-btn');
+    const aiRefineBtn = container.querySelector('#agy-studio-refine-btn');
+    const aiPromptEl = container.querySelector('#agy-studio-ai-prompt');
     const modalBackdrop = document.getElementById('agy-custom-theme-modal-backdrop');
-    const handleAiFile = async (file) => {
-      if (!file) return;
+    if (aiPromptEl) {
+      aiPromptEl.addEventListener('click', (e) => e.stopPropagation());
+      aiPromptEl.addEventListener('keydown', (e) => e.stopPropagation());
+      aiPromptEl.addEventListener('input', () => {
+        window.__AGY_STUDIO_AI_PROMPT__ = aiPromptEl.value;
+      });
+    }
+    const readStudioPrompt = () => (aiPromptEl ? aiPromptEl.value : (window.__AGY_STUDIO_AI_PROMPT__ || '')).trim();
+    const runWithStatus = async (initialMsg, worker) => {
       if (modalBackdrop && modalBackdrop._aiTimer) { clearInterval(modalBackdrop._aiTimer); modalBackdrop._aiTimer = null; }
       const started = Date.now();
-      let baseMsg = 'Đang chuẩn bị ảnh…';
+      let baseMsg = initialMsg;
       const paint = () => {
         const s0 = container.querySelector('#agy-studio-ai-status');
         if (s0) {
@@ -7485,7 +7690,7 @@
       paint();
       if (modalBackdrop) modalBackdrop._aiTimer = setInterval(paint, 1000);
       try {
-        const r = await createThemeFromImageFile(file, (m) => { baseMsg = m; paint(); });
+        const r = await worker((m) => { baseMsg = m; paint(); });
         if (modalBackdrop && modalBackdrop._aiTimer) { clearInterval(modalBackdrop._aiTimer); modalBackdrop._aiTimer = null; }
         const sw = (c) => `<span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:${toHex(c)};border:1px solid rgba(255,255,255,0.3);vertical-align:middle;"></span>`;
         const okHtml = `<div style="display:flex;align-items:center;gap:10px;padding-top:6px;"><img src="${r.wallpaper}" style="width:64px;height:40px;object-fit:cover;border-radius:6px;"><div>✅ Đã tạo &amp; áp dụng <b>${escHtml(r.name)}</b> (${r.ai ? 'AI design' : 'Auto palette'}) ${sw(r.pal.primary)} ${sw(r.pal.secondary)}${r.aiNote ? `<div style="opacity:0.8;margin-top:2px;">⚠️ ${escHtml(r.aiNote)}</div>` : ''}</div></div>`;
@@ -7499,9 +7704,22 @@
         }
       }
     };
+    const handleAiFile = (file) => file && runWithStatus('Đang chuẩn bị ảnh…', (onStat) => createThemeFromImageFile(file, onStat, { userPrompt: readStudioPrompt() }));
+    const handleAiRefine = (targetName) => {
+      const tName = targetName || getState().themeName;
+      return runWithStatus(`Đang chau chuốt "${tName}" với AGY…`, (onStat) => refineThemeWithAi(tName, readStudioPrompt(), onStat));
+    };
     if (modalBackdrop) modalBackdrop._handleAiFile = handleAiFile;
+    if (aiUploadBtn && aiInput) {
+      aiUploadBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); aiInput.click(); });
+    }
+    if (aiRefineBtn) {
+      aiRefineBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); handleAiRefine(getState().themeName); });
+    }
     if (aiDrop && aiInput) {
-      aiDrop.addEventListener('click', (e) => { if (e.target !== aiInput) aiInput.click(); });
+      aiDrop.addEventListener('click', (e) => {
+        if (e.target !== aiInput && !e.target.closest('button, textarea, input')) aiInput.click();
+      });
       aiDrop.addEventListener('dragover', (e) => { e.preventDefault(); aiDrop.style.background = 'rgba(255, 255, 255, 0.08)'; });
       aiDrop.addEventListener('dragleave', () => { aiDrop.style.background = 'rgba(255, 255, 255, 0.032)'; });
       aiDrop.addEventListener('drop', (e) => {
@@ -7886,6 +8104,15 @@
         openCustomThemeModal();
       });
     }
+
+    container.querySelectorAll('.agy-refine-preset-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const name = btn.dataset.refinePreset;
+        if (name) handleAiRefine(name);
+      });
+    });
 
     container.querySelectorAll('.agy-delete-preset-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -8394,43 +8621,80 @@
     return t;
   }
 
-  function buildThemeFromPalette(pal, wallpaper, concept) {
+  function buildThemeFromPalette(pal, wallpaper, concept, nameHint = '') {
     const p = pal.primary, s = pal.secondary, o = pal.overlay;
     const ov = o.join(', ');
-    const L = pal.isLight;
     const dark = (a) => `rgba(${ov}, ${a})`;
+    const primaryHex = toHex(p);
+    const secondaryHex = toHex(s);
+    const cleanBrand = String(nameHint || concept || 'Custom Studio')
+      .replace(/[^\p{L}\p{N}\s'-]/gu, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(' ')
+      .toUpperCase() || 'CUSTOM STUDIO';
     const t = {
       concept,
-      primary: toHex(p), secondary: toHex(s),
+      primary: primaryHex, secondary: secondaryHex,
       glow: rgba(p, 0.28), secondaryGlow: rgba(s, 0.22),
-      bg: `linear-gradient(145deg, rgba(${Math.round(p[0] * 0.18)}, ${Math.round(p[1] * 0.18)}, ${Math.round(p[2] * 0.18)}, 0.92) 0%, rgba(6, 8, 14, 0.96) 100%)`,
-      frameBg: `linear-gradient(135deg, ${rgba(p, 0.72)} 0%, ${rgba(s, 0.5)} 50%, ${rgba(p, 0.6)} 100%)`,
+      bg: `linear-gradient(145deg, rgba(${Math.round(p[0] * 0.14 + 6)}, ${Math.round(p[1] * 0.14 + 8)}, ${Math.round(p[2] * 0.14 + 14)}, 0.92) 0%, rgba(6, 8, 14, 0.96) 100%)`,
+      frameBg: `linear-gradient(135deg, ${rgba(p, 0.74)} 0%, ${rgba(s, 0.52)} 50%, ${rgba(p, 0.62)} 100%)`,
       textColor: '#f8fafc',
-      borderColor: rgba(p, 0.34), innerBorder: `1px solid ${rgba(p, 0.16)}`,
+      borderColor: rgba(p, 0.34), innerBorder: `1px solid ${rgba(p, 0.18)}`,
       clearBackdrop: true, overlayRgb: ov, bgPosition: 'center center',
-      sidebarBg: dark(L ? 0.66 : 0.5), sidebarBlur: '3px', sidebarHoverBg: rgba(p, 0.18), sidebarEnhanceText: true,
-      aiCardBg: L ? 'rgba(255, 255, 255, 0.9)' : dark(0.86), aiCardBorder: rgba(p, 0.22),
-      headerBg: dark(L ? 0.66 : 0.5), headerBlur: '3px', headerBorder: rgba(p, 0.14),
+      sidebarBg: dark(0.66), sidebarBlur: '3px', sidebarHoverBg: rgba(p, 0.16), sidebarEnhanceText: true,
+      aiCardBg: dark(0.90), aiCardBorder: rgba(p, 0.22),
+      headerBg: dark(0.66), headerBlur: '3px', headerBorder: rgba(p, 0.14),
       unifiedGlass: true,
-      btnBg: L ? 'rgba(255, 255, 255, 0.82)' : `rgba(${Math.round(p[0] * 0.12 + 8)}, ${Math.round(p[1] * 0.12 + 14)}, ${Math.round(p[2] * 0.12 + 24)}, 0.76)`,
-      inputGlassBg: L ? 'rgba(255, 255, 255, 0.84)' : dark(0.74),
-      inputCardBg: L ? 'linear-gradient(145deg, rgba(255, 255, 255, 0.92) 0%, rgba(241, 245, 249, 0.95) 100%)' : `linear-gradient(145deg, rgba(${Math.round(p[0] * 0.14)}, ${Math.round(p[1] * 0.14)}, ${Math.round(p[2] * 0.14)}, 0.92) 0%, rgba(5, 8, 14, 0.96) 100%)`,
-      modalBg: L ? 'rgba(248, 250, 252, 0.97)' : `rgba(${Math.round(p[0] * 0.08 + 5)}, ${Math.round(p[1] * 0.08 + 8)}, ${Math.round(p[2] * 0.08 + 14)}, 0.97)`,
-      modalHeaderBg: L ? 'rgba(226, 232, 240, 0.94)' : `rgba(${Math.round(p[0] * 0.12 + 8)}, ${Math.round(p[1] * 0.12 + 12)}, ${Math.round(p[2] * 0.12 + 20)}, 0.94)`,
-      cardBg: L ? 'rgba(255, 255, 255, 0.88)' : `rgba(${Math.round(p[0] * 0.1 + 8)}, ${Math.round(p[1] * 0.1 + 12)}, ${Math.round(p[2] * 0.1 + 22)}, 0.88)`,
-      cardSelectedBg: rgba(p, L ? 0.22 : 0.24),
+      btnBg: `rgba(${Math.round(p[0] * 0.12 + 8)}, ${Math.round(p[1] * 0.12 + 12)}, ${Math.round(p[2] * 0.12 + 22)}, 0.78)`,
+      inputGlassBg: dark(0.84),
+      inputCardBg: `linear-gradient(145deg, rgba(${Math.round(p[0] * 0.12 + 6)}, ${Math.round(p[1] * 0.12 + 9)}, ${Math.round(p[2] * 0.12 + 16)}, 0.92) 0%, rgba(5, 8, 14, 0.96) 100%)`,
+      modalBg: `rgba(${Math.round(p[0] * 0.08 + 5)}, ${Math.round(p[1] * 0.08 + 8)}, ${Math.round(p[2] * 0.08 + 14)}, 0.97)`,
+      modalHeaderBg: `rgba(${Math.round(p[0] * 0.10 + 7)}, ${Math.round(p[1] * 0.10 + 10)}, ${Math.round(p[2] * 0.10 + 18)}, 0.94)`,
+      cardBg: `rgba(${Math.round(p[0] * 0.10 + 8)}, ${Math.round(p[1] * 0.10 + 12)}, ${Math.round(p[2] * 0.10 + 20)}, 0.88)`,
+      cardSelectedBg: rgba(p, 0.24),
+      uiTextColor: '#f8fafc', uiMutedColor: '#cbd5e1',
+      pillBg: dark(0.86), pillHoverBg: rgba(p, 0.20),
+      pillTextColor: '#f8fafc', pillBorder: rgba(p, 0.30),
       wallpaper, isOrnament: true, ...makeOrnaments(p, s, o), stickerW: 96, stickerH: 30, stickerTop: -15, stickerRight: 14,
-      isCustomImageTheme: true
+      isCustomImageTheme: true,
+      workIdentity: {
+        franchise: cleanBrand,
+        brandTitle: cleanBrand,
+        characterName: cleanBrand,
+        operator: 'OPERATOR',
+        bootTagline: concept || 'Adaptive Palette Smoked Glass Interface',
+        secondary: secondaryHex,
+        sigilSvgInner: '<path d="M12 2.4L15.6 6.2L19.8 7.8L18.2 12L19.8 16.2L15.6 17.8L12 21.6L8.4 17.8L4.2 16.2L5.8 12L4.2 7.8L8.4 6.2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" fill="none"/><path d="M12 6.2L14.5 9.8L17.8 12L14.5 14.2L12 17.8L9.5 14.2L6.2 12L9.5 9.8Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="none"/><polygon points="12,9.4 14.6,12 12,14.6 9.4,12" stroke="currentColor" stroke-width="1.2" fill="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/>',
+        role: `${cleanBrand} Companion`,
+        badge: cleanBrand,
+        tagline: concept || 'Adaptive Smoked Glass Studio',
+        focusLabel: 'PALETTE SYNC'
+      },
+      vfxSpec: {
+        leftColumn: { surfaceMode: 'smoked-glass', density: 'balanced', borderHairline: 'subtle', showOrnament: true },
+        centerStage: { cardStyle: 'glass-card', radiusPx: 14, typographyVibe: 'sans', contrastFloor: 'wcag-aa-dark' },
+        rightColumn: { panelMode: 'unified-glass', sashGlow: 'subtle', tabIndicator: 'underline' },
+        motionRules: { budget: 'atmospheric', particleCount: 7, particleOpacity: [0.22, 0.38] }
+      },
+      petDirective: {
+        hasCharacter: false,
+        sourceObject: 'chromatic prism crystal',
+        petName: 'Rocky',
+        personifiedConcept: 'Compact chromatic prism mascot harmonized to the wallpaper palette',
+        style: 'pixel',
+        palette: [primaryHex, secondaryHex, '#0f172a', '#f8fafc'],
+        idleMood: 'calm-focus',
+        prop: 'glowing prism',
+        signatureAction: 'cheerful wave',
+        spritePrompt: `8x11 pixel chibi mascot sprite atlas of chromatic prism spirit in ${primaryHex} and ${secondaryHex}`,
+        animationMood: 'calm-focus'
+      },
+      petSpriteUrl: 'assets/pets/rocky.webp',
+      petId: 'rocky'
     };
-    if (L) {
-      t.isLight = true; t.uiTextColor = '#0f172a'; t.uiMutedColor = '#334155';
-      t.pillBg = 'rgba(255, 255, 255, 0.88)'; t.pillHoverBg = 'rgba(255, 255, 255, 0.96)';
-      t.pillTextColor = '#0f172a'; t.pillBorder = rgba(p, 0.35);
-    } else {
-      t.uiTextColor = '#f8fafc'; t.uiMutedColor = '#e2e8f0';
-      t.pillBg = 'rgba(8, 14, 28, 0.84)'; t.pillHoverBg = 'rgba(12, 22, 42, 0.94)';
-      t.pillTextColor = '#f8fafc'; t.pillBorder = rgba(p, 0.32);
-    }
     return enforceReadableTheme(t, pal);
   }
 
@@ -8535,22 +8799,41 @@
     const targetH = 2160;
     const sw = img.naturalWidth || img.width;
     const sh = img.naturalHeight || img.height;
-    const scale = Math.max(targetW / sw, targetH / sh);
-    const drawW = Math.round(sw * scale);
-    const drawH = Math.round(sh * scale);
-
-    const scaled = progressiveScaleToCanvas(img, drawW, drawH);
-    if (scale > 1.05) {
-      sharpenCanvas(scaled, Math.min(0.42, 0.16 + (scale - 1) * 0.14));
-    }
-
     const canvas = document.createElement('canvas');
     canvas.width = targetW;
     canvas.height = targetH;
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(scaled, Math.round((targetW - drawW) / 2), Math.round((targetH - drawH) / 2));
+    // Solid dark substrate prevents transparent PNG alpha pixels from washing out
+    ctx.fillStyle = '#070a12';
+    ctx.fillRect(0, 0, targetW, targetH);
+
+    const ar = sw / Math.max(1, sh);
+    if (ar < 1.25 || ar > 2.35) {
+      // Portrait / square / tiny cover fallback: dark blurred ambient fill + uncropped centered subject
+      const bgScale = Math.max(targetW / sw, targetH / sh);
+      const bw = Math.round(sw * bgScale);
+      const bh = Math.round(sh * bgScale);
+      ctx.save();
+      ctx.filter = 'blur(42px) brightness(0.42)';
+      ctx.drawImage(img, Math.round((targetW - bw) / 2), Math.round((targetH - bh) / 2), bw, bh);
+      ctx.restore();
+      const fgScale = Math.min(targetW / sw, targetH / sh);
+      const fw = Math.round(sw * fgScale);
+      const fh = Math.round(sh * fgScale);
+      const fgScaled = progressiveScaleToCanvas(img, fw, fh);
+      ctx.drawImage(fgScaled, Math.round((targetW - fw) / 2), Math.round((targetH - fh) / 2));
+    } else {
+      const scale = Math.max(targetW / sw, targetH / sh);
+      const drawW = Math.round(sw * scale);
+      const drawH = Math.round(sh * scale);
+      const scaled = progressiveScaleToCanvas(img, drawW, drawH);
+      if (scale > 1.05) {
+        sharpenCanvas(scaled, Math.min(0.42, 0.16 + (scale - 1) * 0.14));
+      }
+      ctx.drawImage(scaled, Math.round((targetW - drawW) / 2), Math.round((targetH - drawH) / 2));
+    }
 
     let dataUrl = canvas.toDataURL('image/webp', 0.9);
     if (!dataUrl.startsWith('data:image/webp')) dataUrl = canvas.toDataURL('image/jpeg', 0.9);
@@ -8612,7 +8895,7 @@
   }
 
   function sanitizeDesignedTheme(raw, wallpaper, pal) {
-    const fb = buildThemeFromPalette(pal, wallpaper, 'AI Glass');
+    const fb = buildThemeFromPalette(pal, wallpaper, 'AI Glass', raw && raw.name);
     const ornaments = makeOrnaments(pal.primary, pal.secondary, pal.overlay);
     const t = { ...fb };
     ['primary', 'secondary', 'glow', 'secondaryGlow', 'bg', 'frameBg', 'textColor', 'borderColor', 'innerBorder',
@@ -8649,15 +8932,17 @@
     if (raw.dynamicPack && typeof raw.dynamicPack === 'object') t.dynamicPack = raw.dynamicPack;
     if (raw.workIdentity && typeof raw.workIdentity === 'object') t.workIdentity = raw.workIdentity;
     if (typeof raw.brandLogoUrl === 'string' && raw.brandLogoUrl.trim()) t.brandLogoUrl = raw.brandLogoUrl.trim();
+    if (raw.brandLogoMeta && typeof raw.brandLogoMeta === 'object') t.brandLogoMeta = raw.brandLogoMeta;
     if (typeof raw.brandTitle === 'string' && raw.brandTitle.trim()) t.brandTitle = raw.brandTitle.trim().slice(0, 80);
     t.isAiDesigned = true;
     return enforceReadableTheme(t, pal);
   }
 
-  async function createThemeFromImageFile(file, onStatus) {
+  async function createThemeFromImageFile(file, onStatus, opts = {}) {
     if (!file || !/^image\//.test(file.type)) throw new Error('File không phải ảnh');
     if (file.type === 'image/svg+xml') throw new Error('Ảnh SVG không hỗ trợ — hãy gửi PNG, JPG, WebP, GIF hoặc AVIF');
     if (file.size && file.size > 50 * 1024 * 1024) throw new Error('Ảnh quá lớn (>50MB) — hãy gửi bản nhỏ hơn');
+    const userPrompt = (opts && typeof opts.userPrompt === 'string') ? opts.userPrompt.trim().slice(0, 600) : '';
     const { img, url } = await loadImageFromFile(file);
     try {
       const sw = img.naturalWidth || img.width;
@@ -8668,24 +8953,26 @@
       }
       let res = null, aiError = '';
       try {
-        res = await requestAiDesign({ image: encodeSourceForAi(img), width: sw, height: sh });
+        res = await requestAiDesign({ image: encodeSourceForAi(img), width: sw, height: sh, userPrompt });
         if (!res || !res.wallpaperDataUrl) throw new Error('AI không trả về ảnh 4K 16:9');
       } catch (e) {
-        // Any-image fallback: AI (agy) missing, not logged in, timed out or
-        // failed must NOT lose the user's image. Fall through to the local
-        // palette path below instead of throwing.
         aiError = e && e.message ? String(e.message) : String(e);
         res = null;
       }
       if (res) {
       const aiImg = await loadImageFromSrc(res.wallpaperDataUrl);
-      const wallpaper = (aiImg.naturalWidth === 3840 && aiImg.naturalHeight === 2160 && res.wallpaperDataUrl.startsWith('data:image/webp'))
+      const normalizedDataUrl = (aiImg.naturalWidth === 3840 && aiImg.naturalHeight === 2160 && res.wallpaperDataUrl.startsWith('data:image/webp'))
         ? res.wallpaperDataUrl
         : finalize4k16x9Wallpaper(aiImg).dataUrl;
+      const persistedWpUrl = (res.wpMeta && typeof res.wpMeta.wallpaperUrl === 'string' && res.wpMeta.wallpaperUrl.trim())
+        ? res.wpMeta.wallpaperUrl.trim()
+        : '';
+      const wallpaper = persistedWpUrl || normalizedDataUrl;
       const wpMeta = {
         width: 3840,
         height: 2160,
-        aiOutpainted: !!(res.wpMeta && res.wpMeta.aiOutpainted !== false)
+        aiOutpainted: !!(res.wpMeta && res.wpMeta.aiOutpainted !== false),
+        wallpaperUrl: persistedWpUrl
       };
       const pal = analyzePalette(aiImg);
       const theme = sanitizeDesignedTheme(res.theme || {}, wallpaper, pal);
@@ -8711,7 +8998,7 @@
       return {
         name,
         pal: { primary: hexToRgbList(theme.primary), secondary: hexToRgbList(theme.secondary), overlay: theme.overlayRgb.split(',').map((x) => parseInt(x, 10)), isLight: false },
-        wallpaper,
+        wallpaper: persistedWpUrl ? resolveMediaUrl(persistedWpUrl) : normalizedDataUrl,
         aiNote: '',
         ai: !!theme.isAiDesigned,
         wpMeta
@@ -8721,8 +9008,8 @@
       if (onStatus) onStatus('AI không khả dụng — đang tạo theme từ palette của ảnh gốc…');
       const palLocal = analyzePalette(img);
       const wallpaperLocal = finalize4k16x9Wallpaper(img).dataUrl;
-      const themeLocal = buildThemeFromPalette(palLocal, wallpaperLocal, 'Auto Palette');
       let baseLocal = (file.name || 'My Theme').replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim().slice(0, 24) || 'My Theme';
+      const themeLocal = buildThemeFromPalette(palLocal, wallpaperLocal, 'Auto Palette', baseLocal);
       let nameLocal = baseLocal, j = 2;
       while (THEMES[nameLocal]) nameLocal = `${baseLocal} ${j++}`;
       const allLocal = loadCustomThemes();
@@ -8748,6 +9035,112 @@
     } finally {
       URL.revokeObjectURL(url);
     }
+  }
+
+  async function refineThemeWithAi(targetName, userPrompt, onStatus) {
+    const th = THEMES[targetName];
+    if (!th) throw new Error(`Không tìm thấy preset "${targetName}"`);
+    const rawWp = (th.wallpaper || th.wallpaperUrl || th.posterUrl || '').trim();
+    if (!rawWp) throw new Error(`Preset "${targetName}" không có ảnh nền để tạo lại.`);
+    const cleanPrompt = typeof userPrompt === 'string' ? userPrompt.trim().slice(0, 600) : '';
+    const isCustom = !BUILTIN_KEYS.has(targetName);
+    const isDataImg = rawWp.startsWith('data:image/');
+    const existingWallpaperPath = isDataImg
+      ? ''
+      : rawWp.replace(/^https?:\/\/127\.0\.0\.1:\d+\//i, '').replace(/^\/+/, '').split('?')[0];
+
+    if (onStatus) onStatus(`AGY đang phân tích & chau chuốt lại "${targetName}"…`);
+    let res = null, aiError = '';
+    try {
+      res = await requestAiDesign({
+        image: isDataImg ? rawWp : '',
+        existingWallpaperPath,
+        existingThemeName: targetName,
+        existingTheme: {
+          primary: th.primary,
+          secondary: th.secondary,
+          concept: th.concept,
+          workIdentity: th.workIdentity,
+          petDirective: th.petDirective,
+          petSpriteUrl: th.petSpriteUrl,
+          petId: th.petId,
+          petMeta: th.petMeta,
+          brandLogoUrl: th.brandLogoUrl
+        },
+        userPrompt: cleanPrompt
+      });
+      if (!res || !res.wallpaperDataUrl) throw new Error('AI không trả về dữ liệu mới');
+    } catch (e) {
+      aiError = e && e.message ? String(e.message) : String(e);
+      res = null;
+    }
+
+    if (res) {
+      const aiImg = await loadImageFromSrc(res.wallpaperDataUrl);
+      const normalizedDataUrl = (aiImg.naturalWidth === 3840 && aiImg.naturalHeight === 2160 && res.wallpaperDataUrl.startsWith('data:image/webp'))
+        ? res.wallpaperDataUrl
+        : finalize4k16x9Wallpaper(aiImg).dataUrl;
+      const persistedWpUrl = (res.wpMeta && typeof res.wpMeta.wallpaperUrl === 'string' && res.wpMeta.wallpaperUrl.trim())
+        ? res.wpMeta.wallpaperUrl.trim()
+        : '';
+      const wallpaper = persistedWpUrl || normalizedDataUrl;
+      const pal = analyzePalette(aiImg);
+      const refined = sanitizeDesignedTheme(res.theme || {}, wallpaper, pal);
+      if (th.petSpriteUrl && (!refined.petSpriteUrl || refined.petId === 'rocky')) {
+        refined.petSpriteUrl = th.petSpriteUrl;
+        refined.petId = th.petId;
+        refined.petMeta = th.petMeta;
+      }
+      if (th.brandLogoUrl && !refined.brandLogoUrl) refined.brandLogoUrl = th.brandLogoUrl;
+
+      let outName = targetName;
+      if (!isCustom) {
+        const base = ((res.theme && res.theme.name) || `${targetName} Studio`).trim().slice(0, 24);
+        outName = base;
+        let idx = 2;
+        while (THEMES[outName]) outName = `${base} ${idx++}`;
+      }
+      const all = loadCustomThemes();
+      all[outName] = refined;
+      THEMES[outName] = refined;
+      if (!THEME_KEYS.includes(outName)) THEME_KEYS.push(outName);
+      persistCustomThemes(all);
+      applyTheme({ themeName: outName, bubbleName: outName, customWp: '' });
+      return {
+        name: outName,
+        pal: { primary: hexToRgbList(refined.primary), secondary: hexToRgbList(refined.secondary), overlay: refined.overlayRgb.split(',').map((x) => parseInt(x, 10)), isLight: false },
+        wallpaper: persistedWpUrl ? resolveMediaUrl(persistedWpUrl) : normalizedDataUrl,
+        aiNote: '',
+        ai: !!refined.isAiDesigned
+      };
+    }
+
+    // Pure browser fallback if daemon was unavailable
+    const resolvedSrc = resolveMediaUrl(rawWp);
+    const img = await loadImageFromSrc(resolvedSrc);
+    const palLocal = analyzePalette(img);
+    const wpLocal = existingWallpaperPath || finalize4k16x9Wallpaper(img).dataUrl;
+    const outName = isCustom ? targetName : `${targetName} Remix`;
+    const themeLocal = buildThemeFromPalette(palLocal, wpLocal, cleanPrompt ? `Refined • ${cleanPrompt.slice(0, 36)}` : 'Auto Refined', outName);
+    if (th.petSpriteUrl) {
+      themeLocal.petSpriteUrl = th.petSpriteUrl;
+      themeLocal.petId = th.petId;
+      themeLocal.petMeta = th.petMeta;
+    }
+    if (th.brandLogoUrl) themeLocal.brandLogoUrl = th.brandLogoUrl;
+    const allLocal = loadCustomThemes();
+    allLocal[outName] = themeLocal;
+    THEMES[outName] = themeLocal;
+    if (!THEME_KEYS.includes(outName)) THEME_KEYS.push(outName);
+    persistCustomThemes(allLocal);
+    applyTheme({ themeName: outName, bubbleName: outName, customWp: '' });
+    return {
+      name: outName,
+      pal: { primary: hexToRgbList(themeLocal.primary), secondary: hexToRgbList(themeLocal.secondary), overlay: themeLocal.overlayRgb.split(',').map((x) => parseInt(x, 10)), isLight: false },
+      wallpaper: resolvedSrc,
+      aiNote: aiError ? `AI không khả dụng (${aiError.slice(0, 90)}), đã tự cân chỉnh cục bộ.` : 'Đã tự cân chỉnh cục bộ.',
+      ai: false
+    };
   }
 
   function hexToRgbList(h) {

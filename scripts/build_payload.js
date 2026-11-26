@@ -62,7 +62,7 @@ function resolveAssetValue(value, themesDir, repoRoot) {
 
     const cleanRel = trimmed.replace(/^\.\//, '').replace(/^\/+/, '');
     if (cleanRel.startsWith('assets/') || cleanRel.startsWith('user_media/')) {
-        const repoAssetPath = path.resolve(repoRoot, cleanRel);
+        const repoAssetPath = path.resolve(themesDir, cleanRel);
         if (path.extname(repoAssetPath).toLowerCase() === '.svg' && fs.existsSync(repoAssetPath) && fs.statSync(repoAssetPath).isFile()) {
             return encodeSvg(repoAssetPath);
         }

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 38" fill="none">
+  <defs>
+    <linearGradient id="cldArc" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#d97757" stop-opacity="0.15"/>
+      <stop offset="42%" stop-color="#d97757" stop-opacity="0.92"/>
+      <stop offset="72%" stop-color="#2F71E3" stop-opacity="0.88"/>
+      <stop offset="100%" stop-color="#2F71E3" stop-opacity="0.15"/>
+    </linearGradient>
+  </defs>
+  <path d="M 10 25 Q 64 9 118 25" stroke="url(#cldArc)" stroke-width="1.35" stroke-linecap="round"/>
+  <g transform="translate(64, 17)">
+    <circle cx="0" cy="0" r="8.5" fill="#212120" stroke="#d97757" stroke-width="1"/>
+    <path d="M 0 -5 V 5 M -5 0 H 5 M -3.5 -3.5 L 3.5 3.5 M 3.5 -3.5 L -3.5 3.5" stroke="#d97757" stroke-width="1.35" stroke-linecap="round"/>
+    <circle cx="0" cy="0" r="1.6" fill="#f5f4f0"/>
+  </g>
+  <circle cx="30" cy="18" r="1.3" fill="#d97757" opacity="0.8"/>
+  <circle cx="98" cy="18" r="1.3" fill="#2F71E3" opacity="0.8"/>
+</svg>

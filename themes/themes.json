@@ -5,7 +5,7 @@
     "secondary": "#f472b6",
     "glow": "rgba(192, 132, 252, 0.28)",
     "secondaryGlow": "rgba(244, 114, 182, 0.18)",
-    "bg": "linear-gradient(145deg, rgba(16, 12, 28, 0.84) 0%, rgba(9, 7, 18, 0.92) 100%)",
+    "bg": "linear-gradient(145deg, rgba(10, 8, 20, 0.92) 0%, rgba(6, 8, 16, 0.96) 100%)",
     "frameBg": "linear-gradient(135deg, rgba(192, 132, 252, 0.74) 0%, rgba(244, 114, 182, 0.52) 50%, rgba(139, 92, 246, 0.68) 100%)",
     "textColor": "#f8fafc",
     "borderColor": "rgba(192, 132, 252, 0.34)",
@@ -13,20 +13,20 @@
     "clearBackdrop": true,
     "overlayRgb": "10, 8, 20",
     "bgPosition": "center 30%",
-    "sidebarBg": "rgba(10, 8, 20, 0.26)",
+    "sidebarBg": "rgba(10, 8, 20, 0.66)",
     "sidebarBlur": "3px",
     "sidebarHoverBg": "rgba(192, 132, 252, 0.16)",
     "sidebarEnhanceText": true,
-    "aiCardBg": "rgba(12, 10, 24, 0.68)",
+    "aiCardBg": "rgba(10, 8, 20, 0.9)",
     "aiCardBorder": "rgba(192, 132, 252, 0.18)",
-    "headerBg": "rgba(10, 8, 20, 0.26)",
+    "headerBg": "rgba(10, 8, 20, 0.66)",
     "headerBlur": "3px",
     "headerBorder": "rgba(192, 132, 252, 0.12)",
     "unifiedGlass": true,
     "btnBg": "rgba(28, 20, 46, 0.58)",
-    "inputGlassBg": "rgba(12, 10, 24, 0.58)",
-    "inputCardBg": "linear-gradient(145deg, rgba(16, 12, 30, 0.86) 0%, rgba(9, 7, 18, 0.92) 100%)",
-    "modalBg": "rgba(11, 9, 22, 0.96)",
+    "inputGlassBg": "rgba(10, 8, 20, 0.84)",
+    "inputCardBg": "linear-gradient(145deg, rgba(10, 8, 20, 0.92) 0%, rgba(5, 8, 14, 0.96) 100%)",
+    "modalBg": "rgba(10, 8, 20, 0.97)",
     "modalHeaderBg": "rgba(18, 14, 34, 0.88)",
     "cardBg": "rgba(15, 12, 28, 0.82)",
     "cardSelectedBg": "rgba(38, 24, 62, 0.74)",
@@ -35,13 +35,14 @@
     "wallpaperVideo": "assets/wallpapergeminichan.mp4",
     "videoUrl": "assets/wallpapergeminichan.mp4",
     "mediaType": "video",
-    "isOrnament": false,
-    "sticker": "",
-    "stickerW": 0,
-    "stickerH": 0,
-    "stickerTop": 0,
-    "stickerRight": 0,
+    "isOrnament": true,
+    "sticker": "assets/gemini_chan_ornament.svg",
+    "stickerW": 96,
+    "stickerH": 30,
+    "stickerTop": -15,
+    "stickerRight": 14,
     "workIdentity": {
+      "brandTitle": "GEMINI-CHAN // LIVE",
       "franchise": "GEMINI-CHAN // LIVE",
       "characterName": "Gemini-chan",
       "operator": "STARLIGHT",
@@ -51,9 +52,7 @@
       "role": "Snowy Violet Companion",
       "badge": "GEMINI LIVE",
       "tagline": "Starfield Boot & Tawa Voice Resonance",
-      "accentMode": "violet-bloom",
-      "focusLabel": "CREATIVE FLOW",
-      "brandTitle": "GEMINI-CHAN // LIVE"
+      "focusLabel": "CREATIVE FLOW"
     },
     "dynamicPack": {
       "archetype": "anime-celestial",
@@ -89,7 +88,25 @@
           "statusText": "TAWA VOICE READY"
         },
         "topBarPillText": "GEMINI-CHAN // LIVE STUDIO"
-      }
+      },
+      "particleShape": "starlight-petal",
+      "particleSvgInner": "<path d=\"M12 2.5L13.8 8.2L19.5 10L13.8 11.8L12 17.5L10.2 11.8L4.5 10L10.2 8.2Z\" fill=\"currentColor\" fill-opacity=\"0.72\"/>",
+      "particleMotion": "fall",
+      "particleCount": 12,
+      "hudSvgInner": "<circle cx=\"100\" cy=\"100\" r=\"78\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-dasharray=\"6 4\" fill=\"none\" opacity=\"0.5\"/><circle cx=\"100\" cy=\"100\" r=\"56\" stroke=\"currentColor\" stroke-width=\"0.9\" fill=\"none\" opacity=\"0.35\"/><path d=\"M100 16L104 34L100 28L96 34Z\" fill=\"currentColor\" opacity=\"0.75\"/>",
+      "soundSynth": {
+        "waveform": "sine",
+        "notes": [
+          587.33,
+          739.99,
+          880,
+          1174.66
+        ],
+        "noteStepMs": 75,
+        "decayMs": 300
+      },
+      "voicePitch": 1.08,
+      "voiceRate": 1
     },
     "vfxSpec": {
       "leftColumn": {
@@ -121,8 +138,8 @@
     "petDirective": {
       "hasCharacter": true,
       "sourceObject": "",
-      "petName": "Rocky",
-      "personifiedConcept": "Snowy violet companion spirit with starlight ribbon ears",
+      "petName": "Yuki",
+      "personifiedConcept": "Snowy violet companion spirit Yuki with starlight ribbon ears",
       "style": "pixel",
       "palette": [
         "#c084fc",
@@ -133,15 +150,16 @@
       "idleMood": "serene-wonder",
       "prop": "starlight prism",
       "signatureAction": "cheerful halo wave",
+      "spritePrompt": "8x11 pixel chibi mascot sprite atlas of Rocky snowy violet starlight spirit with ribbon ears and starlight prism",
       "animationMood": "serene-wonder"
     },
-    "petSpriteUrl": "assets/pets/rocky.webp",
-    "petId": "rocky",
+    "petSpriteUrl": "assets/pets/pet_gemini-chan.webp",
+    "petId": "gemini-chan",
     "petMeta": {
       "hasCharacter": true,
       "sourceObject": "",
-      "petName": "Rocky",
-      "personifiedConcept": "Snowy violet companion spirit with starlight ribbon ears",
+      "petName": "Yuki",
+      "personifiedConcept": "Snowy violet companion spirit Yuki with starlight ribbon ears",
       "style": "pixel",
       "palette": [
         "#c084fc",
@@ -155,7 +173,14 @@
       "animationMood": "serene-wonder",
       "spriteVersionNumber": 2,
       "fallback": false
-    }
+    },
+    "uiTextColor": "#f8fafc",
+    "uiMutedColor": "#cbd5e1",
+    "pillBg": "rgba(10, 8, 20, 0.86)",
+    "pillHoverBg": "rgba(192, 132, 252, 0.20)",
+    "pillTextColor": "#f8fafc",
+    "pillBorder": "rgba(192, 132, 252, 0.30)",
+    "cornerSvg": "assets/gemini_chan_corner.svg"
   },
   "Furina Live": {
     "concept": "Furina Animated MP4 • Starfield Boot & Arisu-Tawa Voice",
@@ -163,7 +188,7 @@
     "secondary": "#e2e8f0",
     "glow": "rgba(56, 189, 248, 0.24)",
     "secondaryGlow": "rgba(186, 230, 253, 0.16)",
-    "bg": "linear-gradient(145deg, rgba(10, 14, 24, 0.84) 0%, rgba(6, 9, 16, 0.92) 100%)",
+    "bg": "linear-gradient(145deg, rgba(5, 8, 15, 0.92) 0%, rgba(6, 8, 16, 0.96) 100%)",
     "frameBg": "linear-gradient(135deg, rgba(56, 189, 248, 0.72) 0%, rgba(226, 232, 240, 0.45) 50%, rgba(14, 165, 233, 0.68) 100%)",
     "textColor": "#f8fafc",
     "borderColor": "rgba(148, 197, 255, 0.30)",
@@ -171,20 +196,20 @@
     "clearBackdrop": true,
     "overlayRgb": "5, 8, 15",
     "bgPosition": "center 35%",
-    "sidebarBg": "rgba(7, 10, 18, 0.24)",
+    "sidebarBg": "rgba(5, 8, 15, 0.66)",
     "sidebarBlur": "3px",
     "sidebarHoverBg": "rgba(56, 189, 248, 0.14)",
     "sidebarEnhanceText": true,
-    "aiCardBg": "rgba(8, 11, 20, 0.68)",
+    "aiCardBg": "rgba(5, 8, 15, 0.9)",
     "aiCardBorder": "rgba(148, 197, 255, 0.16)",
-    "headerBg": "rgba(7, 10, 18, 0.24)",
+    "headerBg": "rgba(5, 8, 15, 0.66)",
     "headerBlur": "3px",
     "headerBorder": "rgba(148, 197, 255, 0.10)",
     "unifiedGlass": true,
     "btnBg": "rgba(15, 23, 42, 0.58)",
-    "inputGlassBg": "rgba(8, 12, 22, 0.58)",
-    "inputCardBg": "linear-gradient(145deg, rgba(10, 15, 28, 0.86) 0%, rgba(6, 9, 18, 0.92) 100%)",
-    "modalBg": "rgba(8, 11, 19, 0.96)",
+    "inputGlassBg": "rgba(5, 8, 15, 0.84)",
+    "inputCardBg": "linear-gradient(145deg, rgba(5, 8, 15, 0.92) 0%, rgba(5, 8, 14, 0.96) 100%)",
+    "modalBg": "rgba(5, 8, 15, 0.97)",
     "modalHeaderBg": "rgba(12, 17, 30, 0.88)",
     "cardBg": "rgba(10, 14, 24, 0.82)",
     "cardSelectedBg": "rgba(22, 34, 56, 0.74)",
@@ -193,13 +218,14 @@
     "wallpaperVideo": "assets/furina-bg.mp4",
     "videoUrl": "assets/furina-bg.mp4",
     "mediaType": "video",
-    "isOrnament": false,
-    "sticker": "",
-    "stickerW": 0,
-    "stickerH": 0,
-    "stickerTop": 0,
-    "stickerRight": 0,
+    "isOrnament": true,
+    "sticker": "assets/furina_ornament.svg",
+    "stickerW": 96,
+    "stickerH": 30,
+    "stickerTop": -15,
+    "stickerRight": 14,
     "workIdentity": {
+      "brandTitle": "FONTAINE // FURINA",
       "franchise": "FONTAINE // FURINA",
       "characterName": "Furina",
       "operator": "DIRECTOR",
@@ -209,9 +235,7 @@
       "role": "Fontaine Stage Director",
       "badge": "FURINA LIVE",
       "tagline": "Hydro Spotlight & Arisu-Tawa Resonance",
-      "accentMode": "hydro-azure",
-      "focusLabel": "STAGE PRECISION",
-      "brandTitle": "FONTAINE // FURINA"
+      "focusLabel": "STAGE PRECISION"
     },
     "dynamicPack": {
       "archetype": "anime-celestial",
@@ -247,7 +271,25 @@
           "statusText": "STAGE READY"
         },
         "topBarPillText": "FURINA // HYDRO STAGE"
-      }
+      },
+      "particleShape": "hydro-droplet",
+      "particleSvgInner": "<path d=\"M12 3.5C12 3.5 17.5 10.2 17.5 13.8A5.5 5.5 0 1 1 6.5 13.8C6.5 10.2 12 3.5 12 3.5Z\" stroke=\"currentColor\" stroke-width=\"1.5\" fill=\"currentColor\" fill-opacity=\"0.24\"/>",
+      "particleMotion": "rise",
+      "particleCount": 12,
+      "hudSvgInner": "<circle cx=\"100\" cy=\"100\" r=\"80\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-dasharray=\"10 6\" fill=\"none\" opacity=\"0.45\"/><circle cx=\"100\" cy=\"100\" r=\"58\" stroke=\"currentColor\" stroke-width=\"1\" fill=\"none\" opacity=\"0.35\"/><path d=\"M40 100Q70 84 100 100T160 100\" stroke=\"currentColor\" stroke-width=\"1.1\" fill=\"none\" opacity=\"0.45\"/>",
+      "soundSynth": {
+        "waveform": "triangle",
+        "notes": [
+          523.25,
+          659.25,
+          783.99,
+          1046.5
+        ],
+        "noteStepMs": 70,
+        "decayMs": 280
+      },
+      "voicePitch": 1.06,
+      "voiceRate": 1
     },
     "vfxSpec": {
       "leftColumn": {
@@ -279,8 +321,8 @@
     "petDirective": {
       "hasCharacter": true,
       "sourceObject": "",
-      "petName": "Rocky",
-      "personifiedConcept": "Fontaine hydro stage sprite with a miniature top hat",
+      "petName": "Furina",
+      "personifiedConcept": "Fontaine hydro stage director mascot with miniature top hat",
       "style": "pixel",
       "palette": [
         "#38bdf8",
@@ -291,15 +333,16 @@
       "idleMood": "stage-poise",
       "prop": "hydro baton",
       "signatureAction": "theatrical bow wave",
+      "spritePrompt": "8x11 pixel chibi mascot sprite atlas of Rocky Fontaine hydro stage sprite wearing a tiny tilted top hat and holding hydro baton",
       "animationMood": "stage-poise"
     },
-    "petSpriteUrl": "assets/pets/rocky.webp",
-    "petId": "rocky",
+    "petSpriteUrl": "assets/pets/pet_furina.webp",
+    "petId": "furina",
     "petMeta": {
       "hasCharacter": true,
       "sourceObject": "",
-      "petName": "Rocky",
-      "personifiedConcept": "Fontaine hydro stage sprite with a miniature top hat",
+      "petName": "Furina",
+      "personifiedConcept": "Fontaine hydro stage director mascot with miniature top hat",
       "style": "pixel",
       "palette": [
         "#38bdf8",
@@ -313,7 +356,14 @@
       "animationMood": "stage-poise",
       "spriteVersionNumber": 2,
       "fallback": false
-    }
+    },
+    "uiTextColor": "#f8fafc",
+    "uiMutedColor": "#cbd5e1",
+    "pillBg": "rgba(5, 8, 15, 0.86)",
+    "pillHoverBg": "rgba(56, 189, 248, 0.20)",
+    "pillTextColor": "#f8fafc",
+    "pillBorder": "rgba(56, 189, 248, 0.30)",
+    "cornerSvg": "assets/furina_corner.svg"
   },
   "Celestial Eclipse": {
     "concept": "Black Sun & Orbital Rings • Obsidian Starlight Glass",
@@ -321,7 +371,7 @@
     "secondary": "#94a3b8",
     "glow": "rgba(56, 189, 248, 0.28)",
     "secondaryGlow": "rgba(148, 163, 184, 0.22)",
-    "bg": "linear-gradient(145deg, rgba(8, 14, 24, 0.86) 0%, rgba(4, 7, 14, 0.92) 100%)",
+    "bg": "linear-gradient(145deg, rgba(5, 8, 16, 0.92) 0%, rgba(6, 8, 16, 0.96) 100%)",
     "frameBg": "linear-gradient(135deg, rgba(56, 189, 248, 0.72) 0%, rgba(148, 163, 184, 0.48) 50%, rgba(30, 58, 88, 0.65) 100%)",
     "textColor": "#f8fafc",
     "borderColor": "rgba(56, 189, 248, 0.32)",
@@ -329,20 +379,20 @@
     "clearBackdrop": true,
     "overlayRgb": "5, 8, 16",
     "bgPosition": "center center",
-    "sidebarBg": "rgba(6, 10, 18, 0.24)",
+    "sidebarBg": "rgba(5, 8, 16, 0.66)",
     "sidebarBlur": "3px",
     "sidebarHoverBg": "rgba(56, 189, 248, 0.14)",
     "sidebarEnhanceText": true,
-    "aiCardBg": "rgba(6, 10, 18, 0.74)",
+    "aiCardBg": "rgba(5, 8, 16, 0.9)",
     "aiCardBorder": "rgba(56, 189, 248, 0.18)",
-    "headerBg": "rgba(6, 10, 18, 0.24)",
+    "headerBg": "rgba(5, 8, 16, 0.66)",
     "headerBlur": "3px",
     "headerBorder": "rgba(56, 189, 248, 0.10)",
     "unifiedGlass": true,
     "btnBg": "rgba(14, 24, 40, 0.58)",
-    "inputGlassBg": "rgba(7, 12, 22, 0.58)",
-    "inputCardBg": "linear-gradient(145deg, rgba(8, 14, 24, 0.88) 0%, rgba(4, 7, 14, 0.94) 100%)",
-    "modalBg": "rgba(7, 11, 20, 0.96)",
+    "inputGlassBg": "rgba(5, 8, 16, 0.84)",
+    "inputCardBg": "linear-gradient(145deg, rgba(5, 8, 16, 0.92) 0%, rgba(5, 8, 14, 0.96) 100%)",
+    "modalBg": "rgba(5, 8, 16, 0.97)",
     "modalHeaderBg": "rgba(11, 18, 32, 0.90)",
     "cardBg": "rgba(9, 15, 27, 0.82)",
     "cardSelectedBg": "rgba(20, 36, 62, 0.76)",
@@ -355,6 +405,7 @@
     "stickerTop": -15,
     "stickerRight": 14,
     "workIdentity": {
+      "brandTitle": "CELESTIAL // ECLIPSE",
       "franchise": "CELESTIAL // ECLIPSE",
       "characterName": "Astral Eclipse",
       "operator": "NAVIGATOR",
@@ -364,9 +415,7 @@
       "role": "Astral Telemetry Navigator",
       "badge": "CELESTIAL ECLIPSE",
       "tagline": "Black Sun & Orbital Rings",
-      "accentMode": "starlight-cyan",
-      "focusLabel": "ORBIT LOCKED",
-      "brandTitle": "CELESTIAL // ECLIPSE"
+      "focusLabel": "ORBIT LOCKED"
     },
     "dynamicPack": {
       "archetype": "cosmic-arcane",
@@ -402,7 +451,25 @@
           "statusText": "ORBIT LOCKED"
         },
         "topBarPillText": "ECLIPSE // ORBITAL TELEMETRY"
-      }
+      },
+      "particleShape": "starlight",
+      "particleSvgInner": "<polygon points=\"12,3 14,9 20,11 14,13 12,19 10,13 4,11 10,9\" fill=\"currentColor\" fill-opacity=\"0.78\"/>",
+      "particleMotion": "orbit",
+      "particleCount": 11,
+      "hudSvgInner": "<circle cx=\"100\" cy=\"100\" r=\"78\" stroke=\"currentColor\" stroke-width=\"1.3\" fill=\"none\" opacity=\"0.5\"/><ellipse cx=\"100\" cy=\"100\" rx=\"88\" ry=\"28\" transform=\"rotate(-22 100 100)\" stroke=\"currentColor\" stroke-width=\"1.1\" stroke-dasharray=\"4 4\" fill=\"none\" opacity=\"0.45\"/>",
+      "soundSynth": {
+        "waveform": "sine",
+        "notes": [
+          440,
+          523.25,
+          659.25,
+          987.77
+        ],
+        "noteStepMs": 90,
+        "decayMs": 340
+      },
+      "voicePitch": 0.98,
+      "voiceRate": 0.96
     },
     "vfxSpec": {
       "leftColumn": {
@@ -434,8 +501,8 @@
     "petDirective": {
       "hasCharacter": false,
       "sourceObject": "black-sun orbital eclipse ring",
-      "petName": "Rocky",
-      "personifiedConcept": "Tiny Astral Eclipse Sprite with a glowing amber-cyan corona ring",
+      "petName": "Solara",
+      "personifiedConcept": "Astral eclipse sprite wearing a black-sun corona ring",
       "style": "pixel",
       "palette": [
         "#38bdf8",
@@ -446,15 +513,16 @@
       "idleMood": "orbital-calm",
       "prop": "mini astrolabe",
       "signatureAction": "orbiting ring spin",
+      "spritePrompt": "8x11 pixel chibi mascot sprite atlas of Rocky astral eclipse sprite with glowing amber-cyan corona halo and mini astrolabe",
       "animationMood": "orbital-calm"
     },
-    "petSpriteUrl": "assets/pets/rocky.webp",
-    "petId": "rocky",
+    "petSpriteUrl": "assets/pets/pet_celestial.webp",
+    "petId": "celestial",
     "petMeta": {
       "hasCharacter": false,
       "sourceObject": "black-sun orbital eclipse ring",
-      "petName": "Rocky",
-      "personifiedConcept": "Tiny Astral Eclipse Sprite with a glowing amber-cyan corona ring",
+      "petName": "Solara",
+      "personifiedConcept": "Astral eclipse sprite wearing a black-sun corona ring",
       "style": "pixel",
       "palette": [
         "#38bdf8",
@@ -468,7 +536,13 @@
       "animationMood": "orbital-calm",
       "spriteVersionNumber": 2,
       "fallback": false
-    }
+    },
+    "uiTextColor": "#f8fafc",
+    "uiMutedColor": "#cbd5e1",
+    "pillBg": "rgba(5, 8, 16, 0.86)",
+    "pillHoverBg": "rgba(56, 189, 248, 0.20)",
+    "pillTextColor": "#f8fafc",
+    "pillBorder": "rgba(56, 189, 248, 0.30)"
   },
   "Luminous Grotto": {
     "concept": "Bioluminescent Grotto & Sunlit Automaton • Abyssal Flora Glass",
@@ -476,7 +550,7 @@
     "secondary": "#c084fc",
     "glow": "rgba(46, 229, 216, 0.28)",
     "secondaryGlow": "rgba(192, 132, 252, 0.24)",
-    "bg": "linear-gradient(145deg, rgba(10, 22, 44, 0.86) 0%, rgba(6, 13, 28, 0.92) 100%)",
+    "bg": "linear-gradient(145deg, rgba(7, 16, 32, 0.92) 0%, rgba(6, 8, 16, 0.96) 100%)",
     "frameBg": "linear-gradient(135deg, rgba(46, 229, 216, 0.72) 0%, rgba(192, 132, 252, 0.48) 52%, rgba(253, 230, 138, 0.55) 100%)",
     "textColor": "#f8fafc",
     "borderColor": "rgba(46, 229, 216, 0.34)",
@@ -484,20 +558,20 @@
     "clearBackdrop": true,
     "overlayRgb": "7, 16, 32",
     "bgPosition": "center center",
-    "sidebarBg": "rgba(7, 16, 32, 0.24)",
+    "sidebarBg": "rgba(7, 16, 32, 0.66)",
     "sidebarBlur": "3px",
     "sidebarHoverBg": "rgba(46, 229, 216, 0.15)",
     "sidebarEnhanceText": true,
-    "aiCardBg": "rgba(7, 16, 32, 0.74)",
+    "aiCardBg": "rgba(7, 16, 32, 0.9)",
     "aiCardBorder": "rgba(46, 229, 216, 0.20)",
-    "headerBg": "rgba(7, 16, 32, 0.24)",
+    "headerBg": "rgba(7, 16, 32, 0.66)",
     "headerBlur": "3px",
     "headerBorder": "rgba(46, 229, 216, 0.12)",
     "unifiedGlass": true,
     "btnBg": "rgba(14, 30, 56, 0.60)",
-    "inputGlassBg": "rgba(8, 18, 36, 0.58)",
-    "inputCardBg": "linear-gradient(145deg, rgba(10, 22, 44, 0.88) 0%, rgba(6, 13, 28, 0.94) 100%)",
-    "modalBg": "rgba(7, 15, 30, 0.96)",
+    "inputGlassBg": "rgba(7, 16, 32, 0.84)",
+    "inputCardBg": "linear-gradient(145deg, rgba(7, 16, 32, 0.92) 0%, rgba(5, 8, 14, 0.96) 100%)",
+    "modalBg": "rgba(7, 16, 32, 0.97)",
     "modalHeaderBg": "rgba(12, 25, 48, 0.90)",
     "cardBg": "rgba(10, 21, 42, 0.82)",
     "cardSelectedBg": "rgba(20, 48, 78, 0.78)",
@@ -510,12 +584,13 @@
     "stickerTop": -15,
     "stickerRight": 14,
     "uiTextColor": "#f0fdfa",
-    "uiMutedColor": "#94a3b8",
-    "pillBg": "rgba(10, 24, 46, 0.62)",
-    "pillHoverBg": "rgba(46, 229, 216, 0.18)",
-    "pillTextColor": "#e2f8f5",
-    "pillBorder": "rgba(46, 229, 216, 0.24)",
+    "uiMutedColor": "#cbd5e1",
+    "pillBg": "rgba(7, 16, 32, 0.86)",
+    "pillHoverBg": "rgba(46, 229, 216, 0.20)",
+    "pillTextColor": "#f8fafc",
+    "pillBorder": "rgba(46, 229, 216, 0.30)",
     "workIdentity": {
+      "brandTitle": "LUMINOUS // GROTTO",
       "franchise": "LUMINOUS // GROTTO",
       "characterName": "Grotto Automaton",
       "operator": "KEEPER",
@@ -525,9 +600,7 @@
       "role": "Abyssal Sanctuary Keeper",
       "badge": "LUMINOUS GROTTO",
       "tagline": "Bioluminescent Flora & Sunlit Automaton",
-      "accentMode": "abyssal-teal",
-      "focusLabel": "SERENE FLOW",
-      "brandTitle": "LUMINOUS // GROTTO"
+      "focusLabel": "SERENE FLOW"
     },
     "dynamicPack": {
       "archetype": "nature-zen",
@@ -563,7 +636,25 @@
           "statusText": "SERENE FLOW"
         },
         "topBarPillText": "GROTTO // BIOLUMINESCENCE"
-      }
+      },
+      "particleShape": "bioluminescent-spore",
+      "particleSvgInner": "<circle cx=\"12\" cy=\"12\" r=\"4.5\" fill=\"currentColor\" fill-opacity=\"0.42\" stroke=\"currentColor\" stroke-width=\"1.2\"/>",
+      "particleMotion": "drift",
+      "particleCount": 10,
+      "hudSvgInner": "<circle cx=\"100\" cy=\"100\" r=\"76\" stroke=\"currentColor\" stroke-width=\"1.1\" stroke-dasharray=\"3 6\" fill=\"none\" opacity=\"0.42\"/><path d=\"M52 100C52 72 148 72 148 100\" stroke=\"currentColor\" stroke-width=\"1.1\" fill=\"none\" opacity=\"0.38\"/>",
+      "soundSynth": {
+        "waveform": "triangle",
+        "notes": [
+          349.23,
+          440,
+          523.25,
+          698.46
+        ],
+        "noteStepMs": 115,
+        "decayMs": 400
+      },
+      "voicePitch": 0.96,
+      "voiceRate": 0.92
     },
     "vfxSpec": {
       "leftColumn": {
@@ -595,8 +686,8 @@
     "petDirective": {
       "hasCharacter": false,
       "sourceObject": "bioluminescent crystal lantern",
-      "petName": "Rocky",
-      "personifiedConcept": "Little Grotto Crystal Wisp with soft teal bioluminescent spores",
+      "petName": "Lumia",
+      "personifiedConcept": "Bioluminescent crystal lantern spirit with glowing teal sprout",
       "style": "pixel",
       "palette": [
         "#2dd4bf",
@@ -607,15 +698,16 @@
       "idleMood": "serene-zen",
       "prop": "glowing spore leaf",
       "signatureAction": "gentle lantern bob",
+      "spritePrompt": "8x11 pixel chibi mascot sprite atlas of Rocky bioluminescent crystal lantern spirit holding a glowing teal spore leaf",
       "animationMood": "serene-zen"
     },
-    "petSpriteUrl": "assets/pets/rocky.webp",
-    "petId": "rocky",
+    "petSpriteUrl": "assets/pets/pet_grotto.webp",
+    "petId": "grotto",
     "petMeta": {
       "hasCharacter": false,
       "sourceObject": "bioluminescent crystal lantern",
-      "petName": "Rocky",
-      "personifiedConcept": "Little Grotto Crystal Wisp with soft teal bioluminescent spores",
+      "petName": "Lumia",
+      "personifiedConcept": "Bioluminescent crystal lantern spirit with glowing teal sprout",
       "style": "pixel",
       "palette": [
         "#2dd4bf",
@@ -637,7 +729,7 @@
     "secondary": "#38bdf8",
     "glow": "rgba(251, 191, 36, 0.28)",
     "secondaryGlow": "rgba(56, 189, 248, 0.22)",
-    "bg": "linear-gradient(145deg, rgba(8, 16, 34, 0.84) 0%, rgba(5, 10, 22, 0.90) 100%)",
+    "bg": "linear-gradient(145deg, rgba(2, 5, 12, 0.92) 0%, rgba(6, 8, 16, 0.96) 100%)",
     "frameBg": "linear-gradient(135deg, rgba(251, 191, 36, 0.78) 0%, rgba(56, 189, 248, 0.60) 50%, rgba(245, 158, 11, 0.70) 100%)",
     "textColor": "#f8fafc",
     "borderColor": "rgba(56, 189, 248, 0.36)",
@@ -645,20 +737,20 @@
     "clearBackdrop": true,
     "overlayRgb": "2, 5, 12",
     "bgPosition": "center center",
-    "sidebarBg": "rgba(6, 11, 24, 0.20)",
+    "sidebarBg": "rgba(2, 5, 12, 0.66)",
     "sidebarBlur": "3px",
     "sidebarHoverBg": "rgba(56, 189, 248, 0.14)",
     "sidebarEnhanceText": true,
-    "aiCardBg": "rgba(6, 11, 24, 0.72)",
+    "aiCardBg": "rgba(2, 5, 12, 0.9)",
     "aiCardBorder": "rgba(56, 189, 248, 0.18)",
-    "headerBg": "rgba(6, 11, 24, 0.20)",
+    "headerBg": "rgba(2, 5, 12, 0.66)",
     "headerBlur": "3px",
     "headerBorder": "rgba(56, 189, 248, 0.10)",
     "unifiedGlass": true,
     "btnBg": "rgba(15, 30, 58, 0.56)",
-    "inputGlassBg": "rgba(7, 13, 28, 0.56)",
-    "inputCardBg": "linear-gradient(145deg, rgba(8, 16, 34, 0.86) 0%, rgba(5, 10, 22, 0.92) 100%)",
-    "modalBg": "rgba(8, 14, 28, 0.96)",
+    "inputGlassBg": "rgba(2, 5, 12, 0.84)",
+    "inputCardBg": "linear-gradient(145deg, rgba(2, 5, 12, 0.92) 0%, rgba(5, 8, 14, 0.96) 100%)",
+    "modalBg": "rgba(2, 5, 12, 0.97)",
     "modalHeaderBg": "rgba(12, 22, 42, 0.88)",
     "cardBg": "rgba(9, 17, 34, 0.82)",
     "cardSelectedBg": "rgba(20, 38, 70, 0.74)",
@@ -671,6 +763,7 @@
     "stickerTop": -15,
     "stickerRight": 14,
     "workIdentity": {
+      "brandTitle": "WLOP // CONCERTO",
       "franchise": "WLOP // CONCERTO",
       "characterName": "Starlight Virtuoso",
       "operator": "MAESTRO",
@@ -680,9 +773,7 @@
       "role": "Starlight Concerto Virtuoso",
       "badge": "WLOP COSMIC",
       "tagline": "Cosmic Violin & High-Contrast Starlight",
-      "accentMode": "amber-starlight",
-      "focusLabel": "HARMONIC 100%",
-      "brandTitle": "WLOP // CONCERTO"
+      "focusLabel": "HARMONIC 100%"
     },
     "dynamicPack": {
       "archetype": "anime-celestial",
@@ -718,7 +809,25 @@
           "statusText": "HARMONIC 100%"
         },
         "topBarPillText": "STARLIGHT // CONCERTO HUD"
-      }
+      },
+      "particleShape": "concerto-spark",
+      "particleSvgInner": "<path d=\"M12 2L14 9L21 12L14 15L12 22L10 15L3 12L10 9Z\" fill=\"currentColor\" fill-opacity=\"0.72\"/>",
+      "particleMotion": "orbit",
+      "particleCount": 12,
+      "hudSvgInner": "<circle cx=\"100\" cy=\"100\" r=\"78\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-dasharray=\"8 4\" fill=\"none\" opacity=\"0.48\"/><polygon points=\"100,26 116,100 100,174 84,100\" stroke=\"currentColor\" stroke-width=\"0.9\" fill=\"none\" opacity=\"0.32\"/>",
+      "soundSynth": {
+        "waveform": "sine",
+        "notes": [
+          493.88,
+          659.25,
+          739.99,
+          987.77
+        ],
+        "noteStepMs": 85,
+        "decayMs": 320
+      },
+      "voicePitch": 1.02,
+      "voiceRate": 0.97
     },
     "vfxSpec": {
       "leftColumn": {
@@ -750,8 +859,8 @@
     "petDirective": {
       "hasCharacter": true,
       "sourceObject": "",
-      "petName": "Rocky",
-      "personifiedConcept": "Starlight Concerto Familiar with luminous gold-cyan violin bow",
+      "petName": "Seraph",
+      "personifiedConcept": "Starlight concerto winged familiar with golden glow",
       "style": "pixel",
       "palette": [
         "#67e8f9",
@@ -762,15 +871,16 @@
       "idleMood": "graceful-focus",
       "prop": "starlight bow",
       "signatureAction": "concerto flourish wave",
+      "spritePrompt": "8x11 pixel chibi mascot sprite atlas of Rocky starlight concerto familiar holding a luminous gold-cyan violin bow",
       "animationMood": "graceful-focus"
     },
-    "petSpriteUrl": "assets/pets/rocky.webp",
-    "petId": "rocky",
+    "petSpriteUrl": "assets/pets/pet_wlop.webp",
+    "petId": "wlop",
     "petMeta": {
       "hasCharacter": true,
       "sourceObject": "",
-      "petName": "Rocky",
-      "personifiedConcept": "Starlight Concerto Familiar with luminous gold-cyan violin bow",
+      "petName": "Seraph",
+      "personifiedConcept": "Starlight concerto winged familiar with golden glow",
       "style": "pixel",
       "palette": [
         "#67e8f9",
@@ -784,7 +894,13 @@
       "animationMood": "graceful-focus",
       "spriteVersionNumber": 2,
       "fallback": false
-    }
+    },
+    "uiTextColor": "#f8fafc",
+    "uiMutedColor": "#cbd5e1",
+    "pillBg": "rgba(2, 5, 12, 0.86)",
+    "pillHoverBg": "rgba(251, 191, 36, 0.20)",
+    "pillTextColor": "#f8fafc",
+    "pillBorder": "rgba(251, 191, 36, 0.30)"
   },
   "Midnight Obsidian": {
     "concept": "Pure CSS Gradient • Zero-Image Ultra-Light",
@@ -792,7 +908,7 @@
     "secondary": "#38bdf8",
     "glow": "rgba(167, 139, 250, 0.24)",
     "secondaryGlow": "rgba(56, 189, 248, 0.18)",
-    "bg": "linear-gradient(145deg, rgba(17, 24, 39, 0.88) 0%, rgba(10, 14, 26, 0.94) 100%)",
+    "bg": "linear-gradient(145deg, rgba(8, 10, 18, 0.92) 0%, rgba(6, 8, 16, 0.96) 100%)",
     "frameBg": "linear-gradient(135deg, rgba(167, 139, 250, 0.65) 0%, rgba(56, 189, 248, 0.45) 100%)",
     "textColor": "#f8fafc",
     "borderColor": "rgba(167, 139, 250, 0.34)",
@@ -800,29 +916,30 @@
     "clearBackdrop": true,
     "overlayRgb": "8, 10, 18",
     "pureBg": "radial-gradient(circle at 75% 25%, rgba(167, 139, 250, 0.22) 0%, transparent 55%), radial-gradient(circle at 20% 80%, rgba(56, 189, 248, 0.16) 0%, transparent 50%), linear-gradient(160deg, #0b0f19 0%, #070910 100%)",
-    "sidebarBg": "rgba(10, 14, 24, 0.45)",
+    "sidebarBg": "rgba(8, 10, 18, 0.66)",
     "sidebarHoverBg": "rgba(167, 139, 250, 0.14)",
-    "sidebarEnhanceText": false,
-    "aiCardBg": "rgba(13, 18, 30, 0.72)",
+    "sidebarEnhanceText": true,
+    "aiCardBg": "rgba(8, 10, 18, 0.9)",
     "aiCardBorder": "rgba(167, 139, 250, 0.16)",
-    "headerBg": "rgba(10, 14, 24, 0.45)",
+    "headerBg": "rgba(8, 10, 18, 0.66)",
     "headerBorder": "rgba(167, 139, 250, 0.12)",
-    "unifiedGlass": false,
+    "unifiedGlass": true,
     "btnBg": "rgba(24, 32, 54, 0.64)",
-    "inputGlassBg": "rgba(12, 16, 28, 0.56)",
-    "inputCardBg": "linear-gradient(145deg, rgba(15, 21, 36, 0.88) 0%, rgba(10, 14, 24, 0.94) 100%)",
-    "modalBg": "rgba(11, 15, 25, 0.96)",
+    "inputGlassBg": "rgba(8, 10, 18, 0.84)",
+    "inputCardBg": "linear-gradient(145deg, rgba(8, 10, 18, 0.92) 0%, rgba(5, 8, 14, 0.96) 100%)",
+    "modalBg": "rgba(8, 10, 18, 0.97)",
     "modalHeaderBg": "rgba(17, 23, 38, 0.90)",
     "cardBg": "rgba(15, 20, 34, 0.82)",
     "cardSelectedBg": "rgba(38, 32, 68, 0.72)",
     "wallpaper": "",
-    "isOrnament": false,
-    "sticker": "",
-    "stickerW": 0,
-    "stickerH": 0,
-    "stickerTop": 0,
-    "stickerRight": 0,
+    "isOrnament": true,
+    "sticker": "assets/midnight_obsidian_ornament.svg",
+    "stickerW": 96,
+    "stickerH": 30,
+    "stickerTop": -15,
+    "stickerRight": 14,
     "workIdentity": {
+      "brandTitle": "MIDNIGHT // OBSIDIAN",
       "franchise": "MIDNIGHT // OBSIDIAN",
       "characterName": "Obsidian Core",
       "operator": "ARCHITECT",
@@ -832,9 +949,7 @@
       "role": "Minimal Deep-Work Architect",
       "badge": "MIDNIGHT OBSIDIAN",
       "tagline": "Zero-Image Ultra-Light Workspace",
-      "accentMode": "obsidian-violet",
-      "focusLabel": "FOCUS READY",
-      "brandTitle": "MIDNIGHT // OBSIDIAN"
+      "focusLabel": "FOCUS READY"
     },
     "dynamicPack": {
       "archetype": "minimal-office",
@@ -870,7 +985,24 @@
           "statusText": "FOCUS READY"
         },
         "topBarPillText": "OBSIDIAN // FOCUS WORKSPACE"
-      }
+      },
+      "particleShape": "soft-dot",
+      "particleSvgInner": "<polygon points=\"12,5 18,12 12,19 6,12\" stroke=\"currentColor\" stroke-width=\"1.4\" fill=\"currentColor\" fill-opacity=\"0.22\"/>",
+      "particleMotion": "drift",
+      "particleCount": 8,
+      "hudSvgInner": "<circle cx=\"100\" cy=\"100\" r=\"72\" stroke=\"currentColor\" stroke-width=\"1\" stroke-dasharray=\"2 6\" fill=\"none\" opacity=\"0.32\"/><rect x=\"52\" y=\"52\" width=\"96\" height=\"96\" rx=\"14\" stroke=\"currentColor\" stroke-width=\"0.8\" fill=\"none\" opacity=\"0.24\"/>",
+      "soundSynth": {
+        "waveform": "sine",
+        "notes": [
+          392,
+          493.88,
+          587.33
+        ],
+        "noteStepMs": 110,
+        "decayMs": 350
+      },
+      "voicePitch": 0.96,
+      "voiceRate": 0.95
     },
     "vfxSpec": {
       "leftColumn": {
@@ -902,8 +1034,8 @@
     "petDirective": {
       "hasCharacter": false,
       "sourceObject": "faceted obsidian monolith",
-      "petName": "Rocky",
-      "personifiedConcept": "Minimalist Obsidian Cube Buddy with crisp slate eyes",
+      "petName": "Onyx",
+      "personifiedConcept": "Faceted obsidian monolith buddy with sky-cyan pixel visor",
       "style": "pixel",
       "palette": [
         "#94a3b8",
@@ -914,15 +1046,16 @@
       "idleMood": "calm-focus",
       "prop": "slate stylus",
       "signatureAction": "crisp nod wave",
+      "spritePrompt": "8x11 pixel chibi mascot sprite atlas of Rocky minimalist obsidian monolith cube spirit with crisp slate eyes and stylus",
       "animationMood": "calm-focus"
     },
-    "petSpriteUrl": "assets/pets/rocky.webp",
-    "petId": "rocky",
+    "petSpriteUrl": "assets/pets/pet_obsidian.webp",
+    "petId": "obsidian",
     "petMeta": {
       "hasCharacter": false,
       "sourceObject": "faceted obsidian monolith",
-      "petName": "Rocky",
-      "personifiedConcept": "Minimalist Obsidian Cube Buddy with crisp slate eyes",
+      "petName": "Onyx",
+      "personifiedConcept": "Faceted obsidian monolith buddy with sky-cyan pixel visor",
       "style": "pixel",
       "palette": [
         "#94a3b8",
@@ -936,7 +1069,16 @@
       "animationMood": "calm-focus",
       "spriteVersionNumber": 2,
       "fallback": false
-    }
+    },
+    "sidebarBlur": "3px",
+    "headerBlur": "3px",
+    "uiTextColor": "#f8fafc",
+    "uiMutedColor": "#cbd5e1",
+    "pillBg": "rgba(8, 10, 18, 0.86)",
+    "pillHoverBg": "rgba(167, 139, 250, 0.20)",
+    "pillTextColor": "#f8fafc",
+    "pillBorder": "rgba(167, 139, 250, 0.30)",
+    "cornerSvg": "assets/midnight_obsidian_corner.svg"
   },
   "Miku Cyber": {
     "concept": "Miku Cyber Acrylic • 1080p Live Video & Cyber-Visor HUD",
@@ -944,7 +1086,7 @@
     "secondary": "#e066ff",
     "glow": "rgba(57, 197, 187, 0.30)",
     "secondaryGlow": "rgba(224, 102, 255, 0.24)",
-    "bg": "linear-gradient(145deg, rgba(8, 18, 24, 0.84) 0%, rgba(5, 10, 16, 0.92) 100%)",
+    "bg": "linear-gradient(145deg, rgba(6, 14, 20, 0.92) 0%, rgba(6, 8, 16, 0.96) 100%)",
     "frameBg": "linear-gradient(135deg, rgba(57, 197, 187, 0.76) 0%, rgba(224, 102, 255, 0.54) 50%, rgba(14, 165, 233, 0.68) 100%)",
     "textColor": "#f0fdfa",
     "borderColor": "rgba(57, 197, 187, 0.36)",
@@ -952,20 +1094,20 @@
     "clearBackdrop": true,
     "overlayRgb": "6, 14, 20",
     "bgPosition": "center center",
-    "sidebarBg": "rgba(6, 14, 20, 0.26)",
+    "sidebarBg": "rgba(6, 14, 20, 0.66)",
     "sidebarBlur": "3px",
     "sidebarHoverBg": "rgba(57, 197, 187, 0.16)",
     "sidebarEnhanceText": true,
-    "aiCardBg": "rgba(8, 16, 22, 0.72)",
+    "aiCardBg": "rgba(6, 14, 20, 0.9)",
     "aiCardBorder": "rgba(57, 197, 187, 0.20)",
-    "headerBg": "rgba(6, 14, 20, 0.26)",
+    "headerBg": "rgba(6, 14, 20, 0.66)",
     "headerBlur": "3px",
     "headerBorder": "rgba(57, 197, 187, 0.14)",
     "unifiedGlass": true,
     "btnBg": "rgba(12, 28, 36, 0.60)",
-    "inputGlassBg": "rgba(7, 16, 22, 0.58)",
-    "inputCardBg": "linear-gradient(145deg, rgba(8, 18, 24, 0.88) 0%, rgba(5, 10, 16, 0.94) 100%)",
-    "modalBg": "rgba(7, 14, 20, 0.96)",
+    "inputGlassBg": "rgba(6, 14, 20, 0.84)",
+    "inputCardBg": "linear-gradient(145deg, rgba(6, 14, 20, 0.92) 0%, rgba(5, 8, 14, 0.96) 100%)",
+    "modalBg": "rgba(6, 14, 20, 0.97)",
     "modalHeaderBg": "rgba(10, 22, 30, 0.90)",
     "cardBg": "rgba(8, 18, 25, 0.82)",
     "cardSelectedBg": "rgba(18, 44, 52, 0.78)",
@@ -974,13 +1116,14 @@
     "wallpaperVideo": "assets/miku_1080p_16s.mp4",
     "videoUrl": "assets/miku_1080p_16s.mp4",
     "mediaType": "video",
-    "isOrnament": false,
-    "sticker": "",
-    "stickerW": 0,
-    "stickerH": 0,
-    "stickerTop": 0,
-    "stickerRight": 0,
+    "isOrnament": true,
+    "sticker": "assets/miku_ornament.svg",
+    "stickerW": 96,
+    "stickerH": 30,
+    "stickerTop": -15,
+    "stickerRight": 14,
     "workIdentity": {
+      "brandTitle": "MIKU // STAGE",
       "franchise": "MIKU // STAGE 39",
       "characterName": "Miku Cyber",
       "operator": "DIVA 39",
@@ -990,15 +1133,11 @@
       "role": "Cyber Vocaloid Architect",
       "badge": "MIKU CYBER",
       "tagline": "Teal Horizon & Neon Vocaloid Resonance",
-      "accentMode": "miku-teal",
-      "focusLabel": "STAGE 39 SYNC",
-      "petArchetype": "miku-spirit",
-      "brandTitle": "MIKU // STAGE 39"
+      "focusLabel": "STAGE 39 SYNC"
     },
     "dynamicPack": {
       "archetype": "anime-cyber",
       "archetypeLabel": "Anime Cyber",
-      "petArchetype": "miku-spirit",
       "particleStyle": "stars",
       "hudRingStyle": "orbital-halo",
       "soundProfile": "crystalline",
@@ -1017,8 +1156,6 @@
         "cardRadiusPx": 14,
         "borderStyle": "glow-frame",
         "accentGlowIntensity": 0.86,
-        "hudDesignStyle": "cyber-visor",
-        "petArchetype": "miku-spirit",
         "layoutPreset": "floating-hud",
         "sidebarStyle": "floating-cards",
         "composerStyle": "hud-console",
@@ -1032,7 +1169,25 @@
           "statusText": "STAGE 39 SYNC"
         },
         "topBarPillText": "MIKU CYBER // STAGE 39"
-      }
+      },
+      "particleShape": "equalizer-spark",
+      "particleSvgInner": "<rect x=\"5\" y=\"9\" width=\"3\" height=\"10\" rx=\"1\" fill=\"currentColor\"/><rect x=\"10.5\" y=\"4\" width=\"3\" height=\"15\" rx=\"1\" fill=\"currentColor\"/><rect x=\"16\" y=\"7\" width=\"3\" height=\"12\" rx=\"1\" fill=\"currentColor\"/>",
+      "particleMotion": "rise",
+      "particleCount": 14,
+      "hudSvgInner": "<circle cx=\"100\" cy=\"100\" r=\"78\" stroke=\"currentColor\" stroke-width=\"1.3\" stroke-dasharray=\"12 5\" fill=\"none\" opacity=\"0.52\"/><circle cx=\"100\" cy=\"100\" r=\"60\" stroke=\"currentColor\" stroke-width=\"1\" stroke-dasharray=\"3 4\" fill=\"none\" opacity=\"0.4\"/>",
+      "soundSynth": {
+        "waveform": "sawtooth",
+        "notes": [
+          392,
+          523.25,
+          659.25,
+          783.99
+        ],
+        "noteStepMs": 55,
+        "decayMs": 210
+      },
+      "voicePitch": 1.08,
+      "voiceRate": 1.05
     },
     "vfxSpec": {
       "leftColumn": {
@@ -1064,8 +1219,8 @@
     "petDirective": {
       "hasCharacter": true,
       "sourceObject": "",
-      "petName": "Rocky",
-      "personifiedConcept": "Cyber Vocaloid Chibi Mascot with glowing teal twin-tail equalizer bars",
+      "petName": "Miku",
+      "personifiedConcept": "Cyber vocaloid twin-tail mascot with magenta equalizer headset",
       "style": "pixel",
       "palette": [
         "#2dd4bf",
@@ -1076,15 +1231,16 @@
       "idleMood": "kinetic-beat",
       "prop": "neon leek baton",
       "signatureAction": "equalizer bounce wave",
+      "spritePrompt": "8x11 pixel chibi mascot sprite atlas of Rocky cyber vocaloid chibi mascot with glowing teal twin-tail equalizer bars",
       "animationMood": "kinetic-beat"
     },
-    "petSpriteUrl": "assets/pets/rocky.webp",
-    "petId": "rocky",
+    "petSpriteUrl": "assets/pets/pet_miku.webp",
+    "petId": "miku",
     "petMeta": {
       "hasCharacter": true,
       "sourceObject": "",
-      "petName": "Rocky",
-      "personifiedConcept": "Cyber Vocaloid Chibi Mascot with glowing teal twin-tail equalizer bars",
+      "petName": "Miku",
+      "personifiedConcept": "Cyber vocaloid twin-tail mascot with magenta equalizer headset",
       "style": "pixel",
       "palette": [
         "#2dd4bf",
@@ -1098,7 +1254,14 @@
       "animationMood": "kinetic-beat",
       "spriteVersionNumber": 2,
       "fallback": false
-    }
+    },
+    "uiTextColor": "#f8fafc",
+    "uiMutedColor": "#cbd5e1",
+    "pillBg": "rgba(6, 14, 20, 0.86)",
+    "pillHoverBg": "rgba(57, 197, 187, 0.20)",
+    "pillTextColor": "#f8fafc",
+    "pillBorder": "rgba(57, 197, 187, 0.30)",
+    "cornerSvg": "assets/miku_corner.svg"
   },
   "Codex Dark Pro": {
     "concept": "Codex Dark Pro • Concentric Telemetry & Deep Carbon UI",
@@ -1106,7 +1269,7 @@
     "secondary": "#60a5fa",
     "glow": "rgba(44, 103, 197, 0.26)",
     "secondaryGlow": "rgba(96, 165, 250, 0.18)",
-    "bg": "#181818",
+    "bg": "linear-gradient(145deg, rgba(24, 24, 24, 0.92) 0%, rgba(6, 8, 16, 0.96) 100%)",
     "frameBg": "linear-gradient(135deg, rgba(44, 103, 197, 0.65) 0%, rgba(96, 165, 250, 0.42) 100%)",
     "textColor": "#f3f4f6",
     "borderColor": "rgba(44, 103, 197, 0.34)",
@@ -1114,29 +1277,30 @@
     "clearBackdrop": true,
     "overlayRgb": "24, 24, 24",
     "pureBg": "radial-gradient(circle at 80% 18%, rgba(44, 103, 197, 0.14) 0%, transparent 50%), linear-gradient(180deg, #181818 0%, #141414 100%)",
-    "sidebarBg": "#232323",
+    "sidebarBg": "rgba(24, 24, 24, 0.66)",
     "sidebarHoverBg": "rgba(44, 103, 197, 0.16)",
-    "sidebarEnhanceText": false,
-    "aiCardBg": "rgba(30, 30, 30, 0.92)",
+    "sidebarEnhanceText": true,
+    "aiCardBg": "rgba(24, 24, 24, 0.9)",
     "aiCardBorder": "rgba(255, 255, 255, 0.09)",
-    "headerBg": "rgba(24, 24, 24, 0.92)",
+    "headerBg": "rgba(24, 24, 24, 0.66)",
     "headerBorder": "rgba(255, 255, 255, 0.08)",
-    "unifiedGlass": false,
+    "unifiedGlass": true,
     "btnBg": "rgba(35, 35, 35, 0.9)",
-    "inputGlassBg": "rgba(30, 30, 30, 0.9)",
-    "inputCardBg": "#202020",
-    "modalBg": "#1b1b1b",
-    "modalHeaderBg": "#232323",
-    "cardBg": "#202020",
+    "inputGlassBg": "rgba(24, 24, 24, 0.84)",
+    "inputCardBg": "linear-gradient(145deg, rgba(24, 24, 24, 0.92) 0%, rgba(5, 8, 14, 0.96) 100%)",
+    "modalBg": "rgba(24, 24, 24, 0.97)",
+    "modalHeaderBg": "rgba(24, 24, 24, 0.94)",
+    "cardBg": "rgba(24, 24, 24, 0.88)",
     "cardSelectedBg": "rgba(44, 103, 197, 0.24)",
     "wallpaper": "",
-    "isOrnament": false,
-    "sticker": "",
-    "stickerW": 0,
-    "stickerH": 0,
-    "stickerTop": 0,
-    "stickerRight": 0,
+    "isOrnament": true,
+    "sticker": "assets/codex_ornament.svg",
+    "stickerW": 96,
+    "stickerH": 30,
+    "stickerTop": -15,
+    "stickerRight": 14,
     "workIdentity": {
+      "brandTitle": "CODEX // DARK",
       "franchise": "CODEX // DARK PRO",
       "characterName": "Codex Telemetry",
       "operator": "ENGINEER",
@@ -1146,15 +1310,11 @@
       "role": "Autonomous Telemetry Engineer",
       "badge": "CODEX PRO",
       "tagline": "Concentric 21px Dock & Precision Carbon Surface",
-      "accentMode": "codex-cobalt",
-      "focusLabel": "TELEMETRY LIVE",
-      "petArchetype": "codex-orb",
-      "brandTitle": "CODEX // DARK PRO"
+      "focusLabel": "TELEMETRY LIVE"
     },
     "dynamicPack": {
       "archetype": "minimal-office",
       "archetypeLabel": "Codex Telemetry",
-      "petArchetype": "codex-orb",
       "particleStyle": "grid-dots",
       "hudRingStyle": "minimal-arc",
       "soundProfile": "synth-chime",
@@ -1171,10 +1331,8 @@
       "uiDesign": {
         "fontVibe": "mono",
         "cardRadiusPx": 12,
-        "composerRadiusPx": 21,
         "borderStyle": "solid",
         "accentGlowIntensity": 0.42,
-        "petArchetype": "codex-orb",
         "layoutPreset": "codex-telemetry",
         "sidebarStyle": "sleek-rail",
         "composerStyle": "floating-dock",
@@ -1188,7 +1346,24 @@
           "statusText": "STREAM READY"
         },
         "topBarPillText": "CODEX // TELEMETRY PRO"
-      }
+      },
+      "particleShape": "telemetry-node",
+      "particleSvgInner": "<rect x=\"6\" y=\"6\" width=\"12\" height=\"12\" rx=\"3\" stroke=\"currentColor\" stroke-width=\"1.4\" fill=\"currentColor\" fill-opacity=\"0.18\"/>",
+      "particleMotion": "drift",
+      "particleCount": 8,
+      "hudSvgInner": "<circle cx=\"100\" cy=\"100\" r=\"76\" stroke=\"currentColor\" stroke-width=\"1.1\" stroke-dasharray=\"4 6\" fill=\"none\" opacity=\"0.34\"/><circle cx=\"100\" cy=\"100\" r=\"54\" stroke=\"currentColor\" stroke-width=\"0.9\" fill=\"none\" opacity=\"0.28\"/>",
+      "soundSynth": {
+        "waveform": "sine",
+        "notes": [
+          329.63,
+          440,
+          554.37
+        ],
+        "noteStepMs": 95,
+        "decayMs": 280
+      },
+      "voicePitch": 0.94,
+      "voiceRate": 0.98
     },
     "vfxSpec": {
       "leftColumn": {
@@ -1220,8 +1395,8 @@
     "petDirective": {
       "hasCharacter": false,
       "sourceObject": "terminal command prompt glyph",
-      "petName": "Rocky",
-      "personifiedConcept": "Chibi Terminal Cursor Sprite with a glowing emerald telemetry visor",
+      "petName": "Byte",
+      "personifiedConcept": "Carbon telemetry terminal bot with emerald-blue visor",
       "style": "pixel",
       "palette": [
         "#34d399",
@@ -1232,15 +1407,16 @@
       "idleMood": "telemetry-steady",
       "prop": "mini terminal keycap",
       "signatureAction": "cursor blink salute",
+      "spritePrompt": "8x11 pixel chibi mascot sprite atlas of Rocky carbon telemetry cursor sprite with glowing emerald visor and keycap",
       "animationMood": "telemetry-steady"
     },
-    "petSpriteUrl": "assets/pets/rocky.webp",
-    "petId": "rocky",
+    "petSpriteUrl": "assets/pets/pet_codex.webp",
+    "petId": "codex",
     "petMeta": {
       "hasCharacter": false,
       "sourceObject": "terminal command prompt glyph",
-      "petName": "Rocky",
-      "personifiedConcept": "Chibi Terminal Cursor Sprite with a glowing emerald telemetry visor",
+      "petName": "Byte",
+      "personifiedConcept": "Carbon telemetry terminal bot with emerald-blue visor",
       "style": "pixel",
       "palette": [
         "#34d399",
@@ -1254,7 +1430,16 @@
       "animationMood": "telemetry-steady",
       "spriteVersionNumber": 2,
       "fallback": false
-    }
+    },
+    "sidebarBlur": "3px",
+    "headerBlur": "3px",
+    "uiTextColor": "#f8fafc",
+    "uiMutedColor": "#cbd5e1",
+    "pillBg": "rgba(24, 24, 24, 0.86)",
+    "pillHoverBg": "rgba(44, 103, 197, 0.20)",
+    "pillTextColor": "#f8fafc",
+    "pillBorder": "rgba(44, 103, 197, 0.30)",
+    "cornerSvg": "assets/codex_corner.svg"
   },
   "Claude Warm Charcoal": {
     "concept": "Claude Warm Charcoal • Editorial Typography & Warm Carbon",
@@ -1262,7 +1447,7 @@
     "secondary": "#d97757",
     "glow": "rgba(47, 113, 227, 0.24)",
     "secondaryGlow": "rgba(217, 119, 87, 0.18)",
-    "bg": "#212120",
+    "bg": "linear-gradient(145deg, rgba(33, 33, 32, 0.92) 0%, rgba(6, 8, 16, 0.96) 100%)",
     "frameBg": "linear-gradient(135deg, rgba(47, 113, 227, 0.58) 0%, rgba(217, 119, 87, 0.44) 100%)",
     "textColor": "#f5f4f0",
     "borderColor": "rgba(255, 255, 255, 0.12)",
@@ -1270,31 +1455,32 @@
     "clearBackdrop": true,
     "overlayRgb": "33, 33, 32",
     "pureBg": "radial-gradient(circle at 75% 20%, rgba(47, 113, 227, 0.10) 0%, transparent 55%), radial-gradient(circle at 20% 85%, rgba(217, 119, 87, 0.08) 0%, transparent 50%), linear-gradient(180deg, #212120 0%, #1c1c1b 100%)",
-    "sidebarBg": "#191918",
+    "sidebarBg": "rgba(33, 33, 32, 0.66)",
     "sidebarHoverBg": "rgba(47, 113, 227, 0.14)",
-    "sidebarEnhanceText": false,
-    "aiCardBg": "#2A2A28",
+    "sidebarEnhanceText": true,
+    "aiCardBg": "rgba(33, 33, 32, 0.9)",
     "aiCardBorder": "rgba(255, 255, 255, 0.09)",
-    "headerBg": "rgba(33, 33, 32, 0.94)",
+    "headerBg": "rgba(33, 33, 32, 0.66)",
     "headerBorder": "rgba(255, 255, 255, 0.08)",
-    "unifiedGlass": false,
+    "unifiedGlass": true,
     "btnBg": "#2A2A28",
-    "inputGlassBg": "#2A2A28",
-    "inputCardBg": "#2A2A28",
-    "modalBg": "#212120",
-    "modalHeaderBg": "#191918",
-    "cardBg": "#2A2A28",
+    "inputGlassBg": "rgba(33, 33, 32, 0.84)",
+    "inputCardBg": "linear-gradient(145deg, rgba(33, 33, 32, 0.92) 0%, rgba(5, 8, 14, 0.96) 100%)",
+    "modalBg": "rgba(33, 33, 32, 0.97)",
+    "modalHeaderBg": "rgba(33, 33, 32, 0.94)",
+    "cardBg": "rgba(33, 33, 32, 0.88)",
     "cardSelectedBg": "rgba(47, 113, 227, 0.22)",
     "wallpaper": "",
-    "isOrnament": false,
-    "sticker": "",
-    "stickerW": 0,
-    "stickerH": 0,
-    "stickerTop": 0,
-    "stickerRight": 0,
+    "isOrnament": true,
+    "sticker": "assets/claude_ornament.svg",
+    "stickerW": 96,
+    "stickerH": 30,
+    "stickerTop": -15,
+    "stickerRight": 14,
     "uiTextColor": "#f5f4f0",
-    "uiMutedColor": "#a8a7a2",
+    "uiMutedColor": "#cbd5e1",
     "workIdentity": {
+      "brandTitle": "CLAUDE // CHARCOAL",
       "franchise": "CLAUDE // CHARCOAL",
       "characterName": "Claude Editorial",
       "operator": "SCRIBE",
@@ -1304,15 +1490,11 @@
       "role": "Editorial Reasoning Partner",
       "badge": "CLAUDE CHARCOAL",
       "tagline": "Warm Carbon Surface & Crisp Editorial Prose",
-      "accentMode": "editorial-cobalt",
-      "focusLabel": "EDITORIAL FLOW",
-      "petArchetype": "claude-spark",
-      "brandTitle": "CLAUDE // CHARCOAL"
+      "focusLabel": "EDITORIAL FLOW"
     },
     "dynamicPack": {
       "archetype": "minimal-office",
       "archetypeLabel": "Claude Editorial",
-      "petArchetype": "claude-spark",
       "particleStyle": "grid-dots",
       "hudRingStyle": "minimal-arc",
       "soundProfile": "warm-bell",
@@ -1331,7 +1513,6 @@
         "cardRadiusPx": 14,
         "borderStyle": "solid",
         "accentGlowIntensity": 0.34,
-        "petArchetype": "claude-spark",
         "layoutPreset": "claude-editorial",
         "sidebarStyle": "sleek-rail",
         "composerStyle": "command-bar",
@@ -1345,7 +1526,24 @@
           "statusText": "FLOW READY"
         },
         "topBarPillText": "CLAUDE // WARM CHARCOAL"
-      }
+      },
+      "particleShape": "quill-spark",
+      "particleSvgInner": "<path d=\"M12 4V20M4 12H20M6.5 6.5L17.5 17.5M17.5 6.5L6.5 17.5\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\"/>",
+      "particleMotion": "drift",
+      "particleCount": 8,
+      "hudSvgInner": "<circle cx=\"100\" cy=\"100\" r=\"74\" stroke=\"currentColor\" stroke-width=\"1\" stroke-dasharray=\"3 7\" fill=\"none\" opacity=\"0.32\"/><circle cx=\"100\" cy=\"100\" r=\"48\" stroke=\"currentColor\" stroke-width=\"0.8\" fill=\"none\" opacity=\"0.24\"/>",
+      "soundSynth": {
+        "waveform": "triangle",
+        "notes": [
+          349.23,
+          440,
+          587.33
+        ],
+        "noteStepMs": 115,
+        "decayMs": 360
+      },
+      "voicePitch": 0.96,
+      "voiceRate": 0.94
     },
     "vfxSpec": {
       "leftColumn": {
@@ -1377,8 +1575,8 @@
     "petDirective": {
       "hasCharacter": false,
       "sourceObject": "warm terracotta inkwell",
-      "petName": "Rocky",
-      "personifiedConcept": "Cozy Warm Terracotta Inkwell Spirit with gentle amber eyes",
+      "petName": "Solis",
+      "personifiedConcept": "Warm terracotta fox-scribe spirit with amber inkwell",
       "style": "pixel",
       "palette": [
         "#d97757",
@@ -1389,15 +1587,16 @@
       "idleMood": "warm-editorial",
       "prop": "brass fountain nib",
       "signatureAction": "gentle inkwell bow",
+      "spritePrompt": "8x11 pixel chibi mascot sprite atlas of Rocky warm terracotta inkwell spirit with gentle amber eyes and brass nib",
       "animationMood": "warm-editorial"
     },
-    "petSpriteUrl": "assets/pets/rocky.webp",
-    "petId": "rocky",
+    "petSpriteUrl": "assets/pets/pet_claude.webp",
+    "petId": "claude",
     "petMeta": {
       "hasCharacter": false,
       "sourceObject": "warm terracotta inkwell",
-      "petName": "Rocky",
-      "personifiedConcept": "Cozy Warm Terracotta Inkwell Spirit with gentle amber eyes",
+      "petName": "Solis",
+      "personifiedConcept": "Warm terracotta fox-scribe spirit with amber inkwell",
       "style": "pixel",
       "palette": [
         "#d97757",
@@ -1411,6 +1610,13 @@
       "animationMood": "warm-editorial",
       "spriteVersionNumber": 2,
       "fallback": false
-    }
+    },
+    "sidebarBlur": "3px",
+    "headerBlur": "3px",
+    "pillBg": "rgba(33, 33, 32, 0.86)",
+    "pillHoverBg": "rgba(47, 113, 227, 0.20)",
+    "pillTextColor": "#f8fafc",
+    "pillBorder": "rgba(47, 113, 227, 0.30)",
+    "cornerSvg": "assets/claude_corner.svg"
   }
 }
