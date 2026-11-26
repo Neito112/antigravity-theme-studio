@@ -81,7 +81,7 @@
   const STORAGE_PET_ENABLED = 'agy_pet_enabled_v1';
   const STORAGE_PET_CHAT_DOCK = 'agy_pet_chat_dock_v1';
   const STORAGE_PET_POS = 'agy_pet_pos_v1';
-  const STORAGE_PET_COMP_W = 'agy_pet_comp_w_v1';
+  const STORAGE_PET_COMP_W = 'agy_pet_comp_w_v2';
   const STORAGE_COLLAPSE_LEFT = 'agy_collapse_left_v1';
   const STORAGE_COLLAPSE_RIGHT = 'agy_collapse_right_v1';
   const GREETING_RX = /^(?:Hey\s+[^,]{1,40},\s+what\s+should\s+we\s+build\s+today\??|Good\s+to\s+see\s+you,\s+[^.]{1,40}\.\s+What'?s\s+next\??|What\s+(?:should|are)\s+we\s+build(?:ing)?\s+today\??|Welcome\s+back[,.!\s]+[^.!?]{0,40}(?:[.!?]\s*(?:Where\s+should\s+we\s+pick\s+up|What'?s\s+next|What\s+should\s+we\s+build)[^.!?]{0,40}[.!?]?)?|Where\s+should\s+we\s+pick\s+up\??|Ready\s+(?:to\s+build|when\s+you\s+are)[,.!\s]*.*)$/i;
@@ -5274,7 +5274,7 @@
       .agy-shell.agy-pet-chat-docked[data-agy-pet-chat-open="1"] [data-agy-composer-wrap="1"] {
         position: fixed !important;
         z-index: 2147483002 !important;
-        width: var(--agy-pet-comp-w, min(680px, calc(100vw - 24px))) !important;
+        width: var(--agy-pet-comp-w, min(340px, calc(100vw - 24px))) !important;
         max-width: calc(100vw - 24px) !important;
         left: var(--agy-pet-comp-left, auto) !important;
         top: var(--agy-pet-comp-top, auto) !important;
