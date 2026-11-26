@@ -22,6 +22,7 @@ if (typeof globalThis.WebSocket !== 'function') {
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PID_FILE = path.join(ROOT_DIR, 'daemon.pid');
 const { designTheme } = require('./theme_designer');
+const { generatePetVoiceClips } = require('./voice_generator');
 const CONFIG_FILE = process.env.AGY_CONFIG_PATH || path.join(ROOT_DIR, 'theme_config.json');
 const DIST_DIR = path.join(ROOT_DIR, 'dist');
 const ENGINE_DIR = path.join(ROOT_DIR, 'engine');
@@ -600,7 +601,7 @@ function createSession(target) {
     };
 
     async function ensureBindings() {
-        const names = ['agySaveThemeConfig', 'agyDesignThemeV2', 'agyYtSearch', 'agyYtResolve', 'agyUpdateAppIcon'];
+        const names = ['agySaveThemeConfig', 'agyDesignThemeV2', 'agyYtSearch', 'agyYtResolve', 'agyUpdateAppIcon', 'agyGeneratePetVoice'];
         for (const name of names) {
             try { await send('Runtime.removeBinding', { name }); } catch (_) {}
             try { await send('Runtime.addBinding', { name }); } catch (_) {}
@@ -741,6 +742,21 @@ function createSession(target) {
 
         if (msg.method === 'Runtime.bindingCalled' && msg.params && msg.params.name === 'agyUpdateAppIcon') {
             handleUpdateAppIcon(msg.params.payload || '{}');
+            return;
+        }
+
+        if (msg.method === 'Runtime.bindingCalled' && msg.params && msg.params.name === 'agyGeneratePetVoice') {
+            let job = null;
+            try { job = JSON.parse(msg.params.payload || '{}'); } catch (_) {}
+            if (job && job.id) {
+                const reply = (obj) => {
+                    const expr = `window.__AGY_VOICE_GEN_CB__ && window.__AGY_VOICE_GEN_CB__(${JSON.stringify(job.id)}, ${JSON.stringify(JSON.stringify(obj))})`;
+                    send('Runtime.evaluate', { expression: expr }).catch(() => {});
+                };
+                generatePetVoiceClips(job)
+                    .then((res) => reply({ ok: true, ...res }))
+                    .catch((err) => reply({ ok: false, error: err.message || String(err) }));
+            }
             return;
         }
 

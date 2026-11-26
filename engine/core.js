@@ -64,6 +64,8 @@
   const STORAGE_TASK_VOICES = 'agy_task_voices_v3';
   const STORAGE_TASK_VOICE_ENABLED = 'agy_task_voice_enabled_v3';
   const STORAGE_TASK_VOICE_VOL = 'agy_task_voice_vol_v3';
+  const STORAGE_SYNC_PET_VOICE = 'agy_sync_pet_voice_v1';
+  const STORAGE_PET_VOICE_OVERRIDES = 'agy_pet_voice_overrides_v1';
   const STORAGE_CUSTOM_GREETINGS = 'agy_custom_greetings_v3';
   const STORAGE_USER_AVATAR = 'agy_user_avatar_v3';
   const STORAGE_AGENT_AVATAR = 'agy_agent_avatar_v3';
@@ -712,6 +714,23 @@
   }
 
   function speakThemeVoice(text, themeOrPack, opts) {
+    const st = getStateSafe();
+    if (st.themeMode !== 'dynamic' || st.soundMuted || !st.voiceEnabled) return;
+    if (!(opts && opts.forceSpeechSynth) && st.syncPetVoice !== false) {
+      const petClips = getActivePetVoices(st);
+      if (petClips.length > 0) {
+        const choices = petClips.length > 1
+          ? petClips.filter((c) => !isSameMediaUrl(c.url, taskVoiceState.lastPlayedUrl))
+          : petClips;
+        const picked = choices[Math.floor(Math.random() * choices.length)] || petClips[0];
+        if (picked && picked.url) {
+          taskVoiceState.lastPlayedUrl = picked.url;
+          const volScale = (opts && Number.isFinite(opts.volumeScale)) ? opts.volumeScale : 1;
+          playOneShotTaskAudio(picked.url, Math.round(Math.min(100, (st.taskVoiceVol || 85) * volScale)));
+          return;
+        }
+      }
+    }
     if (!text) return;
     speakSystemSequence([text], themeOrPack, opts);
   }
@@ -1004,6 +1023,17 @@
     const taskVoiceVol = rawTaskVol !== undefined && rawTaskVol !== null && rawTaskVol !== ''
       ? Math.max(0, Math.min(100, parseInt(rawTaskVol, 10)))
       : 85;
+    const syncPetVoice = localStorage.getItem(STORAGE_SYNC_PET_VOICE) !== null
+      ? localStorage.getItem(STORAGE_SYNC_PET_VOICE) !== 'false'
+      : (init.syncPetVoice !== undefined ? init.syncPetVoice !== false : true);
+    let petVoiceOverrides = (init.petVoiceOverrides && typeof init.petVoiceOverrides === 'object') ? init.petVoiceOverrides : {};
+    try {
+      const rawPvo = localStorage.getItem(STORAGE_PET_VOICE_OVERRIDES);
+      if (rawPvo) {
+        const parsedPvo = JSON.parse(rawPvo);
+        if (parsedPvo && typeof parsedPvo === 'object') petVoiceOverrides = parsedPvo;
+      }
+    } catch (_) {}
     const customGreetings = readCustomGreetings(init);
     const userAvatar = localStorage.getItem(STORAGE_USER_AVATAR) ?? init.userAvatar ?? '';
     const agentAvatar = localStorage.getItem(STORAGE_AGENT_AVATAR) ?? init.agentAvatar ?? '';
@@ -1046,7 +1076,7 @@
     return {
       themeName, bubbleName, inputStyle, dimming, wpEnabled, wpMode,
       customWp, customVideo, savedImages, savedVideos,
-      taskVoices, taskVoiceEnabled, taskVoiceVol, customGreetings,
+      taskVoices, taskVoiceEnabled, taskVoiceVol, syncPetVoice, petVoiceOverrides, customGreetings,
       userAvatar, agentAvatar, glassBlur, avatarSize, avatarRadius,
       themeMode, soundMuted, soundVolume, voiceEnabled, introEnabled,
       bootIntro, sketchReveal, tawaGreeting, petEnabled, petChatDocked
@@ -2505,14 +2535,16 @@
       const stNow = getStateSafe();
       const docked = stNow.petChatDocked !== false;
       menu.innerHTML = `
+        <button type="button" class="agy-better-pet-menu__item" data-act="speak">🔊 Nghe ${escHtml(activePetName)} nói</button>
         <button type="button" class="agy-better-pet-menu__item" data-act="toggle-chat">${chatOpen ? '🔽 Đóng Pet Chat' : '💬 Mở Pet Chat'}</button>
         <button type="button" class="agy-better-pet-menu__item" data-act="toggle-dock">${docked ? '👁️ Hiện lại thanh chat gốc' : '🧲 Thu gọn vào dưới chân Pet'}</button>
+        <button type="button" class="agy-better-pet-menu__item" data-act="gen-voice">🎙️ Tạo Voice cho ${escHtml(activePetName)}</button>
         <button type="button" class="agy-better-pet-menu__item" data-act="studio">🎨 Mở Custom Theme Studio</button>
         <button type="button" class="agy-better-pet-menu__item" data-act="hide-pet">🐾 Ẩn Pet</button>
       `;
       menu.hidden = false;
-      const mw = 216;
-      const mh = 152;
+      const mw = 224;
+      const mh = 216;
       const ml = Math.min(Math.max(8, Math.round(clientX)), Math.max(8, window.innerWidth - mw - 8));
       const mt = Math.min(Math.max(8, Math.round(clientY - mh)), Math.max(8, window.innerHeight - mh - 8));
       menu.style.left = `${ml}px`;
@@ -2753,7 +2785,16 @@
       if (!btn) return;
       const act = btn.dataset.act;
       closeMenu();
-      if (act === 'toggle-chat') {
+      if (act === 'speak') {
+        reactionState = 'jumping';
+        clearTimeout(reactionTimer);
+        reactionTimer = setTimeout(() => { reactionState = null; refresh(); }, 1800);
+        refresh();
+        playRandomTaskVoice(true);
+      } else if (act === 'gen-voice') {
+        window.__AGY_STUDIO_TAB__ = 'companion';
+        openCustomThemeModal();
+      } else if (act === 'toggle-chat') {
         setChatOpen(!chatOpen, true);
       } else if (act === 'toggle-dock') {
         const nextDock = getStateSafe().petChatDocked === false;
@@ -3371,6 +3412,12 @@
       }
       if (overrides.taskVoiceVol !== undefined) {
         localStorage.setItem(STORAGE_TASK_VOICE_VOL, String(st.taskVoiceVol));
+      }
+      if (overrides.syncPetVoice !== undefined) {
+        localStorage.setItem(STORAGE_SYNC_PET_VOICE, String(st.syncPetVoice !== false));
+      }
+      if (overrides.petVoiceOverrides !== undefined) {
+        localStorage.setItem(STORAGE_PET_VOICE_OVERRIDES, JSON.stringify(st.petVoiceOverrides || {}));
       }
       if (overrides.customGreetings !== undefined) {
         localStorage.setItem(STORAGE_CUSTOM_GREETINGS, JSON.stringify(st.customGreetings));
@@ -7460,25 +7507,70 @@
           </div>
 
           <div class="agy-st-glass-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
               <div>
-                <div style="font-size: 15px; font-weight: 650; color: #f8fafc; margin-bottom: 2px;">Task Voice &amp; Câu Chào (AgyTawaMali Font)</div>
-                <div style="font-size: 12px; color: #94a3b8;">Phát âm báo khi hoàn thành tác vụ và tùy biến lời chào đầu ngày.</div>
+                <div style="font-size: 15px; font-weight: 650; color: #f8fafc; margin-bottom: 2px;">Voice Đồng Bộ Theo Pet &amp; Task Voice</div>
+                <div style="font-size: 12px; color: #94a3b8;">Tự phát giọng riêng của từng Pet khi hoàn thành tác vụ hoặc khi bấm nghe thử — hoặc tự tạo câu thoại mới bằng Edge Neural TTS.</div>
               </div>
               <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #e2e8f0; cursor: pointer;"><input id="agy-sync-pet-voice-toggle" type="checkbox" ${st.syncPetVoice !== false ? 'checked' : ''} style="cursor: pointer;" /> Đồng bộ Pet</label>
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #e2e8f0; cursor: pointer;"><input id="agy-task-voice-toggle" type="checkbox" ${st.taskVoiceEnabled ? 'checked' : ''} style="cursor: pointer;" /> Bật Task Voice</label>
-                <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #94a3b8;">Vol <input id="agy-task-voice-vol" type="range" min="0" max="100" value="${st.taskVoiceVol}" style="width: 82px; cursor: pointer; height: 5px;" /><span id="agy-task-voice-vol-val" style="min-width: 30px; color: #e2e8f0;">${st.taskVoiceVol}%</span></label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #94a3b8;">Vol <input id="agy-task-voice-vol" type="range" min="0" max="100" value="${st.taskVoiceVol}" style="width: 78px; cursor: pointer; height: 5px;" /><span id="agy-task-voice-vol-val" style="min-width: 30px; color: #e2e8f0;">${st.taskVoiceVol}%</span></label>
                 <button id="agy-task-voice-test" class="agy-st-btn" type="button">${STUDIO_ICONS.play} Nghe thử</button>
                 <label class="agy-st-btn" style="cursor: pointer;">${STUDIO_ICONS.upload} Thêm Audio <input id="agy-task-voice-upload" type="file" accept="audio/*,.mp3,.wav,.ogg" style="display: none;" /></label>
               </div>
             </div>
+            ${(() => {
+              const activePetVoices = getActivePetVoices(st);
+              const petNm = (mainTheme.petDirective && mainTheme.petDirective.petName) || st.themeName || 'Pet';
+              const ovStyle = (st.petVoiceOverrides && st.petVoiceOverrides[st.themeName] && st.petVoiceOverrides[st.themeName].style) || mainTheme.petVoiceStyle || 'auto';
+              return `
+                <div style="padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.10); margin-bottom: 12px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+                    <span style="font-size: 12px; font-weight: 650; color: ${accent};">🎙️ Voice riêng của ${escHtml(petNm)} (${activePetVoices.length} clip)</span>
+                    <span style="font-size: 11px; color: #94a3b8;">Style: ${escHtml(ovStyle)}</span>
+                  </div>
+                  <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">
+                    ${activePetVoices.length ? activePetVoices.map((v, idx) => `
+                      <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); font-size: 11.5px; color: #f8fafc;">
+                        <button class="agy-task-voice-play-one" data-url="${escHtml(v.url)}" type="button" title="${escHtml(v.text || v.name || '')}" style="background:none;border:none;color:${accent};cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:0;font-size:11.5px;">${STUDIO_ICONS.play} <span>${escHtml(v.name || ('Clip ' + (idx + 1)))}</span></button>
+                        <button class="agy-pet-voice-del-one" data-idx="${idx}" type="button" title="Xóa clip này" style="background:none;border:none;color:#fca5a5;cursor:pointer;padding:0 2px;font-size:12px;">×</button>
+                      </span>
+                    `).join('') : '<span style="font-size:12px;color:#64748b;">Chưa có clip riêng cho Pet này — bấm Tạo Voice ngay bên dưới!</span>'}
+                  </div>
+                  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px;">
+                    <select id="agy-pet-voice-style" style="background: rgba(6,9,16,0.75); color: #f8fafc; border: 1px solid rgba(255,255,255,0.16); border-radius: 8px; padding: 6px 8px; font-size: 12px;">
+                      <option value="auto" ${ovStyle === 'auto' ? 'selected' : ''}>Tự động theo Pet</option>
+                      <option value="anime-girl" ${ovStyle === 'anime-girl' ? 'selected' : ''}>Anime Kawaii (Cao sáng)</option>
+                      <option value="noble-lady" ${ovStyle === 'noble-lady' ? 'selected' : ''}>Quý tộc / Dịu dàng</option>
+                      <option value="calm-lady" ${ovStyle === 'calm-lady' ? 'selected' : ''}>Thanh tao sâu lắng</option>
+                      <option value="trickster" ${ovStyle === 'trickster' ? 'selected' : ''}>Tinh quái / Ranh mãnh</option>
+                      <option value="kaiju-deep" ${ovStyle === 'kaiju-deep' ? 'selected' : ''}>Trầm hùng / Kaiju</option>
+                      <option value="calm-guardian" ${ovStyle === 'calm-guardian' ? 'selected' : ''}>Hộ vệ trầm ấm</option>
+                      <option value="cyber-bot" ${ovStyle === 'cyber-bot' ? 'selected' : ''}>Cyber Telemetry Bot</option>
+                      <option value="warm-scholar" ${ovStyle === 'warm-scholar' ? 'selected' : ''}>Học giả ấm áp</option>
+                      <option value="vi-female" ${ovStyle === 'vi-female' ? 'selected' : ''}>Tiếng Việt (Nữ - Hoài My)</option>
+                      <option value="vi-male" ${ovStyle === 'vi-male' ? 'selected' : ''}>Tiếng Việt (Nam - Nam Minh)</option>
+                      <option value="ja-kawaii" ${ovStyle === 'ja-kawaii' ? 'selected' : ''}>Tiếng Nhật Kawaii (Nanami)</option>
+                    </select>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#cbd5e1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:4px 8px;">Pitch <input id="agy-pet-voice-pitch" type="range" min="-35" max="35" value="${window.__AGY_PET_VOICE_PITCH__ ?? ''}" placeholder="0" style="flex:1;height:4px;" /><span id="agy-pet-voice-pitch-val" style="min-width:34px;text-align:right;">auto</span></label>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#cbd5e1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:4px 8px;">Rate <input id="agy-pet-voice-rate" type="range" min="-25" max="35" value="${window.__AGY_PET_VOICE_RATE__ ?? ''}" placeholder="0" style="flex:1;height:4px;" /><span id="agy-pet-voice-rate-val" style="min-width:32px;text-align:right;">auto</span></label>
+                  </div>
+                  <textarea id="agy-pet-voice-lines" rows="2" placeholder="Nhập các câu thoại cho ${escHtml(petNm)} (mỗi dòng 1 câu — hỗ trợ Tiếng Việt, Tiếng Anh, Tiếng Nhật; để trống tự tạo bộ thoại chuẩn tính cách Pet)…" style="width:100%;box-sizing:border-box;background:rgba(6,9,16,0.68);color:#f8fafc;border:1px solid rgba(255,255,255,0.14);border-radius:9px;padding:7px 10px;font-size:12px;resize:vertical;margin-bottom:8px;">${escHtml(window.__AGY_PET_VOICE_DRAFT__ || '')}</textarea>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                    <span id="agy-pet-voice-gen-status" style="font-size:11.5px;color:#cbd5e1;"></span>
+                    <button id="agy-pet-voice-gen-btn" class="agy-st-btn agy-st-btn-primary" type="button" style="padding:6px 14px;">${STUDIO_ICONS.sparkles} Tạo Voice cho ${escHtml(petNm)}</button>
+                  </div>
+                </div>
+              `;
+            })()}
             <div id="agy-task-voice-list" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px;">
               ${st.taskVoices.length ? st.taskVoices.map((v) => `
                 <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); font-size: 11.5px; color: #e4e4e7;">
                   <span style="display:inline-flex;align-items:center;gap:5px;">${STUDIO_ICONS.music} ${escHtml(v.name)}</span>
                   <button class="agy-task-voice-play-one" data-url="${escHtml(v.url)}" type="button" style="background:none;border:none;color:${accent};cursor:pointer;display:inline-flex;align-items:center;padding:0;">${STUDIO_ICONS.play}</button>
                 </span>
-              `).join('') : '<span style="font-size:12px;color:#64748b;">Chưa có clip voice nào — tải lên .mp3/.wav/.ogg hoặc bỏ vào themes/user_media/.</span>'}
+              `).join('') : '<span style="font-size:12px;color:#64748b;">Chưa có clip voice chung nào — tải lên .mp3/.wav/.ogg hoặc bỏ vào themes/user_media/.</span>'}
             </div>
             <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08);">
               <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
@@ -7848,6 +7940,100 @@
         applyTheme({ taskVoiceVol: v });
       });
     }
+    const syncPetVoiceToggle = container.querySelector('#agy-sync-pet-voice-toggle');
+    if (syncPetVoiceToggle) {
+      syncPetVoiceToggle.addEventListener('change', (e) => {
+        applyTheme({ syncPetVoice: e.target.checked });
+      });
+    }
+    const petVoicePitch = container.querySelector('#agy-pet-voice-pitch');
+    const petVoicePitchVal = container.querySelector('#agy-pet-voice-pitch-val');
+    const petVoiceRate = container.querySelector('#agy-pet-voice-rate');
+    const petVoiceRateVal = container.querySelector('#agy-pet-voice-rate-val');
+    if (petVoicePitch) {
+      petVoicePitch.addEventListener('input', () => {
+        window.__AGY_PET_VOICE_PITCH__ = Number(petVoicePitch.value);
+        if (petVoicePitchVal) petVoicePitchVal.textContent = `${petVoicePitch.value > 0 ? '+' : ''}${petVoicePitch.value}Hz`;
+      });
+    }
+    if (petVoiceRate) {
+      petVoiceRate.addEventListener('input', () => {
+        window.__AGY_PET_VOICE_RATE__ = Number(petVoiceRate.value);
+        if (petVoiceRateVal) petVoiceRateVal.textContent = `${petVoiceRate.value > 0 ? '+' : ''}${petVoiceRate.value}%`;
+      });
+    }
+    const petVoiceLines = container.querySelector('#agy-pet-voice-lines');
+    if (petVoiceLines) {
+      petVoiceLines.addEventListener('input', () => { window.__AGY_PET_VOICE_DRAFT__ = petVoiceLines.value; });
+    }
+    container.querySelectorAll('.agy-pet-voice-del-one').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.idx, 10);
+        const stCur = getState();
+        const thCur = THEMES[stCur.themeName] || {};
+        const curClips = [...getActivePetVoices(stCur)];
+        if (idx >= 0 && idx < curClips.length) {
+          curClips.splice(idx, 1);
+          const nextOv = { ...(stCur.petVoiceOverrides || {}) };
+          nextOv[stCur.themeName] = { clips: curClips, style: thCur.petVoiceStyle || 'auto' };
+          thCur.petVoices = curClips;
+          applyTheme({ petVoiceOverrides: nextOv });
+          renderThemePanels(container);
+        }
+      });
+    });
+    const petVoiceGenBtn = container.querySelector('#agy-pet-voice-gen-btn');
+    const petVoiceStatus = container.querySelector('#agy-pet-voice-gen-status');
+    const petVoiceStyleEl = container.querySelector('#agy-pet-voice-style');
+    if (petVoiceGenBtn) {
+      petVoiceGenBtn.addEventListener('click', async () => {
+        const stCur = getState();
+        const thCur = THEMES[stCur.themeName] || {};
+        const petNm = (thCur.petDirective && thCur.petDirective.petName) || stCur.themeName || 'Pet';
+        const linesRaw = petVoiceLines ? petVoiceLines.value.trim() : '';
+        if (petVoiceStatus) petVoiceStatus.textContent = `⏳ Đang tạo giọng neural đồng bộ với ${petNm}…`;
+        petVoiceGenBtn.disabled = true;
+        try {
+          const gen = await requestPetVoiceGeneration({
+            petId: thCur.petId || stCur.themeName,
+            petName: petNm,
+            themeName: stCur.themeName,
+            workIdentity: thCur.workIdentity,
+            petDirective: thCur.petDirective,
+            voiceLines: linesRaw,
+            voiceStyle: petVoiceStyleEl ? petVoiceStyleEl.value : 'auto',
+            pitchHz: window.__AGY_PET_VOICE_PITCH__,
+            ratePct: window.__AGY_PET_VOICE_RATE__,
+          });
+          const existing = getActivePetVoices(stCur);
+          const merged = linesRaw
+            ? [...gen.clips, ...existing.filter((x) => !gen.clips.some((g) => g.url === x.url))].slice(0, 12)
+            : gen.clips;
+          const nextOv = { ...(stCur.petVoiceOverrides || {}) };
+          nextOv[stCur.themeName] = { clips: merged, style: gen.style || 'auto' };
+          thCur.petVoices = merged;
+          thCur.petVoiceStyle = gen.style || 'auto';
+          if (!BUILTIN_KEYS.has(stCur.themeName)) {
+            const allCustom = loadCustomThemes();
+            if (allCustom[stCur.themeName]) {
+              allCustom[stCur.themeName].petVoices = merged;
+              allCustom[stCur.themeName].petVoiceStyle = gen.style || 'auto';
+              persistCustomThemes(allCustom);
+            }
+          }
+          applyTheme({ petVoiceOverrides: nextOv, taskVoiceEnabled: true, syncPetVoice: true });
+          window.__AGY_PET_VOICE_DRAFT__ = '';
+          if (gen.clips && gen.clips[0]) {
+            playOneShotTaskAudio(gen.clips[0].url, stCur.taskVoiceVol);
+          }
+          renderThemePanels(container);
+        } catch (err) {
+          petVoiceGenBtn.disabled = false;
+          if (petVoiceStatus) petVoiceStatus.textContent = `⚠️ ${err.message || err}`;
+        }
+      });
+    }
+
     const taskVoiceTest = container.querySelector('#agy-task-voice-test');
     if (taskVoiceTest) {
       taskVoiceTest.addEventListener('click', () => playRandomTaskVoice(true));
@@ -8929,6 +9115,20 @@
     if (typeof raw.petSpriteUrl === 'string' && raw.petSpriteUrl.trim()) t.petSpriteUrl = raw.petSpriteUrl.trim();
     if (typeof raw.petId === 'string' && raw.petId.trim()) t.petId = raw.petId.trim();
     if (raw.petMeta && typeof raw.petMeta === 'object') t.petMeta = raw.petMeta;
+    if (Array.isArray(raw.petVoices) && raw.petVoices.length) {
+      const validVoices = raw.petVoices
+        .filter((v) => v && typeof v.url === 'string' && v.url.trim())
+        .map((v) => ({
+          url: v.url.trim(),
+          name: typeof v.name === 'string' ? v.name.trim().slice(0, 80) : 'Pet Voice',
+          text: typeof v.text === 'string' ? v.text.trim().slice(0, 240) : '',
+          petId: typeof v.petId === 'string' ? v.petId.trim() : '',
+          voice: typeof v.voice === 'string' ? v.voice.trim() : '',
+          style: typeof v.style === 'string' ? v.style.trim() : ''
+        }));
+      if (validVoices.length) t.petVoices = validVoices;
+    }
+    if (raw.petVoiceStyle && typeof raw.petVoiceStyle === 'object') t.petVoiceStyle = raw.petVoiceStyle;
     if (raw.dynamicPack && typeof raw.dynamicPack === 'object') t.dynamicPack = raw.dynamicPack;
     if (raw.workIdentity && typeof raw.workIdentity === 'object') t.workIdentity = raw.workIdentity;
     if (typeof raw.brandLogoUrl === 'string' && raw.brandLogoUrl.trim()) t.brandLogoUrl = raw.brandLogoUrl.trim();
@@ -9585,10 +9785,49 @@
     } catch (e) {}
   }
 
+  function getActivePetVoices(stOverride) {
+    const st = stOverride || getStateSafe();
+    const th = THEMES[st.themeName] || THEMES[getDefaultThemeKey()] || {};
+    const ov = st.petVoiceOverrides && st.petVoiceOverrides[st.themeName];
+    if (ov && Array.isArray(ov.clips) && ov.clips.length > 0) return ov.clips;
+    if (Array.isArray(th.petVoices) && th.petVoices.length > 0) return th.petVoices;
+    return [];
+  }
+
+  window.__AGY_VOICE_GEN_PENDING__ = window.__AGY_VOICE_GEN_PENDING__ || {};
+  window.__AGY_VOICE_GEN_CB__ = (id, json) => {
+    const p = window.__AGY_VOICE_GEN_PENDING__[id];
+    if (!p) return;
+    delete window.__AGY_VOICE_GEN_PENDING__[id];
+    clearTimeout(p.t);
+    try {
+      const r = JSON.parse(json);
+      if (r && r.ok) p.resolve(r);
+      else p.reject(new Error((r && r.error) || 'Không tạo được voice cho Pet'));
+    } catch (e) { p.reject(e); }
+  };
+
+  function requestPetVoiceGeneration(payloadObj) {
+    if (typeof window.agyGeneratePetVoice !== 'function') {
+      return Promise.reject(new Error('Daemon chưa hỗ trợ agyGeneratePetVoice — hãy chạy install-win.ps1'));
+    }
+    return new Promise((resolve, reject) => {
+      const id = 'v' + Date.now() + Math.random().toString(36).slice(2, 6);
+      const t = setTimeout(() => {
+        delete window.__AGY_VOICE_GEN_PENDING__[id];
+        reject(new Error('Tạo voice quá thời gian chờ'));
+      }, 45000);
+      window.__AGY_VOICE_GEN_PENDING__[id] = { resolve, reject, t };
+      try { window.agyGeneratePetVoice(JSON.stringify({ id, ...payloadObj })); }
+      catch (e) { clearTimeout(t); delete window.__AGY_VOICE_GEN_PENDING__[id]; reject(e); }
+    });
+  }
+
   function playRandomTaskVoice(ignoreEnabled = false) {
     const st = getState();
     if (!ignoreEnabled && !st.taskVoiceEnabled) return;
-    const pool = getMediaLibrary('audio');
+    const petPool = st.syncPetVoice !== false ? getActivePetVoices(st) : [];
+    const pool = petPool.length > 0 ? petPool : getMediaLibrary('audio');
     if (pool.length === 0) return;
     const choices = pool.length > 1
       ? pool.filter((item) => !isSameMediaUrl(item.url, taskVoiceState.lastPlayedUrl))

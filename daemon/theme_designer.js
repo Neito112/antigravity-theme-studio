@@ -11,6 +11,7 @@ const os = require('os');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 const { generatePetSprite, generateBrandLogo, buildFallbackResult, buildLogoFallbackResult, FALLBACK_SPRITE_URL } = require('./pet_generator');
+const { generatePetVoiceClips } = require('./voice_generator');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const THEMES_JSON = path.join(ROOT_DIR, 'themes', 'themes.json');
@@ -1288,7 +1289,7 @@ function designTheme(dataUrl, opts = {}) {
         const bin = findAgy();
         log(`Designing theme via ${bin} (job ${jobDir}, src=${srcW}x${srcH}, aiOutpaint=${needsAiPaint}, promptLen=${prompt.length}, refine=${existingThemeName || 'none'})`);
         let settled = false;
-        const localFallback = (reason) => {
+        const localFallback = async (reason) => {
             if (settled) return false;
             settled = true;
             clearTimeout(timer);
@@ -1304,6 +1305,24 @@ function designTheme(dataUrl, opts = {}) {
                         ? `Refined (${existingThemeName}) • ${userPrompt.slice(0, 36)}`
                         : `Regenerated (${existingThemeName})`;
                 }
+                const petIdEff = (existingTheme && existingTheme.petId) || theme.petId || 'rocky';
+                const petNameEff = (existingTheme && existingTheme.petDirective && existingTheme.petDirective.petName)
+                    || (theme.petDirective && theme.petDirective.petName)
+                    || 'Rocky';
+                try {
+                    const vRes = await generatePetVoiceClips({
+                        petId: petIdEff,
+                        petName: petNameEff,
+                        themeName: existingThemeName || theme.name || '',
+                        workIdentity: theme.workIdentity,
+                        petDirective: theme.petDirective,
+                        timeoutMs: 9000
+                    });
+                    if (vRes && Array.isArray(vRes.clips) && vRes.clips.length > 0) {
+                        theme.petVoices = vRes.clips;
+                        theme.petVoiceStyle = vRes.style || 'auto';
+                    }
+                } catch (_) {}
                 log(`AI design unavailable (${reason}) — local palette fallback applied`);
                 // normalizeTo4k16x9Webp writes a real 3840x2160 WebP when
                 // Pillow is present; without Pillow it returns the original
@@ -1316,7 +1335,7 @@ function designTheme(dataUrl, opts = {}) {
                     wallpaperUrl,
                     wpMeta: { width: is4k ? TARGET_W : (srcW || TARGET_W), height: is4k ? TARGET_H : (srcH || TARGET_H), aiOutpainted: false, wallpaperUrl },
                     petSpriteUrl: (existingTheme && existingTheme.petSpriteUrl) || theme.petSpriteUrl || FALLBACK_SPRITE_URL,
-                    petId: (existingTheme && existingTheme.petId) || theme.petId || 'rocky',
+                    petId: petIdEff,
                     petMeta: (existingTheme && existingTheme.petMeta) || theme.petMeta || null,
                     brandLogoUrl: (existingTheme && existingTheme.brandLogoUrl) || theme.brandLogoUrl || ''
                 });
@@ -1369,7 +1388,7 @@ function designTheme(dataUrl, opts = {}) {
                 theme.workIdentity = normalizeWorkIdentity(theme);
                 const wallpaperUrl = persistWallpaperToUserMedia(outWebpPath, theme.name || theme.workIdentity.franchise);
 
-                const [petRes, logoRes] = await Promise.all([
+                const [petRes, logoRes, voiceRes] = await Promise.all([
                     generatePetSprite(theme.petDirective, {
                         log,
                         timeoutMs: opts.petTimeoutMs || 180000,
@@ -1381,13 +1400,25 @@ function designTheme(dataUrl, opts = {}) {
                         timeoutMs: opts.logoTimeoutMs || opts.petTimeoutMs || 180000,
                         slugHint: theme.workIdentity.brandTitle || theme.name,
                         sourceImagePath: absImagePath
-                    }).catch((logoErr) => buildLogoFallbackResult(theme.workIdentity, logoErr.message || 'logo-error'))
+                    }).catch((logoErr) => buildLogoFallbackResult(theme.workIdentity, logoErr.message || 'logo-error')),
+                    generatePetVoiceClips({
+                        petId: theme.petDirective.petName || theme.name || 'companion',
+                        petName: theme.petDirective.petName || 'Companion',
+                        themeName: theme.name || '',
+                        workIdentity: theme.workIdentity,
+                        petDirective: theme.petDirective,
+                        timeoutMs: 15000
+                    }).catch(() => ({ clips: [], style: 'auto' }))
                 ]);
                 theme.petSpriteUrl = petRes.petSpriteUrl;
                 theme.petId = petRes.petId;
                 theme.petMeta = petRes.petMeta;
                 theme.brandLogoUrl = logoRes.brandLogoUrl || '';
                 theme.brandLogoMeta = logoRes.logoMeta || null;
+                if (voiceRes && Array.isArray(voiceRes.clips) && voiceRes.clips.length > 0) {
+                    theme.petVoices = voiceRes.clips;
+                    theme.petVoiceStyle = voiceRes.style || 'auto';
+                }
 
                 log(`Theme designed in ${env.duration_seconds}s (4K 16:9, aiOutpainted=${needsAiPaint}, wp=${wallpaperUrl || 'inline'}, pet=${theme.petSpriteUrl}, logo=${theme.brandLogoUrl || 'sigil-fallback'})`);
                 settled = true;

@@ -1,6 +1,6 @@
 # Antigravity Custom Theme Studio (`fusion-edition`)
 
-Bộ công cụ tùy biến toàn diện giao diện **Antigravity Desktop** với cơ chế **Unified Smoked Glass (Zero Live Blur)**, **Custom Theme Studio V2**, **AI Theme Designer (tự mở rộng ảnh 16:9 4K + trích bảng màu + vẽ ornament SVG)**, **Inline YouTube Music Player**, **Tự động đổi Icon & Favicon Antigravity theo Theme**, và **Companion Pet `8×11` bám sát từng ảnh gốc**.
+Bộ công cụ tùy biến toàn diện giao diện **Antigravity Desktop** với cơ chế **Unified Smoked Glass (Zero Live Blur)**, **Custom Theme Studio V2**, **AI Theme Designer (tự mở rộng ảnh 16:9 4K + trích bảng màu + vẽ ornament SVG)**, **Inline YouTube Music Player**, **Tự động đổi Icon & Favicon Antigravity theo Theme**, **Pet Neural Voice (`edge-tts`) đồng bộ từng nhân vật**, và **Companion Pet `8×11` bám sát từng ảnh gốc**.
 
 <p align="center">
   <img src="docs/preview_showcase.gif" alt="Antigravity Theme Studio V2 Live Showcase" width="100%" />
@@ -37,6 +37,13 @@ Mỗi khi đổi theme, toàn bộ nhận diện gốc của Antigravity tự đ
 - Từng theme đi kèm bộ sprite sheet `8×11` (`1536×2288`) riêng phản ứng theo trạng thái `Idle / Run / Wave / Jump / Dizzy / Thinking / Ready` và dõi theo con trỏ chuột theo 16 hướng:
   - *Furina Live (`Furina`)*, *Gemini-chan Live (`Yuki`)*, *WLOP Cosmic (`Seraph`)*, *Miku Cyber (`Miku`)* — nhân vật Chibi Anime khớp trang phục, kiểu tóc, màu mắt & đạo cụ từng ảnh gốc.
   - *Celestial Eclipse (`Solara`)*, *Luminous Grotto (`Lumia` Golem đá)*, *Midnight Obsidian (`Onyx`)*, *Codex Dark Pro (`Byte`)*, *Claude Warm Charcoal (`Solis`)*, cùng các custom theme *Kaiju Crimson (`Kaiju`)*, *Pixel Kaiju (`Rexy`)*, *Phantom Voltage (`Volt` Gigantamax Gengar)*.
+
+### 6. Pet Neural Voice (`edge-tts`) & Trình Tạo Voice Trực Tiếp Trong Studio
+Mỗi nhân vật Pet sở hữu bộ thoại neural riêng biệt (`petVoices` trong `themes/assets/voice/pets/` & `themes/user_media/voices/`), phát tự động khi hoàn thành tác vụ hoặc đổi theme:
+- **12 Bộ Voice Độc Quyền Theo Nhân Vật:** Tự động ánh xạ chất giọng theo cá tính từng Pet — giọng quý tộc dịu dàng (*Furina*), kawaii anime (*Yuki*, *Miku*), thanh tao sâu lắng (*Seraph*, *Solara*), trầm hùng/tinh quái (*Kaiju*, *Rexy*, *Volt Gengar*), hộ vệ ấm áp (*Lumia*, *Solis*) hoặc telemetry bot (*Byte*, *Onyx*).
+- **Trình tạo Voice trực tiếp trong tab `Pet, Voice & Chào`:** Cho phép chọn kiểu giọng (`Tự động theo Pet`, *Anime Kawaii*, *Quý tộc Fontaine*, *Trầm hùng Kaiju*, *Tiếng Việt Nữ/Nam*, *Tiếng Nhật Kawaii*...), tinh chỉnh cao độ (`Pitch Hz`), tốc độ (`Rate %`), nhập từng câu thoại tùy ý và bấm **Tạo Voice cho Pet** (gọi daemon `agyGeneratePetVoice` -> `daemon/voice_generator.js` -> `edge-tts`).
+- **Tự động nhận diện ngôn ngữ (`vi` / `ja` / `en`):** Tự chuyển sang neural voice tiếng Việt (`vi-VN-HoaiMyNeural` / `vi-VN-NamMinhNeural`), tiếng Nhật (`ja-JP-NanamiNeural` / `ja-JP-KeitaNeural`) hoặc tiếng Anh khớp từng dòng thoại bạn nhập, hỗ trợ nghe thử từng clip, xóa bớt clip hoặc bấm chuột phải vào Pet -> **Nghe `<Pet>` nói**.
+- **Tự động sinh Voice khi tạo Theme mới từ ảnh:** Cả luồng AI lẫn fallback cục bộ đều tự động tạo kèm 3 câu thoại cho nhân vật Pet vừa sinh ra.
 
 ---
 
@@ -102,5 +109,6 @@ Lệnh gỡ tắt daemon, dọn entry khởi động cùng Windows, gỡ sạch 
 - `daemon/theme_daemon.js`: CDP auto-attach, hot-reload, local media server (`:47821`), Win32 `WM_SETICON` + `.lnk` icon sync (`agyUpdateAppIcon`), YouTube Search/Resolve bridge & Swarm Board glass bridge.
 - `daemon/theme_designer.js`: Thiết kế & chau chuốt theme từ ảnh bất kỳ (gọi AI qua `design_prompt.md` + local fallback `buildLocalTheme` có hỗ trợ ảnh trong suốt & ảnh dọc/nhỏ).
 - `daemon/pet_generator.js`: Sinh & kiểm định sprite atlas `8×11` (`1536×2288`) và brand logo `256×256`.
+- `daemon/voice_generator.js`: Tổng hợp giọng nói nhân vật neural MP3 (`edge-tts`) tự nhận diện ngôn ngữ `vi`/`ja`/`en` theo profile của từng Pet.
 - `scripts/build_payload.js`: Inline toàn bộ CSS/JS & SVG ornaments từ `themes/assets/` vào `dist/theme_payload.js`.
 - `themes/themes.json`: Cấu hình đầy đủ của 9 theme mặc định kèm `dynamicPack`, `vfxSpec`, `workIdentity`, `petDirective`.

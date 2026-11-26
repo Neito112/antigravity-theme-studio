@@ -180,7 +180,34 @@
     "pillHoverBg": "rgba(192, 132, 252, 0.20)",
     "pillTextColor": "#f8fafc",
     "pillBorder": "rgba(192, 132, 252, 0.30)",
-    "cornerSvg": "assets/gemini_chan_corner.svg"
+    "cornerSvg": "assets/gemini_chan_corner.svg",
+    "petVoices": [
+      {
+        "url": "assets/voice/pets/pet_gemini-chan_1_29481af8.mp3",
+        "name": "Yuki · Sparkle Clear",
+        "text": "Yuki finished checking every sparkle! Everything is ready for you!",
+        "petId": "gemini-chan",
+        "voice": "en-US-AnaNeural",
+        "style": "anime-girl"
+      },
+      {
+        "url": "assets/voice/pets/pet_gemini-chan_2_6775f8cc.mp3",
+        "name": "Yuki · Starlight",
+        "text": "Starlight mission clear! Want Yuki to watch the night sky with you?",
+        "petId": "gemini-chan",
+        "voice": "en-US-AnaNeural",
+        "style": "anime-girl"
+      },
+      {
+        "url": "assets/voice/pets/pet_gemini-chan_3_15122d05.mp3",
+        "name": "Yuki · Cheer",
+        "text": "Yay, task complete! Good work today!",
+        "petId": "gemini-chan",
+        "voice": "en-US-AnaNeural",
+        "style": "anime-girl"
+      }
+    ],
+    "petVoiceStyle": "anime-girl"
   },
   "Furina Live": {
     "concept": "Furina Animated MP4 • Starfield Boot & Arisu-Tawa Voice",
@@ -363,7 +390,34 @@
     "pillHoverBg": "rgba(56, 189, 248, 0.20)",
     "pillTextColor": "#f8fafc",
     "pillBorder": "rgba(56, 189, 248, 0.30)",
-    "cornerSvg": "assets/furina_corner.svg"
+    "cornerSvg": "assets/furina_corner.svg",
+    "petVoices": [
+      {
+        "url": "assets/voice/pets/pet_furina_1_1bb91be4.mp3",
+        "name": "Furina · Encore",
+        "text": "Aha! Another splendid performance complete. Applause, please!",
+        "petId": "furina",
+        "voice": "en-US-AvaNeural",
+        "style": "noble-lady"
+      },
+      {
+        "url": "assets/voice/pets/pet_furina_2_6e23aaad.mp3",
+        "name": "Furina · Curtain Call",
+        "text": "Ta-da! Your code curtain call is ready, my dear director.",
+        "petId": "furina",
+        "voice": "en-US-AvaNeural",
+        "style": "noble-lady"
+      },
+      {
+        "url": "assets/voice/pets/pet_furina_3_57eaefc4.mp3",
+        "name": "Furina · Hydro",
+        "text": "All tasks concluded cleanly. Ready for our next act!",
+        "petId": "furina",
+        "voice": "en-US-AvaNeural",
+        "style": "noble-lady"
+      }
+    ],
+    "petVoiceStyle": "noble-lady"
   },
   "Celestial Eclipse": {
     "concept": "Black Sun & Orbital Rings • Obsidian Starlight Glass",
@@ -542,7 +596,34 @@
     "pillBg": "rgba(5, 8, 16, 0.86)",
     "pillHoverBg": "rgba(56, 189, 248, 0.20)",
     "pillTextColor": "#f8fafc",
-    "pillBorder": "rgba(56, 189, 248, 0.30)"
+    "pillBorder": "rgba(56, 189, 248, 0.30)",
+    "petVoices": [
+      {
+        "url": "assets/voice/pets/pet_celestial_1_ee64a934.mp3",
+        "name": "Solara · Orbit Lock",
+        "text": "Orbital calculations aligned. The eclipse sequence has concluded.",
+        "petId": "celestial",
+        "voice": "en-GB-SoniaNeural",
+        "style": "calm-lady"
+      },
+      {
+        "url": "assets/voice/pets/pet_celestial_2_87888f0f.mp3",
+        "name": "Solara · Telemetry",
+        "text": "All celestial trajectories verified and nominal.",
+        "petId": "celestial",
+        "voice": "en-GB-SoniaNeural",
+        "style": "calm-lady"
+      },
+      {
+        "url": "assets/voice/pets/pet_celestial_3_d1b8ef72.mp3",
+        "name": "Solara · Quiet",
+        "text": "Silence returns to the observatory. Mission complete.",
+        "petId": "celestial",
+        "voice": "en-GB-SoniaNeural",
+        "style": "calm-lady"
+      }
+    ],
+    "petVoiceStyle": "calm-lady"
   },
   "Luminous Grotto": {
     "concept": "Bioluminescent Grotto & Sunlit Automaton • Abyssal Flora Glass",
@@ -721,7 +802,34 @@
       "animationMood": "serene-zen",
       "spriteVersionNumber": 2,
       "fallback": false
-    }
+    },
+    "petVoices": [
+      {
+        "url": "assets/voice/pets/pet_grotto_1_fa2dff0b.mp3",
+        "name": "Lumia · Guardian",
+        "text": "The stone guardian has watched closely. Your path ahead is clear.",
+        "petId": "grotto",
+        "voice": "en-US-AndrewNeural",
+        "style": "calm-guardian"
+      },
+      {
+        "url": "assets/voice/pets/pet_grotto_2_cc3ef4a0.mp3",
+        "name": "Lumia · Bloom",
+        "text": "Every crystal blossom glows in peace. Task completed safely.",
+        "petId": "grotto",
+        "voice": "en-US-AndrewNeural",
+        "style": "calm-guardian"
+      },
+      {
+        "url": "assets/voice/pets/pet_grotto_3_c54c2f82.mp3",
+        "name": "Lumia · Forest",
+        "text": "Steady as ancient stone. Well done.",
+        "petId": "grotto",
+        "voice": "en-US-AndrewNeural",
+        "style": "calm-guardian"
+      }
+    ],
+    "petVoiceStyle": "calm-guardian"
   },
   "WLOP Cosmic": {
     "concept": "Cosmic Violin & Starlight • High-Contrast Glass",
@@ -900,7 +1008,34 @@
     "pillBg": "rgba(2, 5, 12, 0.86)",
     "pillHoverBg": "rgba(251, 191, 36, 0.20)",
     "pillTextColor": "#f8fafc",
-    "pillBorder": "rgba(251, 191, 36, 0.30)"
+    "pillBorder": "rgba(251, 191, 36, 0.30)",
+    "petVoices": [
+      {
+        "url": "assets/voice/pets/pet_wlop_1_ff110fbe.mp3",
+        "name": "Seraph · Concerto",
+        "text": "The cosmic concerto is complete. Every note rests in place.",
+        "petId": "wlop",
+        "voice": "en-US-EmmaNeural",
+        "style": "calm-lady"
+      },
+      {
+        "url": "assets/voice/pets/pet_wlop_2_21b74bd4.mp3",
+        "name": "Seraph · Starlight",
+        "text": "Your work shines beneath the city lights of Earth.",
+        "petId": "wlop",
+        "voice": "en-US-EmmaNeural",
+        "style": "calm-lady"
+      },
+      {
+        "url": "assets/voice/pets/pet_wlop_3_4eca7492.mp3",
+        "name": "Seraph · Harmony",
+        "text": "Harmony restored across the workspace. Ready when you are.",
+        "petId": "wlop",
+        "voice": "en-US-EmmaNeural",
+        "style": "calm-lady"
+      }
+    ],
+    "petVoiceStyle": "calm-lady"
   },
   "Midnight Obsidian": {
     "concept": "Pure CSS Gradient • Zero-Image Ultra-Light",
@@ -1078,7 +1213,34 @@
     "pillHoverBg": "rgba(167, 139, 250, 0.20)",
     "pillTextColor": "#f8fafc",
     "pillBorder": "rgba(167, 139, 250, 0.30)",
-    "cornerSvg": "assets/midnight_obsidian_corner.svg"
+    "cornerSvg": "assets/midnight_obsidian_corner.svg",
+    "petVoices": [
+      {
+        "url": "assets/voice/pets/pet_obsidian_1_aae6b4b2.mp3",
+        "name": "Onyx · Stealth",
+        "text": "Shadow execution complete. Zero anomalies detected.",
+        "petId": "obsidian",
+        "voice": "en-GB-RyanNeural",
+        "style": "cyber-bot"
+      },
+      {
+        "url": "assets/voice/pets/pet_obsidian_2_bc4c7f89.mp3",
+        "name": "Onyx · Clear",
+        "text": "Obsidian perimeter clear. Standing by.",
+        "petId": "obsidian",
+        "voice": "en-GB-RyanNeural",
+        "style": "cyber-bot"
+      },
+      {
+        "url": "assets/voice/pets/pet_obsidian_3_eb035196.mp3",
+        "name": "Onyx · Standby",
+        "text": "Clean finish. Next objective ready.",
+        "petId": "obsidian",
+        "voice": "en-GB-RyanNeural",
+        "style": "cyber-bot"
+      }
+    ],
+    "petVoiceStyle": "cyber-bot"
   },
   "Miku Cyber": {
     "concept": "Miku Cyber Acrylic • 1080p Live Video & Cyber-Visor HUD",
@@ -1261,7 +1423,34 @@
     "pillHoverBg": "rgba(57, 197, 187, 0.20)",
     "pillTextColor": "#f8fafc",
     "pillBorder": "rgba(57, 197, 187, 0.30)",
-    "cornerSvg": "assets/miku_corner.svg"
+    "cornerSvg": "assets/miku_corner.svg",
+    "petVoices": [
+      {
+        "url": "assets/voice/pets/pet_miku_1_d0845ea5.mp3",
+        "name": "Miku · Stage Clear",
+        "text": "Stage clear! Miku finished tuning your workspace melody!",
+        "petId": "miku",
+        "voice": "en-US-AnaNeural",
+        "style": "anime-girl"
+      },
+      {
+        "url": "assets/voice/pets/pet_miku_2_8a2ff554.mp3",
+        "name": "Miku · Seaside",
+        "text": "Sunshine and sparkling rhythm! All checks passed!",
+        "petId": "miku",
+        "voice": "en-US-AnaNeural",
+        "style": "anime-girl"
+      },
+      {
+        "url": "assets/voice/pets/pet_miku_3_3a1f11b2.mp3",
+        "name": "Miku · Encore",
+        "text": "Encore ready! Pick our next song whenever you want!",
+        "petId": "miku",
+        "voice": "en-US-AnaNeural",
+        "style": "anime-girl"
+      }
+    ],
+    "petVoiceStyle": "anime-girl"
   },
   "Codex Dark Pro": {
     "concept": "Codex Dark Pro • Concentric Telemetry & Deep Carbon UI",
@@ -1439,7 +1628,34 @@
     "pillHoverBg": "rgba(44, 103, 197, 0.20)",
     "pillTextColor": "#f8fafc",
     "pillBorder": "rgba(44, 103, 197, 0.30)",
-    "cornerSvg": "assets/codex_corner.svg"
+    "cornerSvg": "assets/codex_corner.svg",
+    "petVoices": [
+      {
+        "url": "assets/voice/pets/pet_codex_1_be492dfe.mp3",
+        "name": "Byte · Telemetry Green",
+        "text": "Telemetry green. Build verification and pipeline completed.",
+        "petId": "codex",
+        "voice": "en-US-SteffanNeural",
+        "style": "cyber-bot"
+      },
+      {
+        "url": "assets/voice/pets/pet_codex_2_3b10ef8b.mp3",
+        "name": "Byte · Nominal",
+        "text": "Byte reports all systems nominal. Ready for next command.",
+        "petId": "codex",
+        "voice": "en-US-SteffanNeural",
+        "style": "cyber-bot"
+      },
+      {
+        "url": "assets/voice/pets/pet_codex_3_5cb84521.mp3",
+        "name": "Byte · Zero Errors",
+        "text": "Execution cycle finished cleanly.",
+        "petId": "codex",
+        "voice": "en-US-SteffanNeural",
+        "style": "cyber-bot"
+      }
+    ],
+    "petVoiceStyle": "cyber-bot"
   },
   "Claude Warm Charcoal": {
     "concept": "Claude Warm Charcoal • Editorial Typography & Warm Carbon",
@@ -1617,6 +1833,33 @@
     "pillHoverBg": "rgba(47, 113, 227, 0.20)",
     "pillTextColor": "#f8fafc",
     "pillBorder": "rgba(47, 113, 227, 0.30)",
-    "cornerSvg": "assets/claude_corner.svg"
+    "cornerSvg": "assets/claude_corner.svg",
+    "petVoices": [
+      {
+        "url": "assets/voice/pets/pet_claude_1_3ef09499.mp3",
+        "name": "Solis · Warm Wrap",
+        "text": "Everything is thoughtfully wrapped up. Take a warm sip and review.",
+        "petId": "claude",
+        "voice": "en-US-BrianNeural",
+        "style": "warm-scholar"
+      },
+      {
+        "url": "assets/voice/pets/pet_claude_2_8e4612c7.mp3",
+        "name": "Solis · Notes Ready",
+        "text": "Solis checked the final notes. Your draft is complete.",
+        "petId": "claude",
+        "voice": "en-US-BrianNeural",
+        "style": "warm-scholar"
+      },
+      {
+        "url": "assets/voice/pets/pet_claude_3_eba6b408.mp3",
+        "name": "Solis · Continue",
+        "text": "Nicely done. Whenever you are ready, let us continue.",
+        "petId": "claude",
+        "voice": "en-US-BrianNeural",
+        "style": "warm-scholar"
+      }
+    ],
+    "petVoiceStyle": "warm-scholar"
   }
 }
