@@ -1738,41 +1738,11 @@
     else delete shell.dataset.agyRightCollapsed;
 
     const th = getActiveThemeRecord(st);
-    const primary = th.primary || '#38bdf8';
-    const isLight = Boolean(th.isLight);
-    const surface = isLight ? 'rgba(248, 250, 252, 0.88)' : 'rgba(12, 16, 26, 0.82)';
-    const hairline = isLight ? 'rgba(15, 23, 42, 0.10)' : 'rgba(255, 255, 255, 0.09)';
-    const ink = isLight ? '#0f172a' : '#e2e8f0';
-
-    const ensureCollapseBtn = (id, ariaLabel, iconSvg, onToggle) => {
-      let btn = document.getElementById(id);
-      if (!btn) {
-        btn = document.createElement('button');
-        btn.id = id;
-        btn.type = 'button';
-        btn.className = 'agy-collapse-edge-btn';
-        btn.setAttribute('aria-label', ariaLabel);
-        btn.innerHTML = iconSvg;
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const curTh = getActiveThemeRecord();
-          playClickSound(curTh);
-          onToggle();
-        });
-        document.body.appendChild(btn);
-      }
-      btn.style.setProperty('--agy-btn-surface', surface);
-      btn.style.setProperty('--agy-btn-border', hairline);
-      btn.style.setProperty('--agy-btn-ink', ink);
-      btn.style.setProperty('--agy-btn-accent', primary);
-      return btn;
-    };
 
     const runRollToggle = (kind, storageKey) => {
       const nextCollapsed = !readCollapseFlag(storageKey);
       const attrAnim = kind === 'left' ? 'agyLeftAnim' : 'agyRightAnim';
-      window.__AGY_COLLAPSE_PAUSE_UNTIL__ = Date.now() + 300;
+      window.__AGY_COLLAPSE_PAUSE_UNTIL__ = Date.now() + 360;
 
       const finishSync = () => {
         window.__AGY_COLLAPSE_PAUSE_UNTIL__ = 0;
@@ -1784,7 +1754,6 @@
       };
 
       if (nextCollapsed) {
-        // Phase 1: GPU transform top-down roll-out (0ms reflow)
         shell.dataset[attrAnim] = 'closing';
         setTimeout(() => {
           delete shell.dataset[attrAnim];
@@ -1793,7 +1762,6 @@
           finishSync();
         }, 320);
       } else {
-        // Phase 1: restore layout at translated position, then GPU grow from topbar
         writeCollapseFlag(storageKey, false);
         shell.dataset[attrAnim] = 'opening';
         syncLayoutCollapsers();
@@ -1806,46 +1774,45 @@
       }
     };
 
-    if (leftCol) {
-      const leftRect = leftCol.getBoundingClientRect();
-      const leftEdge = (leftRect && leftRect.width > 12) ? Math.round(leftRect.right) : 320;
-      const btn = ensureCollapseBtn(
-        'agy-collapse-left-btn',
-        'Trượt thu gọn / Mở bảng trái',
-        '<span class="agy-roll-grip" aria-hidden="true"><span></span><span></span><span></span></span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>',
-        () => runRollToggle('left', STORAGE_COLLAPSE_LEFT)
-      );
-      btn.dataset.collapsed = leftCollapsed ? 'true' : 'false';
-      btn.title = leftCollapsed ? 'Mở bảng trái từ Topbar' : 'Cuộn bảng trái lên Topbar';
-      btn.style.left = `${Math.max(10, leftEdge - 12)}px`;
-      btn.style.display = 'inline-flex';
-    } else {
-      const btn = document.getElementById('agy-collapse-left-btn');
-      if (btn) btn.remove();
-    }
-
     const hasRightOpen = Boolean(rightCol && (rightCol.hasAttribute('data-side-panel-open') || rightCol.querySelector('[data-side-panel-open="true"]')));
     if (rightCol) {
       rightCol.setAttribute('data-agy-right-open', hasRightOpen ? '1' : '0');
     }
-    if (rightCol && hasRightOpen) {
-      const rightRect = rightCol.getBoundingClientRect();
-      const rightEdge = (rightRect && rightRect.width > 12)
-        ? Math.max(10, Math.round(window.innerWidth - rightRect.left - 12))
-        : 10;
-      const btn = ensureCollapseBtn(
-        'agy-collapse-right-btn',
-        'Trượt thu gọn / Mở bảng phải',
-        '<span class="agy-roll-grip" aria-hidden="true"><span></span><span></span><span></span></span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>',
-        () => runRollToggle('right', STORAGE_COLLAPSE_RIGHT)
-      );
-      btn.dataset.collapsed = rightCollapsed ? 'true' : 'false';
-      btn.title = rightCollapsed ? 'Mở bảng phải từ Topbar' : 'Cuộn bảng phải lên Topbar';
-      btn.style.right = `${rightEdge}px`;
-      btn.style.display = 'inline-flex';
-    } else {
-      const btn = document.getElementById('agy-collapse-right-btn');
-      if (btn) btn.remove();
+
+    // Xóa bỏ toàn bộ nút cuộn tự chế
+    document.querySelectorAll('#agy-collapse-left-btn, #agy-collapse-right-btn, #agy-collapse-topbar-btn, .agy-collapse-edge-btn').forEach((el) => el.remove());
+
+    // Dùng chính 2 nút Toggle gốc trên thanh Topbar để trượt mượt 60fps từ Topbar xuống
+    if (!window.__AGY_NATIVE_TOGGLE_BOUND__) {
+      window.__AGY_NATIVE_TOGGLE_BOUND__ = true;
+      document.addEventListener('click', (e) => {
+        const t = e.target && typeof e.target.closest === 'function' ? e.target : null;
+        if (!t) return;
+        const leftToggle = t.closest('[data-testid="sidebar-toggle"]');
+        if (leftToggle) {
+          const curShell = findActiveShell() || document.querySelector('.agy-shell');
+          if (curShell && curShell.querySelector('[data-agy-left-col="1"]')) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+            playClickSound(getActiveThemeRecord());
+            runRollToggle('left', STORAGE_COLLAPSE_LEFT);
+          }
+          return;
+        }
+        const rightToggle = t.closest('[data-testid="toggle-aux-sidebar"]');
+        if (rightToggle) {
+          const curShell = findActiveShell() || document.querySelector('.agy-shell');
+          const rCol = curShell ? curShell.querySelector('[data-agy-right-col="1"][data-agy-right-open="1"]') : null;
+          if (curShell && rCol) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+            playClickSound(getActiveThemeRecord());
+            runRollToggle('right', STORAGE_COLLAPSE_RIGHT);
+          }
+        }
+      }, true);
     }
   }
 
@@ -5296,7 +5263,7 @@
         border-right: 1px solid ${glassRimBorder} !important;
         border-radius: 0 14px 14px 0 !important;
       }
-      .agy-shell [data-agy-right-col="1"][data-agy-right-open="1"] [data-side-panel-strip] {
+      .agy-shell [data-agy-right-col="1"] [data-side-panel-strip] {
         height: 40px !important;
         margin: 6px 10px 6px 0 !important;
         background: ${cleanBubbleBg} !important;
@@ -5358,61 +5325,6 @@
         transform: scaleY(0.01) !important;
         opacity: 0 !important;
         pointer-events: none !important;
-      }
-      /* 3. Nút cuộn pill dọc (thiết kế lại sắc nét theo mẫu, đặt ngay dưới Topbar) */
-      .agy-collapse-edge-btn {
-        position: fixed;
-        z-index: 9515;
-        display: inline-flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 4px;
-        width: 24px;
-        height: 46px;
-        background: var(--agy-btn-surface, rgba(12, 16, 26, 0.88));
-        border: 1px solid ${glassRimBorder};
-        color: var(--agy-btn-ink, #f8fafc);
-        border-radius: 9999px;
-        cursor: pointer;
-        user-select: none;
-        -webkit-app-region: no-drag;
-        backdrop-filter: none !important;
-        opacity: 0.94;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24), 0 4px 14px rgba(0, 0, 0, 0.42);
-        transition: opacity 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
-      }
-      .agy-collapse-edge-btn:hover {
-        opacity: 1;
-        color: var(--agy-btn-accent, #38bdf8);
-        border-color: var(--agy-btn-accent, #38bdf8);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.30), 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 10px ${mainTheme.glow || 'rgba(56, 189, 248, 0.22)'};
-      }
-      .agy-roll-grip {
-        display: inline-flex;
-        flex-direction: column;
-        gap: 3px;
-      }
-      .agy-roll-grip span {
-        width: 3px;
-        height: 3px;
-        border-radius: 9999px;
-        background: currentColor;
-        opacity: 0.65;
-      }
-      .agy-collapse-edge-btn svg {
-        transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-      }
-      .agy-collapse-edge-btn[data-collapsed="true"] svg {
-        transform: rotate(180deg);
-      }
-      #agy-collapse-left-btn,
-      #agy-collapse-right-btn {
-        top: 84px;
-      }
-      #agy-collapse-left-btn:active,
-      #agy-collapse-right-btn:active {
-        transform: scale(0.92);
       }
       /* Compact YouTube Music Bar (no preview, title + time only) */
       #agy-yt-bar {
