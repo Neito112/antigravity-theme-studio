@@ -80,6 +80,7 @@
   const STORAGE_TAWA_GREETING = 'agy_tawa_greeting_v1';
   const STORAGE_PET_ENABLED = 'agy_pet_enabled_v1';
   const STORAGE_PET_CHAT_DOCK = 'agy_pet_chat_dock_v1';
+  const STORAGE_PET_POS = 'agy_pet_pos_v1';
   const GREETING_RX = /^(?:Hey\s+[^,]{1,40},\s+what\s+should\s+we\s+build\s+today\??|Good\s+to\s+see\s+you,\s+[^.]{1,40}\.\s+What'?s\s+next\??|What\s+(?:should|are)\s+we\s+build(?:ing)?\s+today\??|Welcome\s+back[,.!\s]+[^.!?]{0,40}(?:[.!?]\s*(?:Where\s+should\s+we\s+pick\s+up|What'?s\s+next|What\s+should\s+we\s+build)[^.!?]{0,40}[.!?]?)?|Where\s+should\s+we\s+pick\s+up\??|Ready\s+(?:to\s+build|when\s+you\s+are)[,.!\s]*.*)$/i;
 
   const CHECK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
@@ -1321,123 +1322,267 @@
     return detectAntigravityPetState() === 'running';
   }
 
+  const DEFAULT_BRAND_SIGIL_INNER = '<path d="M12 2L14.9 8.6L22 9.3L16.6 14L18.2 21L12 17.3L5.8 21L7.4 14L2 9.3L9.1 8.6Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" fill="url(#agyBrandGrad)" fill-opacity="0.26"/><circle cx="12" cy="12" r="2.4" fill="currentColor"/><path d="M12 4.5V7M12 17V19.5M4.5 12H7M17 12H19.5" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>';
+
+  function resolveThemeBrandSvg(theme) {
+    const t = theme || {};
+    const pack = resolveDynamicPack(t);
+    const ui = (pack && pack.uiDesign) || t.uiDesign || {};
+    const workId = (t.workIdentity && typeof t.workIdentity === 'object') ? t.workIdentity : (pack.workIdentity || {});
+    const raw = workId.sigilSvgInner || ui.emblemSvgInner || t.emblemSvgInner || pack.hudSvgInner || '';
+    let viewBox = '0 0 24 24';
+    let body = typeof raw === 'string' ? raw.trim() : '';
+    const svgMatch = body.match(/^<svg\b([^>]*)>([\s\S]*)<\/svg>$/i);
+    if (svgMatch) {
+      const vbMatch = svgMatch[1].match(/\bviewBox\s*=\s*(?:"([^"]+)"|'([^']+)')/i);
+      if (vbMatch) {
+        const cand = (vbMatch[1] || vbMatch[2] || '').trim();
+        if (/^-?\d+(?:\.\d+)?(?:\s+|,)+-?\d+(?:\.\d+)?(?:\s+|,)+\d+(?:\.\d+)?(?:\s+|,)+\d+(?:\.\d+)?$/.test(cand)) {
+          viewBox = cand.replace(/,/g, ' ');
+        }
+      }
+      body = svgMatch[2];
+    }
+    const cleaned = sanitizeSvgFragment(body);
+    const hasShape = /<(path|circle|ellipse|rect|polygon|polyline|line)\b/i.test(cleaned);
+    return {
+      viewBox: hasShape ? viewBox : '0 0 24 24',
+      inner: hasShape ? cleaned : DEFAULT_BRAND_SIGIL_INNER
+    };
+  }
+
+  function syncCustomBrandLogo(stOverride) {
+    const st = stOverride || getStateSafe();
+    const shell = findActiveShell() || document.querySelector('.agy-shell') || document;
+    const th = THEMES[st.themeName] || THEMES[getDefaultThemeKey()] || {};
+    const primary = th.primary || '#38bdf8';
+    const secondary = th.secondary || primary;
+    const svgSpec = resolveThemeBrandSvg(th);
+    const brandKey = `${st.themeName}|${primary}|${secondary}|${svgSpec.viewBox}|${svgSpec.inner.length}`;
+
+    const appBtn = shell.querySelector('[data-testid="app-icon-new-conversation-button"]')
+      || document.querySelector('[data-testid="app-icon-new-conversation-button"]');
+    if (appBtn) {
+      let logoSpan = appBtn.querySelector('#agy-custom-brand-logo');
+      if (!logoSpan) {
+        logoSpan = document.createElement('span');
+        logoSpan.id = 'agy-custom-brand-logo';
+        logoSpan.setAttribute('aria-hidden', 'true');
+        appBtn.appendChild(logoSpan);
+      }
+      if (logoSpan.dataset.agyBrandKey !== brandKey) {
+        logoSpan.dataset.agyBrandKey = brandKey;
+        logoSpan.innerHTML = `<svg viewBox="${escHtml(svgSpec.viewBox)}" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" style="color:${escHtml(primary)};--agy-c1:${escHtml(primary)};--agy-c2:${escHtml(secondary)};"><defs><linearGradient id="agyBrandGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${escHtml(primary)}"/><stop offset="100%" stop-color="${escHtml(secondary)}"/></linearGradient></defs>${svgSpec.inner}</svg>`;
+      }
+    }
+
+    const brandEl = shell.querySelector('[data-testid="brand"]') || document.querySelector('[data-testid="brand"]');
+    if (brandEl) {
+      const workId = (th.workIdentity && typeof th.workIdentity === 'object') ? th.workIdentity : {};
+      const brandLabel = String(workId.franchise || st.themeName || th.name || '').trim();
+      if (brandLabel) {
+        const walker = document.createTreeWalker(brandEl, NodeFilter.SHOW_TEXT, null);
+        let node;
+        while ((node = walker.nextNode())) {
+          if (/antigravity/i.test(node.nodeValue || '')) {
+            node.nodeValue = node.nodeValue.replace(/antigravity/gi, brandLabel);
+          }
+        }
+      }
+    }
+
+    const activeShell = findActiveShell();
+    const existingWatermark = document.getElementById('agy-bg-emblem-watermark');
+    const hasHole = document.body.getAttribute('data-has-browser-hole') === 'true';
+    if (!activeShell || st.themeMode !== 'dynamic' || !st.wpEnabled || hasHole) {
+      if (existingWatermark) existingWatermark.remove();
+      return;
+    }
+    let wm = existingWatermark;
+    if (!wm || wm.parentElement !== activeShell) {
+      if (wm) wm.remove();
+      wm = document.createElement('div');
+      wm.id = 'agy-bg-emblem-watermark';
+      wm.setAttribute('aria-hidden', 'true');
+      activeShell.appendChild(wm);
+    }
+    if (wm.dataset.agyBrandKey !== brandKey) {
+      wm.dataset.agyBrandKey = brandKey;
+      wm.innerHTML = `<svg viewBox="${escHtml(svgSpec.viewBox)}" width="220" height="220" fill="none" xmlns="http://www.w3.org/2000/svg" style="color:${escHtml(primary)};--agy-c1:${escHtml(primary)};--agy-c2:${escHtml(secondary)};"><defs><linearGradient id="agyWatermarkGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${escHtml(primary)}"/><stop offset="100%" stop-color="${escHtml(secondary)}"/></linearGradient></defs>${svgSpec.inner}</svg>`;
+    }
+  }
+
   function syncComposerHost(stOverride) {
     const shell = findActiveShell() || document.querySelector('.agy-shell');
     if (!shell) return;
     const st = stOverride || getStateSafe();
     const shouldDock = st.themeMode === 'dynamic' && st.petEnabled !== false && st.petChatDocked !== false;
     shell.classList.toggle('agy-pet-chat-docked', shouldDock);
+    shell.dataset.agyAgentRunning = isAiTaskRunning() ? '1' : '0';
 
     const composers = shell.querySelectorAll('.surface-composer');
     composers.forEach((comp) => {
+      if (comp.getAttribute('data-agy-composer-host') !== '1') {
+        comp.setAttribute('data-agy-composer-host', '1');
+      }
       const convView = comp.closest('[data-testid="conversation-view"]');
-      let host = null;
-      if (convView) {
-        let cur = comp;
+      let wrap = null;
+      let cur = comp.parentElement;
+      while (cur && cur !== shell) {
+        if (cur.classList && cur.classList.contains('px-4') && cur.classList.contains('pb-4')) {
+          wrap = cur;
+          break;
+        }
+        cur = cur.parentElement;
+      }
+      if (!wrap && convView) {
+        cur = comp;
         while (cur && cur.parentElement && cur.parentElement !== convView) {
           cur = cur.parentElement;
         }
         if (cur && cur.parentElement === convView) {
-          host = cur;
+          wrap = cur;
         }
       }
-      if (!host) {
-        host = comp.closest('[data-testid="agent-input-box"]') || comp;
+      if (!wrap) {
+        const box = comp.closest('[data-testid="agent-input-box"]');
+        wrap = (box && box.parentElement && box.parentElement !== shell) ? box.parentElement : (box || comp.parentElement);
       }
-      if (host && host.getAttribute('data-agy-composer-host') !== '1') {
-        host.setAttribute('data-agy-composer-host', '1');
+      if (wrap && wrap.getAttribute('data-agy-composer-wrap') !== '1') {
+        wrap.setAttribute('data-agy-composer-wrap', '1');
       }
     });
+
+    if (!shouldDock) {
+      delete shell.dataset.agyPetChatOpen;
+      delete document.body.dataset.agyPetChatOpen;
+      shell.style.removeProperty('--agy-pet-comp-left');
+      shell.style.removeProperty('--agy-pet-comp-top');
+      shell.style.removeProperty('--agy-pet-comp-w');
+      const closeChip = document.getElementById('agy-pet-composer-close');
+      if (closeChip) closeChip.hidden = true;
+    } else if (window.__AGY_BETTER_PET_CTRL__ && typeof window.__AGY_BETTER_PET_CTRL__.syncComposerAnchor === 'function') {
+      window.__AGY_BETTER_PET_CTRL__.syncComposerAnchor();
+    }
   }
 
-  function stopAntigravityTask() {
-    const shell = findActiveShell() || document;
-    const stopBtn = shell.querySelector(
-      '[data-testid="input-cancel-button"], button[aria-label="Stop execution"], button[aria-label="Cancel Task"], [data-testid="subagent-stop"]'
-    );
-    if (stopBtn && !stopBtn.disabled) {
-      stopBtn.click();
-      return true;
+  function findConversationScroller(convView) {
+    if (!convView) return null;
+    const viewport = convView.querySelector('[data-testid="autoscroll-viewport"]');
+    if (viewport) return viewport;
+    const candidates = convView.querySelectorAll('.overflow-y-auto');
+    let best = null;
+    let bestH = 0;
+    for (let i = 0; i < candidates.length; i++) {
+      const el = candidates[i];
+      if (el.closest('.surface-composer, [data-agy-composer-wrap="1"]')) continue;
+      if (el.scrollHeight > bestH) {
+        bestH = el.scrollHeight;
+        best = el;
+      }
     }
-    return false;
+    return best || convView;
   }
 
-  function sendToAntigravityComposer(rawText) {
-    const text = String(rawText || '').trim();
-    if (!text) return false;
-    const shell = findActiveShell() || document;
-    const comp = shell.querySelector('[data-main-content-body="true"] .surface-composer')
-      || shell.querySelector('.surface-composer')
-      || document.querySelector('.surface-composer');
-    if (!comp) return false;
-    const inputEl = comp.querySelector('[data-lexical-editor="true"], [contenteditable="true"], textarea, input:not([type="hidden"])');
-    if (!inputEl) return false;
-
-    const prevFocused = document.activeElement;
-    try { inputEl.focus({ preventScroll: true }); } catch (_) { try { inputEl.focus(); } catch (__) {} }
-
-    if (inputEl.tagName === 'TEXTAREA' || inputEl.tagName === 'INPUT') {
-      const proto = inputEl.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
-      const desc = Object.getOwnPropertyDescriptor(proto, 'value');
-      if (desc && typeof desc.set === 'function') desc.set.call(inputEl, text);
-      else inputEl.value = text;
-      inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-      inputEl.dispatchEvent(new Event('change', { bubbles: true }));
-    } else {
-      try {
-        const sel = window.getSelection();
-        if (sel) {
-          const range = document.createRange();
-          range.selectNodeContents(inputEl);
-          sel.removeAllRanges();
-          sel.addRange(range);
-        }
-      } catch (_) {}
-
-      let inserted = false;
-      try {
-        inserted = Boolean(document.execCommand && document.execCommand('insertText', false, text));
-      } catch (_) {}
-
-      if (!inserted || !String(inputEl.textContent || '').trim()) {
-        try {
-          const dt = new DataTransfer();
-          dt.setData('text/plain', text);
-          inputEl.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
-        } catch (_) {}
-      }
-
-      if (!String(inputEl.textContent || '').trim()) {
-        inputEl.textContent = text;
-        try {
-          inputEl.dispatchEvent(new InputEvent('input', { inputType: 'insertText', data: text, bubbles: true }));
-        } catch (_) {
-          inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-      }
+  function syncScrollControls(stOverride) {
+    const st = stOverride || getStateSafe();
+    const shell = findActiveShell() || document.querySelector('.agy-shell');
+    const convView = shell ? shell.querySelector('[data-testid="conversation-view"]') : null;
+    let box = document.getElementById('agy-scroll-controls');
+    if (!shell || !convView || st.themeMode === 'static') {
+      if (box) box.dataset.visible = 'false';
+      return;
+    }
+    const scroller = findConversationScroller(convView);
+    if (!scroller) {
+      if (box) box.dataset.visible = 'false';
+      return;
+    }
+    const convRect = convView.getBoundingClientRect();
+    const isScrollable = convRect.width > 160 && convRect.height > 160 && scroller.scrollHeight > scroller.clientHeight + 72;
+    if (!isScrollable) {
+      if (box) box.dataset.visible = 'false';
+      return;
     }
 
-    setTimeout(() => {
-      const sendBtn = comp.querySelector(
-        'button[data-testid*="send" i]:not([disabled]), button[aria-label*="Send" i]:not([disabled]), button[aria-label*="Submit" i]:not([disabled]), button[type="submit"]:not([disabled])'
-      ) || (comp.parentElement && comp.parentElement.querySelector(
-        'button[data-testid*="send" i]:not([disabled]), button[aria-label*="Send" i]:not([disabled])'
-      ));
-      if (sendBtn) {
-        sendBtn.click();
-      } else {
-        const evtOpts = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true };
-        inputEl.dispatchEvent(new KeyboardEvent('keydown', evtOpts));
-        inputEl.dispatchEvent(new KeyboardEvent('keypress', evtOpts));
-        inputEl.dispatchEvent(new KeyboardEvent('keyup', evtOpts));
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'agy-scroll-controls';
+      box.setAttribute('role', 'group');
+      box.setAttribute('aria-label', 'Conversation Scroll Controls');
+      box.dataset.visible = 'false';
+      box.innerHTML = `
+        <button id="agy-scroll-top-btn" type="button" class="agy-scroll-hud-btn" data-scroll-dir="top" title="Cuộn lên đầu cuộc trò chuyện" aria-label="Scroll to top">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+        </button>
+        <button id="agy-scroll-bottom-btn" type="button" class="agy-scroll-hud-btn" data-scroll-dir="bottom" title="Cuộn xuống tin nhắn mới nhất" aria-label="Scroll to bottom">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      `;
+      document.body.appendChild(box);
+
+      box.addEventListener('click', (e) => {
+        const btn = e.target && typeof e.target.closest === 'function' ? e.target.closest('.agy-scroll-hud-btn') : null;
+        if (!btn) return;
+        const curShell = findActiveShell() || document.querySelector('.agy-shell');
+        const curConv = curShell ? curShell.querySelector('[data-testid="conversation-view"]') : null;
+        const curScroller = findConversationScroller(curConv);
+        if (!curScroller) return;
+        const dir = btn.dataset.scrollDir;
+        btn.classList.remove('is-rippling');
+        void btn.offsetWidth;
+        btn.classList.add('is-rippling');
+        setTimeout(() => btn.classList.remove('is-rippling'), 450);
+        const curTh = THEMES[getStateSafe().themeName] || {};
+        playClickSound(curTh);
+        curScroller.scrollTo({
+          top: dir === 'top' ? 0 : curScroller.scrollHeight,
+          behavior: 'smooth'
+        });
+      });
+    }
+
+    const syncEdgeState = () => {
+      const topBtn = box.querySelector('#agy-scroll-top-btn');
+      const botBtn = box.querySelector('#agy-scroll-bottom-btn');
+      const atTop = scroller.scrollTop <= 20;
+      const atBottom = (scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight) <= 24;
+      if (topBtn) topBtn.dataset.atEdge = atTop ? 'true' : 'false';
+      if (botBtn) botBtn.dataset.atEdge = atBottom ? 'true' : 'false';
+    };
+
+    if (scroller.dataset.agyScrollHudBound !== '1' && window.__AGY_SCROLL_AC__) {
+      scroller.dataset.agyScrollHudBound = '1';
+      scroller.addEventListener('scroll', () => {
+        syncEdgeState();
+      }, { passive: true, signal: window.__AGY_SCROLL_AC__.signal });
+    }
+    syncEdgeState();
+
+    const th = THEMES[st.themeName] || THEMES[getDefaultThemeKey()] || {};
+    box.style.setProperty('--scroll-accent', th.primary || '#38bdf8');
+    box.style.setProperty('--scroll-secondary', th.secondary || th.primary || '#38bdf8');
+    box.style.setProperty('--scroll-glow', th.glow || 'rgba(56, 189, 248, 0.28)');
+    box.style.setProperty('--scroll-surface', th.modalBg || 'rgba(10, 14, 24, 0.78)');
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let bottomPx = Math.max(14, Math.round(vh - convRect.bottom + 18));
+    const rightPx = Math.max(12, Math.round(vw - convRect.right + 16));
+    const petEl = document.getElementById('agy-better-pet');
+    if (petEl) {
+      const pr = petEl.getBoundingClientRect();
+      const nearHoriz = pr.right > convRect.right - 135 && pr.left < convRect.right + 20;
+      const nearVert = pr.bottom > convRect.bottom - 140;
+      if (nearHoriz && nearVert) {
+        bottomPx = Math.max(bottomPx, Math.round(vh - pr.top + 14));
       }
-      if (prevFocused && prevFocused.id === 'agy-better-pet-chat-input' && prevFocused.isConnected) {
-        setTimeout(() => {
-          try { prevFocused.focus({ preventScroll: true }); } catch (_) {}
-        }, 40);
-      }
-    }, 45);
-    return true;
+    } else if (shell.classList.contains('agy-pet-chat-docked') === false) {
+      bottomPx = Math.max(bottomPx, Math.round(vh - convRect.bottom + 98));
+    }
+    box.style.right = `${rightPx}px`;
+    box.style.bottom = `${Math.min(vh - 84, bottomPx)}px`;
+    box.dataset.visible = 'true';
   }
 
   // ── Authentic desktop-agent_pet Renderer (#agy-better-pet) ────────────────────
@@ -1536,10 +1681,36 @@
       ctrl.destroy();
     }
     window.__AGY_BETTER_PET_CTRL__ = null;
-    ['agy-better-pet', 'agy-better-pet-chat', 'agy-better-pet-menu', 'agy-ide-pet'].forEach((id) => {
+    ['agy-better-pet', 'agy-better-pet-chat', 'agy-better-pet-menu', 'agy-pet-composer-close', 'agy-ide-pet'].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.remove();
     });
+    const shell = document.querySelector('.agy-shell');
+    if (shell) {
+      delete shell.dataset.agyPetChatOpen;
+      shell.style.removeProperty('--agy-pet-comp-left');
+      shell.style.removeProperty('--agy-pet-comp-top');
+      shell.style.removeProperty('--agy-pet-comp-w');
+    }
+    delete document.body.dataset.agyPetChatOpen;
+  }
+
+  function readSavedPetPos() {
+    try {
+      const raw = localStorage.getItem(STORAGE_PET_POS);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && Number.isFinite(Number(parsed.x)) && Number.isFinite(Number(parsed.y))) {
+        return { x: Number(parsed.x), y: Number(parsed.y) };
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  function savePetPos(nx, ny) {
+    try {
+      localStorage.setItem(STORAGE_PET_POS, JSON.stringify({ x: Math.round(nx), y: Math.round(ny) }));
+    } catch (_) {}
   }
 
   function mountBetterPet(theme) {
@@ -1578,7 +1749,7 @@
     pill.id = 'agy-better-pet-pill';
     pill.type = 'button';
     pill.setAttribute('aria-expanded', 'false');
-    pill.setAttribute('title', 'Bấm để mở/đóng khung chat Pet (Chuột phải để tùy chọn)');
+    pill.setAttribute('title', 'Bấm để mở/đóng khung chat ngay dưới Pet (Chuột phải để tùy chọn)');
     pill.innerHTML = `
       <span class="agy-better-pet-pill__dot" aria-hidden="true"></span>
       <span class="agy-better-pet-pill__label">Companion · Idle</span>
@@ -1588,35 +1759,14 @@
     `;
     pet.appendChild(pill);
 
-    // Floating Pet Chat popover
-    const chat = document.createElement('div');
-    chat.id = 'agy-better-pet-chat';
-    chat.setAttribute('role', 'dialog');
-    chat.setAttribute('aria-label', 'Pet Quick Chat');
-    chat.dataset.open = 'false';
-    chat.innerHTML = `
-      <div class="agy-better-pet-chat__head">
-        <div class="agy-better-pet-chat__title-wrap">
-          <span class="agy-better-pet-pill__dot" aria-hidden="true"></span>
-          <span class="agy-better-pet-chat__name">Companion</span>
-          <span class="agy-better-pet-chat__status">Idle</span>
-        </div>
-        <div class="agy-better-pet-chat__actions">
-          <button id="agy-better-pet-chat-undock" type="button" class="agy-better-pet-chat__icon-btn" title="Hiện / chuyển về thanh chat gốc ở giữa">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-          </button>
-          <button id="agy-better-pet-chat-close" type="button" class="agy-better-pet-chat__icon-btn" title="Đóng khung chat Pet">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-      </div>
-      <div class="agy-better-pet-chat__body">
-        <textarea id="agy-better-pet-chat-input" rows="1" placeholder="Nhắn cho Agent... (Enter gửi, Shift+Enter xuống dòng)"></textarea>
-        <button id="agy-better-pet-chat-send" type="button" class="agy-better-pet-chat__send-btn" title="Gửi tin nhắn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        </button>
-      </div>
-    `;
+    // Sleek close chip anchored at top-right of the real .surface-composer when opened under Pet
+    const closeChip = document.createElement('button');
+    closeChip.id = 'agy-pet-composer-close';
+    closeChip.type = 'button';
+    closeChip.hidden = true;
+    closeChip.setAttribute('aria-label', 'Đóng khung chat Pet');
+    closeChip.setAttribute('title', 'Đóng khung chat (Esc)');
+    closeChip.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
 
     const menu = document.createElement('div');
     menu.id = 'agy-better-pet-menu';
@@ -1624,17 +1774,13 @@
     menu.hidden = true;
 
     const pillLabelEl = pill.querySelector('.agy-better-pet-pill__label');
-    const chatNameEl = chat.querySelector('.agy-better-pet-chat__name');
-    const chatStatusEl = chat.querySelector('.agy-better-pet-chat__status');
-    const chatInput = chat.querySelector('#agy-better-pet-chat-input');
-    const chatSendBtn = chat.querySelector('#agy-better-pet-chat-send');
-    const chatUndockBtn = chat.querySelector('#agy-better-pet-chat-undock');
-    const chatCloseBtn = chat.querySelector('#agy-better-pet-chat-close');
 
     let activePetName = 'Companion';
     let chatOpen = false;
-    let x = Math.max(8, window.innerWidth - PET_WIDTH_PX - 28);
-    let y = Math.max(8, window.innerHeight - PET_HEIGHT_PX - 46);
+    const savedPos = readSavedPetPos();
+    let x = savedPos ? savedPos.x : Math.max(8, window.innerWidth - PET_WIDTH_PX - 28);
+    let y = savedPos ? savedPos.y : Math.max(8, window.innerHeight - PET_HEIGHT_PX - 46);
+    let preLiftY = null;
     let statusState = detectAntigravityPetState();
     let transient = null;
     let reactionState = null;
@@ -1663,73 +1809,100 @@
       ];
     };
 
-    const updateChatAnchor = () => {
-      if (!chatOpen) return;
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const cw = Math.min(340, Math.max(240, vw - 16));
-      chat.style.width = `${cw}px`;
-      const ch = chat.offsetHeight || 96;
-      const petCenterX = x + PET_WIDTH_PX / 2;
-      const left = Math.min(Math.max(8, Math.round(petCenterX - cw / 2)), Math.max(8, vw - cw - 8));
-      const pillBottom = y + PET_HEIGHT_PX + 32;
-      const spaceBelow = vh - pillBottom - 8;
-      const spaceAbove = y - 8;
-      let top;
-      let placement = 'above';
-      if (spaceAbove >= ch + 8 || spaceAbove >= spaceBelow) {
-        top = Math.max(8, Math.round(y - ch - 8));
-        placement = 'above';
-      } else {
-        top = Math.min(Math.max(8, Math.round(pillBottom + 6)), Math.max(8, vh - ch - 8));
-        placement = 'below';
-      }
-      chat.style.left = `${left}px`;
-      chat.style.top = `${top}px`;
-      chat.dataset.placement = placement;
-      pet.dataset.chatPlacement = placement;
+    const getRealComposer = () => {
+      const shell = findActiveShell() || document.querySelector('.agy-shell') || document;
+      return shell.querySelector('.surface-composer[data-agy-composer-host="1"]')
+        || shell.querySelector('.surface-composer');
     };
 
-    const place = (nx, ny) => {
+    const syncComposerAnchor = () => {
+      const shell = findActiveShell() || document.querySelector('.agy-shell');
+      if (!shell) return;
+      const docked = getStateSafe().petChatDocked !== false && shell.classList.contains('agy-pet-chat-docked');
+      if (!chatOpen || !docked) {
+        delete shell.dataset.agyPetChatOpen;
+        delete document.body.dataset.agyPetChatOpen;
+        closeChip.hidden = true;
+        return;
+      }
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const cw = Math.min(500, Math.max(260, vw - 24));
+      const petCenterX = x + PET_WIDTH_PX / 2;
+      const left = Math.min(Math.max(12, Math.round(petCenterX - cw / 2)), Math.max(12, vw - cw - 12));
+      const pillRect = pill.getBoundingClientRect();
+      const pillHeightOffset = (pillRect && pillRect.height > 0 && pillRect.bottom >= y)
+        ? Math.round(pillRect.bottom - y)
+        : (PET_HEIGHT_PX + 28);
+      const pillBottom = y + pillHeightOffset;
+      const compEl = getRealComposer();
+      const neededBelow = Math.max(175, (compEl && compEl.scrollHeight > 90 ? Math.min(240, compEl.scrollHeight + 14) : 175));
+      const top = Math.min(Math.max(8, Math.round(pillBottom + 8)), Math.max(8, vh - neededBelow));
+
+      shell.dataset.agyPetChatOpen = '1';
+      document.body.dataset.agyPetChatOpen = '1';
+      shell.style.setProperty('--agy-pet-comp-left', `${left}px`);
+      shell.style.setProperty('--agy-pet-comp-top', `${top}px`);
+      shell.style.setProperty('--agy-pet-comp-w', `${cw}px`);
+
+      closeChip.hidden = false;
+      closeChip.style.left = `${Math.min(vw - 28, left + cw - 11)}px`;
+      closeChip.style.top = `${Math.max(6, top - 10)}px`;
+    };
+
+    const place = (nx, ny, shouldPersist = false) => {
       [x, y] = clampPos(nx, ny);
       pet.style.left = `${x}px`;
       pet.style.top = `${y}px`;
-      updateChatAnchor();
+      if (shouldPersist) savePetPos(x, y);
+      syncComposerAnchor();
     };
 
     const syncChatControls = () => {
       const meta = getPetPillStatusMeta(statusState);
       pet.dataset.petTone = meta.tone;
-      chat.dataset.petTone = meta.tone;
       if (pillLabelEl) pillLabelEl.textContent = `${activePetName} · ${meta.label}`;
-      if (chatNameEl) chatNameEl.textContent = activePetName;
-      if (chatStatusEl) chatStatusEl.textContent = meta.label;
-      if (chatSendBtn) {
-        const hasText = Boolean(chatInput && chatInput.value.trim());
-        const showStop = statusState === 'running' && !hasText;
-        chatSendBtn.dataset.mode = showStop ? 'stop' : 'send';
-        chatSendBtn.setAttribute('title', showStop ? 'Dừng Agent đang chạy' : 'Gửi tin nhắn');
-        chatSendBtn.innerHTML = showStop
-          ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>'
-          : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
-      }
-      if (chatUndockBtn) {
-        const docked = getStateSafe().petChatDocked !== false;
-        chatUndockBtn.setAttribute('title', docked ? 'Hiện thanh chat gốc ở giữa' : 'Đang hiện thanh chat gốc (bấm để ẩn)');
-      }
     };
 
     const setChatOpen = (nextOpen, focusInput = true) => {
+      const stNow = getStateSafe();
+      if (nextOpen && stNow.petChatDocked === false) {
+        applyTheme({ petChatDocked: true });
+        syncExtraToggleBtns((THEMES[stNow.themeName] || th).primary);
+      }
       chatOpen = Boolean(nextOpen);
       pet.dataset.petChatOpen = chatOpen ? 'true' : 'false';
       pill.setAttribute('aria-expanded', chatOpen ? 'true' : 'false');
-      chat.dataset.open = chatOpen ? 'true' : 'false';
       if (chatOpen) {
-        updateChatAnchor();
-        if (focusInput && chatInput) {
+        const pillRect = pill.getBoundingClientRect();
+        const pillHeightOffset = (pillRect && pillRect.height > 0 && pillRect.bottom >= y)
+          ? Math.round(pillRect.bottom - y)
+          : (PET_HEIGHT_PX + 28);
+        const pillBottom = y + pillHeightOffset;
+        const spaceBelow = window.innerHeight - pillBottom;
+        const requiredBelow = 183;
+        if (spaceBelow < requiredBelow) {
+          if (preLiftY === null) preLiftY = y;
+          const liftedY = Math.max(8, Math.round(window.innerHeight - requiredBelow - pillHeightOffset));
+          place(x, liftedY, false);
+        }
+        syncComposerAnchor();
+        if (focusInput) {
           requestAnimationFrame(() => {
-            try { chatInput.focus({ preventScroll: true }); } catch (_) {}
+            const comp = getRealComposer();
+            const ed = comp && comp.querySelector('[data-lexical-editor="true"], [contenteditable="true"], textarea');
+            if (ed) {
+              try { ed.focus({ preventScroll: true }); } catch (_) { try { ed.focus(); } catch (__) {} }
+            }
           });
+        }
+      } else {
+        if (preLiftY !== null) {
+          const restoreY = preLiftY;
+          preLiftY = null;
+          place(x, restoreY, false);
+        } else {
+          syncComposerAnchor();
         }
       }
     };
@@ -1744,7 +1917,7 @@
       const docked = stNow.petChatDocked !== false;
       menu.innerHTML = `
         <button type="button" class="agy-better-pet-menu__item" data-act="toggle-chat">${chatOpen ? '🔽 Đóng Pet Chat' : '💬 Mở Pet Chat'}</button>
-        <button type="button" class="agy-better-pet-menu__item" data-act="toggle-dock">${docked ? '👁️ Hiện lại thanh chat gốc' : '🧲 Ẩn thanh chat gốc (Pet Chat)'}</button>
+        <button type="button" class="agy-better-pet-menu__item" data-act="toggle-dock">${docked ? '👁️ Hiện lại thanh chat gốc' : '🧲 Thu gọn vào dưới chân Pet'}</button>
         <button type="button" class="agy-better-pet-menu__item" data-act="studio">🎨 Mở Custom Theme Studio</button>
         <button type="button" class="agy-better-pet-menu__item" data-act="hide-pet">🐾 Ẩn Pet</button>
       `;
@@ -1833,14 +2006,14 @@
       const primary = t.primary || '#38bdf8';
       const secondary = t.secondary || primary;
       const glow = t.glow || 'rgba(56, 189, 248, 0.28)';
-      const surface = t.aiCardBg || 'rgba(12, 16, 28, 0.90)';
+      const surface = t.modalBg || t.aiCardBg || 'rgba(12, 16, 28, 0.90)';
       const border = t.aiCardBorder || t.borderColor || 'rgba(255, 255, 255, 0.16)';
       const ink = t.uiTextColor || '#f8fafc';
       const muted = t.uiMutedColor || '#cbd5e1';
       const pack = typeof resolveDynamicPack === 'function' ? resolveDynamicPack(t) : {};
       const radius = Math.min(18, Math.max(10, Number(pack.uiDesign && pack.uiDesign.cardRadiusPx) || 14));
 
-      [pet, chat, menu].forEach((node) => {
+      [pet, menu, closeChip].forEach((node) => {
         node.style.setProperty('--pet-sheet', `url(${JSON.stringify(sheetUrl)})`);
         node.style.setProperty('--pet-accent', primary);
         node.style.setProperty('--pet-secondary', secondary);
@@ -1859,38 +2032,7 @@
       const petConcept = meta.personifiedConcept || dir.personifiedConcept || t.concept || '';
       tooltip.textContent = petConcept ? `${activePetName} · ${petConcept}` : activePetName;
       syncChatControls();
-    };
-
-    const autoResizeInput = () => {
-      if (!chatInput) return;
-      chatInput.style.height = 'auto';
-      chatInput.style.height = `${Math.min(110, Math.max(22, chatInput.scrollHeight))}px`;
-      updateChatAnchor();
-    };
-
-    const submitPetChat = () => {
-      if (!chatInput) return;
-      const val = chatInput.value.trim();
-      if (!val) {
-        if (statusState === 'running') {
-          stopAntigravityTask();
-          syncChatControls();
-        }
-        return;
-      }
-      if (sendToAntigravityComposer(val)) {
-        const curTh = THEMES[getStateSafe().themeName] || th;
-        playClickSound(curTh);
-        chatInput.value = '';
-        autoResizeInput();
-        reactionState = 'jumping';
-        clearTimeout(reactionTimer);
-        reactionTimer = setTimeout(() => {
-          reactionState = null;
-          refresh();
-        }, 1200);
-        refresh();
-      }
+      syncComposerAnchor();
     };
 
     pill.addEventListener('pointerdown', (e) => {
@@ -1904,6 +2046,12 @@
       const curTh = THEMES[getStateSafe().themeName] || th;
       playClickSound(curTh);
       setChatOpen(!chatOpen, true);
+    }, { signal: sig });
+
+    closeChip.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setChatOpen(false, false);
     }, { signal: sig });
 
     pet.addEventListener('pointerdown', (e) => {
@@ -1936,6 +2084,7 @@
       const totalDy = e.clientY - drag.startY;
       if (!drag.moved && Math.hypot(totalDx, totalDy) < 4) return;
       drag.moved = true;
+      preLiftY = null;
       const stepDx = e.clientX - drag.lastX;
       const stepDy = e.clientY - drag.lastY;
       if (Math.abs(stepDx) >= 4) {
@@ -1943,7 +2092,7 @@
       }
       drag.lastX = e.clientX;
       drag.lastY = e.clientY;
-      place(x + stepDx, y + stepDy);
+      place(x + stepDx, y + stepDy, false);
       refresh();
     }, { signal: sig });
 
@@ -1953,7 +2102,9 @@
       drag = null;
       pet.dataset.petDragging = 'false';
       transient = null;
-      if (!wasMoved) {
+      if (wasMoved) {
+        savePetPos(x, y);
+      } else {
         const curTh = THEMES[getStateSafe().themeName] || th;
         playClickSound(curTh);
         reactionState = reactionState === 'waving' ? 'jumping' : 'waving';
@@ -1984,65 +2135,30 @@
         setChatOpen(!chatOpen, true);
       } else if (act === 'toggle-dock') {
         const nextDock = getStateSafe().petChatDocked === false;
+        if (!nextDock) setChatOpen(false, false);
         applyTheme({ petChatDocked: nextDock });
         syncExtraToggleBtns((THEMES[getStateSafe().themeName] || th).primary);
         syncChatControls();
-      } else if (act === 'studio') {
-        openCustomThemeModal();
-      } else if (act === 'hide-pet') {
-        applyTheme({ petEnabled: false });
-      }
-    }, { signal: sig });
-
-    if (chatInput) {
-      chatInput.addEventListener('input', () => {
-        autoResizeInput();
-        syncChatControls();
-      }, { signal: sig });
-      chatInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          e.stopPropagation();
-          submitPetChat();
-        } else if (e.key === 'Escape') {
-          e.preventDefault();
-          e.stopPropagation();
-          setChatOpen(false, false);
-        }
-      }, { signal: sig });
-    }
-    if (chatSendBtn) {
-      chatSendBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        submitPetChat();
-      }, { signal: sig });
-    }
-    if (chatCloseBtn) {
-      chatCloseBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setChatOpen(false, false);
-      }, { signal: sig });
-    }
-    if (chatUndockBtn) {
-      chatUndockBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const curDocked = getStateSafe().petChatDocked !== false;
-        const nextDocked = !curDocked;
-        applyTheme({ petChatDocked: nextDocked });
-        syncExtraToggleBtns((THEMES[getStateSafe().themeName] || th).primary);
-        syncChatControls();
-        if (!nextDocked) {
-          setChatOpen(false, false);
+        if (!nextDock) {
           const compInput = document.querySelector('.surface-composer [data-lexical-editor="true"], .surface-composer [contenteditable="true"], .surface-composer textarea');
           if (compInput) {
             setTimeout(() => { try { compInput.focus(); } catch (_) {} }, 50);
           }
         }
-      }, { signal: sig });
-    }
+      } else if (act === 'studio') {
+        openCustomThemeModal();
+      } else if (act === 'hide-pet') {
+        setChatOpen(false, false);
+        applyTheme({ petEnabled: false });
+      }
+    }, { signal: sig });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || !chatOpen) return;
+      if (document.querySelector('[data-base-ui-portal] [role="listbox"], [data-base-ui-portal] [role="menu"]')) return;
+      if (document.getElementById('agy-custom-theme-modal-backdrop')?.style.display === 'flex') return;
+      setChatOpen(false, false);
+    }, { signal: sig });
 
     document.addEventListener('pointerdown', (e) => {
       if (!menu.hidden && !menu.contains(e.target)) {
@@ -2066,20 +2182,25 @@
     };
     document.addEventListener('input', onCaret, { passive: true, signal: sig });
     document.addEventListener('keyup', onCaret, { passive: true, signal: sig });
-    window.addEventListener('resize', () => place(x, y), { passive: true, signal: sig });
+    window.addEventListener('resize', () => place(x, y, false), { passive: true, signal: sig });
 
-    place(x, y);
+    place(x, y, false);
     updateTheme(th);
     document.body.appendChild(pet);
-    document.body.appendChild(chat);
+    document.body.appendChild(closeChip);
     document.body.appendChild(menu);
     rebuild();
+    syncComposerAnchor();
 
     const ctrl = {
       updateTheme,
+      syncComposerAnchor,
+      setChatOpen,
       syncState: () => {
         statusState = detectAntigravityPetState();
         refresh();
+        const shell = findActiveShell() || document.querySelector('.agy-shell');
+        if (shell) shell.dataset.agyAgentRunning = statusState === 'running' ? '1' : '0';
       },
       destroy: () => {
         disposed = true;
@@ -2087,7 +2208,7 @@
         clearTimeout(reactionTimer);
         ac.abort();
         pet.remove();
-        chat.remove();
+        closeChip.remove();
         menu.remove();
       }
     };
@@ -2901,12 +3022,12 @@
       const lightMode = Boolean(th.isLight);
       const pColor = th.primary || '#38bdf8';
       const sColor = th.secondary || pColor;
-      const gColor = th.glow || 'rgba(56, 189, 248, 0.22)';
-      const hairline = th.aiCardBorder || th.borderColor || (lightMode ? 'rgba(15, 23, 42, 0.14)' : 'rgba(255, 255, 255, 0.12)');
+      const gColor = th.glow || 'rgba(56, 189, 248, 0.16)';
+      const hairline = lightMode ? 'rgba(15, 23, 42, 0.10)' : 'rgba(255, 255, 255, 0.08)';
       const subtleBg = th.aiCardBg || (lightMode ? 'rgba(255, 255, 255, 0.82)' : 'rgba(12, 14, 24, 0.68)');
       const rightTint = th.aiCardBg || (lightMode ? 'rgba(255, 255, 255, 0.84)' : 'rgba(10, 12, 20, 0.72)');
 
-      // 1. Left Column (Sidebar)
+      // 1. Left Column (Sidebar — clean outer floating panel, borderless inner rows)
       const lc = (vfx.leftColumn && typeof vfx.leftColumn === 'object') ? vfx.leftColumn : {};
       const surfaceMode = lc.surfaceMode || 'smoked-glass';
       const density = lc.density === 'compact' ? 'compact' : (lc.density === 'spacious' ? 'spacious' : 'balanced');
@@ -2924,8 +3045,7 @@
           height: ${stCur.wpEnabled ? 'calc(100% - 12px)' : '100%'} !important;
           border-radius: ${stCur.wpEnabled ? lcRadius : 0}px !important;
           border: 1px solid ${lcBorder} !important;
-          ${surfaceMode === 'inset-panel' || surfaceMode === 'rail-accent' ? `border-left: 2px solid ${pColor} !important;` : ''}
-          box-shadow: ${stCur.wpEnabled ? `0 6px 22px rgba(0, 0, 0, ${lightMode ? '0.10' : '0.36'})` : 'none'} !important;
+          box-shadow: none !important;
           overflow: hidden !important;
           backdrop-filter: none !important;
           position: relative !important;
@@ -2933,47 +3053,68 @@
         }
         ${sidebarItemSel} {
           border-radius: ${Math.max(4, lcRadius - 2)}px !important;
-          border: 1px solid transparent !important;
+          border: none !important;
+          box-shadow: none !important;
           margin: ${itemMargin} !important;
           padding: ${itemPad} !important;
-          ${isDyn ? 'transition: transform 0.14s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;' : 'transition: none !important;'}
+          position: relative !important;
+          ${isDyn ? 'transition: background-color 0.16s ease, color 0.16s ease !important;' : 'transition: none !important;'}
         }
         ${sidebarItemSel}:hover {
-          border-color: ${pColor}66 !important;
-          ${isDyn ? `transform: translateY(-1px) !important; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.24), 0 0 8px ${gColor} !important;` : ''}
-        }
-        ${sidebarItemSel}:active {
-          transform: scale(0.985) !important;
+          border: none !important;
+          box-shadow: none !important;
+          background: ${sidebarHoverBg} !important;
+          ${isDyn ? `background-image: linear-gradient(90deg, transparent, ${gColor}, transparent) !important; background-size: 200% 100% !important; animation: agyShimmerSweep 2.4s linear infinite !important;` : ''}
         }
         ${sidebarNavSel} :is([aria-current="page"], [aria-selected="true"], [data-active="true"]) {
-          border-color: ${pColor}88 !important;
-          box-shadow: inset 2px 0 0 ${pColor}${isDyn ? `, 0 0 10px ${gColor}` : ''} !important;
+          border: none !important;
+          background: ${sidebarHoverBg} !important;
+          box-shadow: inset 2.5px 0 0 ${pColor} !important;
         }
+        ${isDyn ? `
+        ${sidebarNavSel} :is([aria-current="page"], [aria-selected="true"], [data-active="true"])::after {
+          content: "";
+          position: absolute;
+          left: 8px;
+          right: 8px;
+          bottom: 1px;
+          height: 1.5px;
+          border-radius: 9999px;
+          background: linear-gradient(90deg, transparent, ${pColor}, ${sColor}, transparent);
+          background-size: 200% 100%;
+          animation: agyShimmerSweep 2.8s linear infinite;
+          pointer-events: none;
+        }
+        ` : ''}
       `;
 
-      // 2. Center Stage (Agent response, user bubble, composer, steps)
+      // 2. Center Stage (Airy nearly-transparent AI response, user bubble, focus-only composer glow)
       const cs = (vfx.centerStage && typeof vfx.centerStage === 'object') ? vfx.centerStage : {};
       const surfaceStyle = cs.cardStyle || cs.surfaceStyle || 'glass-card';
       const csRadius = Math.min(20, Math.max(4, Number(cs.radiusPx) || cardRadiusPx || 12));
       const transitionCss = isDyn
-        ? 'transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease !important;'
+        ? 'transition: background-color 0.16s ease, border-color 0.16s ease, opacity 0.16s ease !important;'
         : 'transition: none !important;';
 
       let centerStageCss = `
         .agy-shell [data-testid="agent-response"] {
           margin-block: 6px !important;
-          border: 1px solid ${hairline} !important;
+          border: 1px solid ${lightMode ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255, 255, 255, 0.05)'} !important;
           border-radius: ${csRadius}px !important;
-          box-shadow: 0 4px 18px rgba(0, 0, 0, ${lightMode ? '0.08' : '0.28'}) !important;
+          box-shadow: none !important;
           backdrop-filter: none !important;
           ${transitionCss}
+        }
+        .agy-shell [data-testid="agent-response"]::after {
+          display: none !important;
+          content: none !important;
         }
         .agy-shell .agy-user-bubble-frame {
           margin-block: 6px !important;
           padding: 1px !important;
           border-radius: ${csRadius}px !important;
           background: ${th.frameBg || hairline} !important;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, ${lightMode ? '0.09' : '0.30'}) !important;
+          box-shadow: 0 3px 12px rgba(0, 0, 0, ${lightMode ? '0.07' : '0.24'}) !important;
           ${transitionCss}
         }
         .agy-shell .agy-user-bubble {
@@ -2983,7 +3124,7 @@
           padding: 1px !important;
           border-radius: ${csRadius + 1}px !important;
           background: ${hairline} !important;
-          box-shadow: 0 4px 18px rgba(0, 0, 0, ${lightMode ? '0.10' : '0.32'}) !important;
+          box-shadow: 0 6px 22px rgba(0, 0, 0, ${lightMode ? '0.12' : '0.36'}) !important;
           backdrop-filter: none !important;
           ${transitionCss}
         }
@@ -2993,35 +3134,17 @@
           backdrop-filter: none !important;
         }
         .agy-shell [data-step-index] {
-          margin-block: 6px !important;
+          margin-block: 4px !important;
           border-radius: ${Math.max(4, csRadius - 2)}px !important;
         }
       `;
       if (isDyn) {
         centerStageCss += `
-          .agy-shell [data-testid="agent-response"]:hover,
-          .agy-shell .agy-user-bubble-frame:hover {
-            transform: translateY(-1px) !important;
-            border-color: ${pColor}88 !important;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, ${lightMode ? '0.10' : '0.34'}), 0 0 12px ${gColor} !important;
-          }
           .agy-shell .surface-composer:focus-within {
-            background: linear-gradient(135deg, ${pColor}, ${sColor}) !important;
-            box-shadow: 0 6px 24px rgba(0, 0, 0, ${lightMode ? '0.12' : '0.38'}), 0 0 14px ${gColor} !important;
-          }
-        `;
-      }
-      if (surfaceStyle === 'editorial-sheet') {
-        centerStageCss += `
-          .agy-shell [data-testid="agent-response"] {
-            border-left: 2px solid ${pColor} !important;
-          }
-        `;
-      } else if (surfaceStyle === 'hud-hairline') {
-        centerStageCss += `
-          .agy-shell [data-testid="agent-response"],
-          .agy-shell .surface-composer-card {
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 4px 16px rgba(0, 0, 0, 0.28) !important;
+            background: linear-gradient(135deg, ${pColor}, ${sColor}, ${pColor}) !important;
+            background-size: 200% 200% !important;
+            animation: agyBorderFlow 4s ease infinite !important;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, ${lightMode ? '0.12' : '0.40'}), 0 0 12px ${gColor} !important;
           }
         `;
       }
@@ -3031,38 +3154,26 @@
       const tabIndicator = rc.tabIndicator || 'underline';
       const rightBg = rc.panelMode === 'transparent' ? 'transparent' : rightTint;
       const sashBg = rc.sashGlow ? pColor : hairline;
-      let tabIndicatorCss = `
+      const tabIndicatorCss = `
         .agy-shell [data-side-panel-strip] :is(button[aria-selected="true"], [role="tab"][aria-selected="true"]) {
-          border-bottom: 2px solid ${pColor} !important;
-          border-radius: 0 !important;
+          position: relative !important;
+          border: none !important;
+          box-shadow: none !important;
+        }
+        .agy-shell [data-side-panel-strip] :is(button[aria-selected="true"], [role="tab"][aria-selected="true"])::after {
+          content: "";
+          position: absolute;
+          left: 6px;
+          right: 6px;
+          bottom: 0;
+          height: 2px;
+          border-radius: 9999px;
+          background: linear-gradient(90deg, ${pColor}, ${sColor}, ${pColor});
+          background-size: 200% 100%;
+          ${isDyn ? 'animation: agyShimmerSweep 2.6s linear infinite;' : ''}
+          pointer-events: none;
         }
       `;
-      if (tabIndicator === 'pill') {
-        tabIndicatorCss = `
-          .agy-shell [data-side-panel-strip] :is(button[aria-selected="true"], [role="tab"][aria-selected="true"]) {
-            background: ${gColor} !important;
-            border: 1px solid ${hairline} !important;
-            border-radius: 9999px !important;
-          }
-        `;
-      } else if (tabIndicator === 'dot') {
-        tabIndicatorCss = `
-          .agy-shell [data-side-panel-strip] :is(button[aria-selected="true"], [role="tab"][aria-selected="true"]) {
-            position: relative !important;
-          }
-          .agy-shell [data-side-panel-strip] :is(button[aria-selected="true"], [role="tab"][aria-selected="true"])::after {
-            content: "";
-            position: absolute;
-            bottom: 2px;
-            left: 50%;
-            width: 4px;
-            height: 4px;
-            margin-left: -2px;
-            border-radius: 50%;
-            background: ${pColor};
-          }
-        `;
-      }
       const rightColumnCss = `
         .agy-shell [data-side-panel-docked] {
           background: transparent !important;
@@ -3075,7 +3186,7 @@
           height: ${stCur.wpEnabled ? 'calc(100% - 12px)' : '100%'} !important;
           border-radius: ${stCur.wpEnabled ? csRadius : 0}px !important;
           border: 1px solid ${hairline} !important;
-          box-shadow: ${stCur.wpEnabled ? `0 6px 22px rgba(0, 0, 0, ${lightMode ? '0.10' : '0.36'})` : 'none'} !important;
+          box-shadow: none !important;
           overflow: hidden !important;
           background: ${rightBg} !important;
           backdrop-filter: none !important;
@@ -3092,7 +3203,7 @@
         ${tabIndicatorCss}
       `;
 
-      // 4. Motion Rules & Subtle Theme Decor
+      // 4. Motion Rules
       const motionRule = isDyn ? resolveVfxMotionRule(th, mainPack) : 'none';
       const motionCss = motionRule === 'none'
         ? `
@@ -3103,25 +3214,10 @@
             animation: none !important;
           }
         `
-        : `
-          .agy-shell [data-testid="agent-response"]::after {
-            content: "";
-            position: absolute;
-            top: 6px;
-            right: 8px;
-            width: 14px;
-            height: 14px;
-            background-image: url("${cornerFiligreeUrl}");
-            background-size: contain;
-            background-repeat: no-repeat;
-            transform: scaleX(-1);
-            opacity: 0.56;
-            pointer-events: none;
-          }
-        `;
+        : '';
 
       return `
-        /* Refined vfxSpec Blueprint (${surfaceMode} / ${surfaceStyle} / ${tabIndicator} / ${motionRule}) */
+        /* Clean Floating 4-Block Blueprint (${surfaceMode} / ${surfaceStyle} / ${tabIndicator} / ${motionRule}) */
         ${leftColumnCss}
         ${centerStageCss}
         ${rightColumnCss}
@@ -3248,25 +3344,33 @@
       }
     ` : '';
 
-    const aiCardCss = mainTheme.aiCardBg ? `
-      /* Translucent reading card for AI responses (zero live backdrop-filter for max 120fps scroll) */
+    const aiTextShadow = isLight
+      ? '0 1px 2px rgba(255, 255, 255, 0.72)'
+      : '0 1px 3px rgba(0, 0, 0, 0.85), 0 0 8px rgba(0, 0, 0, 0.45)';
+    const aiCardTransparentBg = st.wpEnabled
+      ? `rgba(${overlayRgb}, ${isLight ? '0.16' : '0.22'})`
+      : (isLight ? 'rgba(255, 255, 255, 0.78)' : 'rgba(18, 20, 28, 0.72)');
+    const aiCardHairline = isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255, 255, 255, 0.05)';
+
+    const aiCardCss = `
+      /* Nearly-transparent airy reading canvas for AI responses (zero live backdrop-filter) */
       .agy-shell [data-main-content-body="true"] {
         color: ${uiInk} !important;
-        text-shadow: ${isLight ? 'none' : '0 1px 4px rgba(0, 0, 0, 0.92), 0 0 10px rgba(0, 0, 0, 0.72)'};
+        text-shadow: ${isLight ? 'none' : '0 1px 4px rgba(0, 0, 0, 0.90), 0 0 10px rgba(0, 0, 0, 0.65)'};
       }
-      .agy-shell [data-testid="agent-response"],
       .agy-shell .agy-user-bubble,
       .agy-shell .surface-composer-card {
         text-shadow: none !important;
       }
       .agy-shell [data-testid="agent-response"] {
-        background: ${mainTheme.aiCardBg} !important;
+        background: ${aiCardTransparentBg} !important;
         color: ${uiInk} !important;
+        text-shadow: ${aiTextShadow} !important;
         backdrop-filter: none !important;
-        border: 1px solid ${mainTheme.aiCardBorder || (isLight ? 'rgba(15, 23, 42, 0.12)' : 'rgba(255, 255, 255, 0.1)')} !important;
+        border: 1px solid ${aiCardHairline} !important;
         border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
         padding: 12px 16px !important;
-        box-shadow: ${isLight ? '0 4px 14px rgba(15, 23, 42, 0.08)' : '0 4px 14px rgba(0, 0, 0, 0.28)'} !important;
+        box-shadow: none !important;
         box-sizing: border-box !important;
         overflow: hidden !important;
       }
@@ -3282,15 +3386,17 @@
         color: #7dd3fc !important;
       }
       .agy-shell [data-testid="agent-response"] pre {
-        background: rgba(4, 8, 16, 0.90) !important;
+        background: rgba(4, 8, 16, 0.72) !important;
         color: #f8fafc !important;
-        border: 1px solid rgba(148, 163, 184, 0.24) !important;
+        text-shadow: none !important;
+        border: 1px solid rgba(148, 163, 184, 0.14) !important;
         border-radius: 10px !important;
       }
       .agy-shell [data-testid="agent-response"] :not(pre) > code {
-        background: rgba(15, 23, 42, 0.86) !important;
+        background: rgba(15, 23, 42, 0.72) !important;
         color: #f1f5f9 !important;
-        border: 1px solid rgba(148, 163, 184, 0.26) !important;
+        text-shadow: none !important;
+        border: 1px solid rgba(148, 163, 184, 0.16) !important;
         border-radius: 5px !important;
         padding: 1px 5px !important;
       }
@@ -3397,7 +3503,7 @@
       .agy-shell [data-main-content-body="true"] h2 {
         text-shadow: ${isLight ? 'none' : '0 2px 10px rgba(0, 0, 0, 0.85)'};
       }
-    ` : '';
+    `;
 
     const useUnifiedGlass = Boolean(st.wpEnabled && wpUrl && mainTheme.unifiedGlass);
     if (useUnifiedGlass && typeof syncShellMetrics === 'function') {
@@ -3518,192 +3624,199 @@
     const isDynamicMode = st.themeMode === 'dynamic';
 
     const globalIdeSyncCss = `
-      /* 1. Floating Top Titlebar, Menu Bar, Workspace Tabs & Breadcrumbs */
+      /* 1. Floating Top Titlebar, Menu Bar & Brand Replacement */
+      .agy-shell [data-testid="app-icon-new-conversation-button"] {
+        position: relative !important;
+      }
+      .agy-shell [data-testid="app-icon-new-conversation-button"] > svg:not(#agy-custom-brand-svg) {
+        display: none !important;
+      }
+      .agy-shell #agy-custom-brand-logo {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 22px !important;
+        height: 22px !important;
+        pointer-events: none !important;
+        color: ${pSync} !important;
+        transition: ${isDynamicMode ? 'transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), filter 0.22s ease' : 'none'} !important;
+      }
+      .agy-shell [data-testid="app-icon-new-conversation-button"]:hover #agy-custom-brand-logo {
+        transform: ${isDynamicMode ? 'rotate(18deg) scale(1.12)' : 'none'} !important;
+        filter: ${isDynamicMode ? `drop-shadow(0 0 8px ${pSync})` : 'none'} !important;
+      }
+      .agy-shell [data-testid="brand"] svg {
+        display: none !important;
+      }
       .agy-shell [data-testid="title-menu-bar"] {
         margin: ${st.wpEnabled ? '4px 6px 2px 6px' : '0'} !important;
         width: ${st.wpEnabled ? 'calc(100% - 12px)' : '100%'} !important;
         height: ${st.wpEnabled ? 'calc(100% - 6px)' : '100%'} !important;
         border-radius: ${st.wpEnabled ? Math.min(10, compactRadius) : 0}px !important;
-        border: 1px solid ${mainTheme.headerBorder || smokedBorder} !important;
-        box-shadow: ${st.wpEnabled ? `0 4px 16px rgba(0, 0, 0, ${isLight ? '0.08' : '0.30'})` : 'none'} !important;
+        border: 1px solid ${mainTheme.headerBorder || (isLight ? 'rgba(15, 23, 42, 0.10)' : 'rgba(255, 255, 255, 0.08)')} !important;
+        box-shadow: none !important;
       }
       .agy-shell [data-main-content-header] {
         margin: ${st.wpEnabled ? '6px 6px 0 6px' : '0'} !important;
         width: ${st.wpEnabled ? 'calc(100% - 12px)' : '100%'} !important;
         border-radius: ${st.wpEnabled ? subCardRadius : 0}px !important;
-        border: 1px solid ${mainTheme.headerBorder || smokedBorder} !important;
-        box-shadow: ${st.wpEnabled ? `0 4px 18px rgba(0, 0, 0, ${isLight ? '0.08' : '0.32'})` : 'none'}${isDynamicMode ? `, inset 0 -1px 0 ${gSync}` : ''} !important;
+        border: 1px solid ${mainTheme.headerBorder || (isLight ? 'rgba(15, 23, 42, 0.10)' : 'rgba(255, 255, 255, 0.08)')} !important;
+        box-shadow: none !important;
         overflow: hidden !important;
       }
       .agy-shell [data-testid="title-menu-bar-item"] {
         border-radius: 6px !important;
+        border: none !important;
+        box-shadow: none !important;
         color: ${uiInk} !important;
-        transition: ${isDynamicMode ? 'transform 0.14s ease, background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease' : 'none'} !important;
+        transition: ${isDynamicMode ? 'background-color 0.16s ease, color 0.16s ease' : 'none'} !important;
       }
       .agy-shell [data-testid="title-menu-bar-item"]:hover {
-        background: ${pillHoverBg} !important;
+        background: ${sidebarHoverBg} !important;
         color: ${pSync} !important;
-        ${isDynamicMode ? `transform: translateY(-1px) !important; box-shadow: 0 0 8px ${gSync} !important;` : ''}
-      }
-      .agy-shell [data-testid="title-menu-bar-item"]:active {
-        transform: scale(0.985) !important;
+        border: none !important;
+        box-shadow: none !important;
       }
       .agy-shell nav[aria-label="Breadcrumb"] [data-testid="breadcrumb-segment"] {
         border-radius: 6px !important;
         padding: 2px 7px !important;
-        border: 1px solid transparent !important;
-        transition: ${isDynamicMode ? 'background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease' : 'none'} !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        transition: ${isDynamicMode ? 'background-color 0.16s ease, color 0.16s ease' : 'none'} !important;
       }
       .agy-shell nav[aria-label="Breadcrumb"] [data-testid="breadcrumb-segment"]:last-child {
-        background: ${pillBg} !important;
-        border-color: ${smokedBorder} !important;
-        ${isDynamicMode ? `box-shadow: 0 0 10px ${gSync} !important;` : ''}
+        background: ${sidebarHoverBg} !important;
       }
       .agy-shell nav[aria-label="Breadcrumb"] [data-testid="breadcrumb-segment"]:hover {
-        border-color: ${pSync} !important;
+        background: ${sidebarHoverBg} !important;
         color: ${pSync} !important;
       }
       .agy-shell [data-testid="pane-titlebar-toolbar"] :is(button, [role="button"]):not(#agy-custom-theme-topbar-btn),
       .agy-shell :is([data-testid="sidebar-toggle"], [data-testid="sidebar-search-button"], [data-testid="toggle-overview-panel"], [data-overview-panel-toggle], [data-testid="toggle-aux-sidebar"], [data-testid="toggle-maximize-pane"], [data-testid="open-editor-single"], [data-testid="titlebar-more-actions"]) {
-        background: ${pillBg} !important;
-        border: 1px solid ${pillBorder} !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
         border-radius: ${Math.min(10, compactRadius)}px !important;
         color: ${uiInk} !important;
-        transition: ${isDynamicMode ? 'transform 0.14s ease, background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease' : 'none'} !important;
+        transition: ${isDynamicMode ? 'background-color 0.16s ease, color 0.16s ease' : 'none'} !important;
       }
       .agy-shell [data-testid="pane-titlebar-toolbar"] :is(button, [role="button"]):not(#agy-custom-theme-topbar-btn):hover,
       .agy-shell :is([data-testid="sidebar-toggle"], [data-testid="sidebar-search-button"], [data-testid="toggle-overview-panel"], [data-overview-panel-toggle], [data-testid="toggle-aux-sidebar"], [data-testid="toggle-maximize-pane"], [data-testid="open-editor-single"], [data-testid="titlebar-more-actions"]):hover {
-        background: ${pillHoverBg} !important;
-        border-color: ${pSync} !important;
+        background: ${sidebarHoverBg} !important;
         color: ${pSync} !important;
-        ${isDynamicMode ? `transform: translateY(-1px) !important; box-shadow: 0 0 10px ${gSync} !important;` : ''}
-      }
-      .agy-shell [data-testid="pane-titlebar-toolbar"] :is(button, [role="button"]):not(#agy-custom-theme-topbar-btn):active,
-      .agy-shell :is([data-testid="sidebar-toggle"], [data-testid="sidebar-search-button"], [data-testid="toggle-overview-panel"], [data-overview-panel-toggle], [data-testid="toggle-aux-sidebar"], [data-testid="toggle-maximize-pane"], [data-testid="open-editor-single"], [data-testid="titlebar-more-actions"]):active {
-        transform: scale(0.985) !important;
       }
       .agy-shell :is([data-testid="toggle-overview-panel"], [data-overview-panel-toggle], [data-testid="toggle-aux-sidebar"], [data-testid="toggle-maximize-pane"]):is([aria-expanded="true"], [aria-pressed="true"], [data-state="open"]) {
-        border-color: ${pSync} !important;
+        background: ${sidebarHoverBg} !important;
         color: ${pSync} !important;
-        box-shadow: inset 0 -2px 0 ${pSync}${isDynamicMode ? `, 0 0 12px ${gSync}` : ''} !important;
+        box-shadow: inset 0 -2px 0 ${pSync} !important;
       }
 
-      /* 2. Conversation Task, Step, Thinking, Code & Overview Floating Cards */
+      /* 2. Conversation Task, Step, Thinking & Overview — Clean Borderless Inner Rows */
       .agy-shell [data-testid="turn-cards-container"],
       .agy-shell [data-step-list] {
         border-radius: ${subCardRadius}px !important;
       }
       .agy-shell [data-step-index] {
-        margin-block: 6px !important;
-        background: ${smokedSurface} !important;
-        border: ${stepBorderAccent} !important;
-        border-left: 2px solid ${pSync} !important;
+        margin-block: 4px !important;
+        background: ${st.wpEnabled ? `rgba(${overlayRgb}, ${isLight ? '0.10' : '0.14'})` : 'transparent'} !important;
+        border: none !important;
         border-radius: ${subCardRadius}px !important;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, ${isLight ? '0.06' : '0.22'}) !important;
+        box-shadow: none !important;
         backdrop-filter: none !important;
-        transition: ${isDynamicMode ? 'transform 0.14s ease, background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease' : 'none'} !important;
+        transition: ${isDynamicMode ? 'background-color 0.16s ease' : 'none'} !important;
       }
       .agy-shell [data-step-index]:hover,
       .agy-shell .agy-hover-row:hover {
-        background: ${smokedElevated} !important;
-        border-color: ${pSync} !important;
-        ${isDynamicMode ? `transform: translateY(-1px) !important; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.32), 0 0 12px ${gSync} !important;` : ''}
-      }
-      .agy-shell [data-step-index]:active {
-        transform: scale(0.985) !important;
+        background: ${st.wpEnabled ? `rgba(${overlayRgb}, ${isLight ? '0.16' : '0.22'})` : sidebarHoverBg} !important;
+        border: none !important;
+        box-shadow: none !important;
       }
       .agy-shell [data-testid="worked-for-collapsible"],
       .agy-shell [data-testid="agent-response"] button[aria-expanded] {
         margin: 4px 0 !important;
-        background: ${pillBg} !important;
-        border: 1px solid ${pillBorder} !important;
+        background: ${isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.05)'} !important;
+        border: none !important;
         border-radius: ${compactRadius}px !important;
         color: ${uiInk} !important;
         padding: 4px 10px !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22) !important;
-        transition: ${isDynamicMode ? 'transform 0.14s ease, background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease' : 'none'} !important;
+        box-shadow: none !important;
+        transition: ${isDynamicMode ? 'background-color 0.16s ease, color 0.16s ease' : 'none'} !important;
       }
       .agy-shell [data-testid="worked-for-collapsible"]:hover,
       .agy-shell [data-testid="agent-response"] button[aria-expanded]:hover {
-        background: ${pillHoverBg} !important;
-        border-color: ${pSync} !important;
-        ${isDynamicMode ? `transform: translateY(-1px) !important; box-shadow: 0 0 10px ${gSync} !important;` : ''}
-      }
-      .agy-shell [data-testid="worked-for-collapsible"]:active,
-      .agy-shell [data-testid="agent-response"] button[aria-expanded]:active {
-        transform: scale(0.985) !important;
+        background: ${sidebarHoverBg} !important;
+        color: ${pSync} !important;
       }
       .agy-shell [data-markdown-root] pre,
       .agy-shell [data-step-index] pre {
-        background: ${isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(5, 9, 18, 0.92)'} !important;
-        border: 1px solid ${smokedBorder} !important;
-        border-top: 2px solid ${pSync} !important;
+        background: ${isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(5, 9, 18, 0.72)'} !important;
+        border: 1px solid ${isLight ? 'rgba(15, 23, 42, 0.10)' : 'rgba(255, 255, 255, 0.08)'} !important;
         border-radius: ${subCardRadius}px !important;
-        ${isDynamicMode ? `box-shadow: inset 0 1px 0 ${gSync} !important;` : ''}
+        box-shadow: none !important;
       }
       .agy-shell [data-markdown-root] :not(pre) > code,
       .agy-shell [data-step-index] :not(pre) > code {
-        background: ${pillBg} !important;
+        background: ${isLight ? 'rgba(15, 23, 42, 0.07)' : 'rgba(15, 23, 42, 0.65)'} !important;
         color: ${isLight ? uiInk : '#f8fafc'} !important;
-        border: 1px solid ${pillBorder} !important;
+        border: 1px solid ${isLight ? 'rgba(15, 23, 42, 0.10)' : 'rgba(255, 255, 255, 0.08)'} !important;
         border-radius: 5px !important;
         padding: 1px 5px !important;
       }
       .agy-shell [data-markdown-root] button.inline-pill,
       .agy-shell [data-testid="agent-response"] :is(span.rounded-full, div.rounded-full),
       .agy-shell [data-testid="load-older-messages-button"] {
-        background: ${pillBg} !important;
-        color: ${pillText} !important;
-        border: 1px solid ${pillBorder} !important;
-        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.22) !important;
+        background: ${isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255, 255, 255, 0.07)'} !important;
+        color: ${uiInk} !important;
+        border: 1px solid ${isLight ? 'rgba(15, 23, 42, 0.10)' : 'rgba(255, 255, 255, 0.08)'} !important;
+        box-shadow: none !important;
       }
       .agy-shell [data-markdown-root] button.inline-pill:hover,
       .agy-shell [data-testid="load-older-messages-button"]:hover {
-        background: ${pillHoverBg} !important;
-        border-color: ${pSync} !important;
-        ${isDynamicMode ? `box-shadow: 0 0 10px ${gSync} !important;` : ''}
+        background: ${sidebarHoverBg} !important;
+        color: ${pSync} !important;
       }
       .agy-shell [data-testid="cascade-system-message-toolbar"] button,
       .agy-shell [data-testid="user-message-actions"] button,
       .agy-shell [data-testid="revert-button"] {
-        border: 1px solid transparent !important;
+        border: none !important;
         border-radius: 6px !important;
-        transition: ${isDynamicMode ? 'background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease' : 'none'} !important;
+        transition: ${isDynamicMode ? 'background-color 0.15s ease, color 0.15s ease' : 'none'} !important;
       }
       .agy-shell [data-testid="cascade-system-message-toolbar"] button:hover,
       .agy-shell [data-testid="user-message-actions"] button:hover,
       .agy-shell [data-testid="revert-button"]:hover {
-        background: ${pillHoverBg} !important;
-        border-color: ${pSync} !important;
+        background: ${sidebarHoverBg} !important;
         color: ${pSync} !important;
       }
       .agy-shell nav[data-testid="conversation-navigator"] [data-testid="conversation-navigator-turn"] {
         background: ${smokedBorder} !important;
-        transition: ${isDynamicMode ? 'background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease' : 'none'} !important;
+        transition: ${isDynamicMode ? 'background-color 0.15s ease, transform 0.15s ease' : 'none'} !important;
       }
       .agy-shell nav[data-testid="conversation-navigator"] [data-testid="conversation-navigator-turn"]:hover,
       .agy-shell nav[data-testid="conversation-navigator"] [data-testid="conversation-navigator-turn"][aria-current="true"] {
         background: ${pSync} !important;
-        ${isDynamicMode ? `box-shadow: 0 0 8px ${gSync} !important;` : ''}
       }
       .agy-shell [data-testid="overview-panel-host-sibling"],
       .agy-shell [data-testid="overview-panel"] {
         background: ${modalBg} !important;
-        border: 1px solid ${smokedBorder} !important;
+        border: 1px solid ${isLight ? 'rgba(15, 23, 42, 0.10)' : 'rgba(255, 255, 255, 0.09)'} !important;
         border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
-        box-shadow: 0 16px 42px rgba(0, 0, 0, ${isLight ? '0.2' : '0.68'})${isDynamicMode ? `, 0 0 20px ${gSync}` : ''} !important;
+        box-shadow: 0 14px 36px rgba(0, 0, 0, ${isLight ? '0.16' : '0.52'}) !important;
         backdrop-filter: none !important;
       }
       .agy-shell :is([data-testid="overview-panel-row-review"], [data-testid="overview-panel-row-files"], [data-testid="overview-panel-row-terminal"], [data-testid="overview-panel-row-plugins"], [data-testid="subagent-node"], [data-testid="background-task-row"]) {
-        background: ${smokedSurface} !important;
-        border: 1px solid ${smokedBorder} !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
         border-radius: ${compactRadius}px !important;
-        transition: ${isDynamicMode ? 'background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease' : 'none'} !important;
+        transition: ${isDynamicMode ? 'background-color 0.15s ease, color 0.15s ease' : 'none'} !important;
       }
       .agy-shell :is([data-testid="overview-panel-row-review"], [data-testid="overview-panel-row-files"], [data-testid="overview-panel-row-terminal"], [data-testid="overview-panel-row-plugins"], [data-testid="subagent-node"], [data-testid="background-task-row"]):hover {
-        background: ${smokedElevated} !important;
-        border-color: ${pSync} !important;
-        ${isDynamicMode ? `box-shadow: 0 0 12px ${gSync} !important;` : ''}
+        background: ${sidebarHoverBg} !important;
+        border: none !important;
+        box-shadow: none !important;
+        ${isDynamicMode ? `background-image: linear-gradient(90deg, transparent, ${gSync}, transparent) !important; background-size: 200% 100% !important; animation: agyShimmerSweep 2.4s linear infinite !important;` : ''}
       }
       .agy-shell :is([data-testid="status-loading-spinner"], [data-testid="status-task-running"], [data-agent-state-dot], [data-agent-state-caret]) {
         color: ${pSync} !important;
@@ -3713,13 +3826,12 @@
       }
       .agy-shell :is([data-testid="subagent-stop"], button[aria-label="Stop execution"], button[aria-label="Cancel Task"]) {
         background: ${pillBg} !important;
-        border: 1px solid ${pSync} !important;
+        border: 1px solid ${pSync}66 !important;
         color: ${pSync} !important;
         border-radius: ${compactRadius}px !important;
       }
       .agy-shell :is([data-testid="subagent-stop"], button[aria-label="Stop execution"], button[aria-label="Cancel Task"]):hover {
         background: ${pillHoverBg} !important;
-        ${isDynamicMode ? `box-shadow: 0 0 12px ${gSync} !important;` : ''}
       }
 
       /* 3. Right-Side Artifact / Preview / Aux Panels */
@@ -3730,49 +3842,42 @@
       }
       body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-open] {
         background: ${smokedSurface} !important;
-        border: 1px solid ${smokedBorder} !important;
+        border: 1px solid ${isLight ? 'rgba(15, 23, 42, 0.10)' : 'rgba(255, 255, 255, 0.08)'} !important;
         backdrop-filter: none !important;
       }
       .agy-shell :is([data-side-panel-sash], [data-testid="side-panel-sash"]) {
-        background: ${smokedBorder} !important;
-        transition: ${isDynamicMode ? 'background-color 0.16s ease, box-shadow 0.16s ease' : 'none'} !important;
+        background: ${isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.08)'} !important;
+        transition: ${isDynamicMode ? 'background-color 0.16s ease' : 'none'} !important;
       }
       .agy-shell :is([data-side-panel-sash], [data-testid="side-panel-sash"]):hover {
         background: ${pSync} !important;
-        ${isDynamicMode ? `box-shadow: 0 0 10px ${gSync} !important;` : ''}
       }
       .agy-shell [data-side-panel-strip] {
         background: ${mainTheme.headerBg || smokedElevated} !important;
-        border-bottom: 1px solid ${mainTheme.headerBorder || smokedBorder} !important;
+        border-bottom: 1px solid ${mainTheme.headerBorder || (isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.08)')} !important;
         backdrop-filter: none !important;
       }
       .agy-shell .agy-aux-tab,
       .agy-shell [data-side-panel-strip] button[data-tab-id] {
         border-radius: ${Math.min(10, compactRadius)}px !important;
-        border: 1px solid transparent !important;
+        border: none !important;
+        box-shadow: none !important;
         color: ${uiMutedInk} !important;
-        transition: ${isDynamicMode ? 'transform 0.14s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease' : 'none'} !important;
+        position: relative !important;
+        transition: ${isDynamicMode ? 'background-color 0.15s ease, color 0.15s ease' : 'none'} !important;
       }
       .agy-shell .agy-aux-tab-title {
         font-family: var(--agy-font-vibe, ${fontVibeStack}) !important;
       }
       .agy-shell .agy-aux-tab:hover,
       .agy-shell [data-side-panel-strip] button[data-tab-id]:hover {
-        background: ${pillHoverBg} !important;
-        border-color: ${pillBorder} !important;
+        background: ${sidebarHoverBg} !important;
         color: ${uiInk} !important;
-        ${isDynamicMode ? 'transform: translateY(-1px) !important;' : ''}
-      }
-      .agy-shell .agy-aux-tab:active,
-      .agy-shell [data-side-panel-strip] button[data-tab-id]:active {
-        transform: scale(0.985) !important;
       }
       .agy-shell .agy-aux-tab:is([aria-selected="true"], [data-active="true"]),
       .agy-shell [data-side-panel-strip] button[data-tab-id]:is([aria-selected="true"], [data-active="true"]) {
-        background: ${pillBg} !important;
-        border-color: ${pSync} !important;
+        background: ${sidebarHoverBg} !important;
         color: ${pSync} !important;
-        box-shadow: inset 0 -2px 0 ${pSync}${isDynamicMode ? `, 0 0 10px ${gSync}` : ''} !important;
       }
       .agy-shell [data-testid="side-panel-new-tab-button"],
       .agy-shell .agy-aux-tab .agy-hover-actions button {
@@ -3781,7 +3886,7 @@
       }
       .agy-shell [data-testid="side-panel-new-tab-button"]:hover,
       .agy-shell .agy-aux-tab .agy-hover-actions button:hover {
-        background: ${pillHoverBg} !important;
+        background: ${sidebarHoverBg} !important;
         color: ${pSync} !important;
       }
 
@@ -3792,16 +3897,20 @@
         color: ${uiInk} !important;
         border: 1px solid ${mainTheme.borderColor || smokedBorder} !important;
         border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
-        box-shadow: 0 14px 40px rgba(0, 0, 0, ${isLight ? '0.22' : '0.72'})${isDynamicMode ? `, 0 0 20px ${gSync}` : ''} !important;
+        box-shadow: 0 14px 40px rgba(0, 0, 0, ${isLight ? '0.22' : '0.72'}) !important;
         backdrop-filter: none !important;
+      }
+      body[data-agy-pet-chat-open="1"] [data-base-ui-portal] {
+        position: relative !important;
+        z-index: 2147483006 !important;
       }
       [data-base-ui-portal] [role="tooltip"],
       .agy-shell [role="tooltip"] {
         background: ${modalBg} !important;
         color: ${uiInk} !important;
-        border: 1px solid ${pSync} !important;
+        border: 1px solid ${pSync}66 !important;
         border-radius: 8px !important;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55)${isDynamicMode ? `, 0 0 12px ${gSync}` : ''} !important;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45) !important;
         backdrop-filter: none !important;
       }
       :is([role="menu"], [role="listbox"]) :is([role="menuitem"], [role="option"], [role="menuitemcheckbox"], [role="menuitemradio"], button) {
@@ -3814,7 +3923,7 @@
         box-shadow: inset 2px 0 0 ${pSync} !important;
       }
 
-      /* 5. Global Micro-Sync: selection, caret, focus-visible & scrollbars */
+      /* 5. Global Micro-Sync: selection, caret, focus-visible & animated gradient scrollbars */
       .agy-shell ::selection,
       [data-base-ui-portal] ::selection {
         background: ${pSync} !important;
@@ -3825,35 +3934,38 @@
       }
       .agy-shell :focus-visible,
       [data-base-ui-portal] :focus-visible {
-        outline: 2px solid ${pSync} !important;
+        outline: 1.5px solid ${pSync} !important;
         outline-offset: 2px !important;
       }
       .agy-shell [data-testid="overlay-scrollbar-thumb"] {
-        background: ${pSync} !important;
-        opacity: 0.55 !important;
+        background: linear-gradient(180deg, ${pSync}, ${sSync}) !important;
+        opacity: 0.65 !important;
         border-radius: 9999px !important;
       }
       .agy-shell [data-testid="overlay-scrollbar-thumb"]:hover {
-        opacity: 0.9 !important;
+        opacity: 0.95 !important;
         ${isDynamicMode ? `box-shadow: 0 0 8px ${gSync} !important;` : ''}
       }
       .agy-shell [data-overlay-scrollbar-track] {
         background: transparent !important;
       }
       .agy-shell ::-webkit-scrollbar {
-        width: 7px;
-        height: 7px;
+        width: 6px;
+        height: 6px;
       }
       .agy-shell ::-webkit-scrollbar-track {
-        background: ${isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.04)'};
+        background: ${isLight ? 'rgba(15, 23, 42, 0.04)' : 'rgba(255, 255, 255, 0.03)'};
         border-radius: 9999px;
       }
       .agy-shell ::-webkit-scrollbar-thumb {
-        background: ${mainTheme.borderColor || smokedBorder};
+        background: linear-gradient(180deg, ${pSync}, ${sSync});
         border-radius: 9999px;
       }
+      .agy-shell ::-webkit-scrollbar-thumb:horizontal {
+        background: linear-gradient(90deg, ${pSync}, ${sSync});
+      }
       .agy-shell ::-webkit-scrollbar-thumb:hover {
-        background: ${pSync};
+        background: linear-gradient(180deg, ${sSync}, ${pSync});
       }
     `;
 
@@ -4150,9 +4262,81 @@
         70% { transform: translateY(-4px) scale(1.08) rotate(4deg); }
         100% { transform: translateY(0) scale(1); }
       }
+      @keyframes agyShimmerSweep {
+        0% { background-position: -180% 0; }
+        100% { background-position: 180% 0; }
+      }
+      @keyframes agyScrollRipple {
+        0% { box-shadow: 0 0 0 0 var(--scroll-glow, rgba(56, 189, 248, 0.45)); }
+        100% { box-shadow: 0 0 0 12px rgba(56, 189, 248, 0); }
+      }
+      @keyframes agyWatermarkFloat {
+        0%, 100% { transform: translate3d(-50%, -50%, 0) scale(1) rotate(0deg); opacity: 0.045; }
+        50% { transform: translate3d(-50%, -52%, 0) scale(1.03) rotate(4deg); opacity: 0.068; }
+      }
+      #agy-bg-emblem-watermark {
+        position: absolute;
+        left: 58%;
+        top: 52%;
+        transform: translate3d(-50%, -50%, 0);
+        z-index: 0;
+        pointer-events: none;
+        opacity: 0.05;
+        will-change: transform, opacity;
+        animation: agyWatermarkFloat 14s ease-in-out infinite;
+      }
+      #agy-scroll-controls {
+        position: fixed;
+        z-index: 9505;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(6px) scale(0.95);
+        transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+        -webkit-app-region: no-drag;
+      }
+      #agy-scroll-controls[data-visible="true"] {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translateY(0) scale(1);
+      }
+      .agy-scroll-hud-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 9999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: var(--scroll-surface, rgba(10, 14, 24, 0.78));
+        color: var(--scroll-accent, #38bdf8);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        backdrop-filter: none !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.32);
+        transition: transform 0.14s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+      }
+      .agy-scroll-hud-btn[data-at-edge="true"] {
+        opacity: 0.36;
+      }
+      .agy-scroll-hud-btn:hover {
+        opacity: 1;
+        border-color: var(--scroll-accent, #38bdf8);
+        color: #ffffff;
+        box-shadow: 0 0 12px var(--scroll-glow, rgba(56, 189, 248, 0.35));
+      }
+      .agy-scroll-hud-btn:active {
+        transform: scale(0.92);
+      }
+      .agy-scroll-hud-btn.is-rippling {
+        animation: agyScrollRipple 0.42s ease-out;
+      }
       #agy-better-pet {
         position: fixed;
-        z-index: 9510;
+        z-index: 2147483003;
         width: 96px;
         aspect-ratio: 192 / 208;
         cursor: grab;
@@ -4162,9 +4346,11 @@
         -webkit-app-region: no-drag;
         outline: none;
         filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35));
+        transition: top 0.24s cubic-bezier(0.22, 1, 0.36, 1), left 0.24s cubic-bezier(0.22, 1, 0.36, 1);
       }
       #agy-better-pet[data-pet-dragging="true"] {
         cursor: grabbing;
+        transition: none;
       }
       .agy-better-pet__body {
         width: 100%;
@@ -4253,7 +4439,13 @@
         user-select: none;
         -webkit-app-region: no-drag;
         backdrop-filter: none !important;
+        overflow: hidden;
         transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+      }
+      #agy-better-pet[data-pet-tone="running"] #agy-better-pet-pill {
+        background-image: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 45%, var(--pet-glow, rgba(56, 189, 248, 0.26)) 50%, rgba(255, 255, 255, 0.08) 55%, transparent 100%);
+        background-size: 200% 100%;
+        animation: agyShimmerSweep 2.2s linear infinite;
       }
       #agy-better-pet-pill:hover {
         border-color: var(--pet-accent, #38bdf8);
@@ -4304,152 +4496,35 @@
         transform: rotate(180deg);
         color: var(--pet-accent, #38bdf8);
       }
-      #agy-better-pet-chat {
+      #agy-pet-composer-close {
         position: fixed;
-        z-index: 9515;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        padding: 9px 11px;
-        border-radius: var(--pet-radius, 14px);
-        background: var(--pet-surface, rgba(12, 16, 28, 0.92));
-        border: 1px solid var(--pet-border, rgba(255, 255, 255, 0.16));
-        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.54), 0 0 16px var(--pet-glow, rgba(56, 189, 248, 0.25));
-        color: var(--pet-ink, #f8fafc);
-        font-family: system-ui, -apple-system, sans-serif;
-        -webkit-app-region: no-drag;
-        backdrop-filter: none !important;
-        opacity: 0;
-        visibility: hidden;
-        pointer-events: none;
-        transform: translateY(4px) scale(0.98);
-        transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
-      }
-      #agy-better-pet-chat[data-open="true"] {
-        opacity: 1;
-        visibility: visible;
-        pointer-events: auto;
-        transform: translateY(0) scale(1);
-      }
-      .agy-better-pet-chat__head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-      }
-      .agy-better-pet-chat__title-wrap {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        min-width: 0;
-        font-size: 11.5px;
-      }
-      .agy-better-pet-chat__name {
-        font-weight: 700;
-        color: var(--pet-ink, #f8fafc);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      .agy-better-pet-chat__status {
-        font-size: 10px;
-        font-weight: 600;
-        padding: 1px 6px;
-        border-radius: 9999px;
-        background: rgba(255, 255, 255, 0.08);
-        color: var(--pet-muted, #cbd5e1);
-        white-space: nowrap;
-      }
-      .agy-better-pet-chat__actions {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-      }
-      .agy-better-pet-chat__icon-btn {
+        z-index: 2147483004;
         width: 22px;
         height: 22px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 6px;
-        border: 1px solid transparent;
-        background: transparent;
-        color: var(--pet-muted, #cbd5e1);
-        cursor: pointer;
-        transition: background-color 0.14s ease, color 0.14s ease, transform 0.12s ease;
-      }
-      .agy-better-pet-chat__icon-btn:hover {
-        background: rgba(255, 255, 255, 0.10);
-        color: var(--pet-accent, #38bdf8);
-      }
-      .agy-better-pet-chat__icon-btn:active {
-        transform: scale(0.95);
-      }
-      .agy-better-pet-chat__body {
-        display: flex;
-        align-items: flex-end;
-        gap: 8px;
-        padding: 6px 8px;
-        border-radius: calc(var(--pet-radius, 14px) - 4px);
-        background: rgba(0, 0, 0, 0.28);
-        border: 1px solid var(--pet-border, rgba(255, 255, 255, 0.14));
-      }
-      .agy-better-pet-chat__body:focus-within {
-        border-color: var(--pet-accent, #38bdf8);
-        box-shadow: 0 0 0 1px var(--pet-glow, rgba(56, 189, 248, 0.28));
-      }
-      #agy-better-pet-chat-input,
-      #agy-better-pet-chat-input:focus,
-      #agy-better-pet-chat-input:focus-visible {
-        flex: 1 1 auto;
-        min-width: 0;
-        min-height: 22px;
-        max-height: 110px;
-        resize: none;
-        overflow-y: auto;
-        background: transparent !important;
-        border: 0 !important;
-        outline: none !important;
-        outline-offset: 0 !important;
-        box-shadow: none !important;
-        padding: 2px 0;
-        margin: 0;
-        color: var(--pet-ink, #f8fafc);
-        font: 400 12.5px/1.42 system-ui, -apple-system, sans-serif;
-      }
-      #agy-better-pet-chat-input::placeholder {
-        color: var(--pet-muted, #94a3b8);
-        opacity: 0.78;
-      }
-      .agy-better-pet-chat__send-btn {
-        flex: 0 0 auto;
-        width: 28px;
-        height: 28px;
         border-radius: 9999px;
-        border: 1px solid var(--pet-accent, #38bdf8);
-        background: var(--pet-accent, #38bdf8);
-        color: #060a14;
+        border: 1px solid var(--pet-border, rgba(255, 255, 255, 0.22));
+        background: var(--pet-surface, rgba(12, 16, 28, 0.94));
+        color: var(--pet-ink, #f8fafc);
         display: inline-flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        transition: transform 0.12s ease, opacity 0.14s ease, box-shadow 0.14s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+        -webkit-app-region: no-drag;
+        backdrop-filter: none !important;
+        transition: transform 0.12s ease, border-color 0.14s ease, color 0.14s ease;
       }
-      .agy-better-pet-chat__send-btn[data-mode="stop"] {
-        background: rgba(239, 68, 68, 0.22);
-        border-color: #ef4444;
-        color: #fca5a5;
+      #agy-pet-composer-close[hidden] {
+        display: none;
       }
-      .agy-better-pet-chat__send-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 0 10px var(--pet-glow, rgba(56, 189, 248, 0.35));
-      }
-      .agy-better-pet-chat__send-btn:active {
-        transform: scale(0.95);
+      #agy-pet-composer-close:hover {
+        border-color: var(--pet-accent, #38bdf8);
+        color: var(--pet-accent, #38bdf8);
+        transform: scale(1.08);
       }
       #agy-better-pet-menu {
         position: fixed;
-        z-index: 9520;
+        z-index: 2147483005;
         min-width: 210px;
         padding: 5px;
         border-radius: 12px;
@@ -4593,18 +4668,47 @@
       body[data-has-browser-hole="true"] .agy-shell[data-agy-hole-active="1"] > #agy-live-bg-layer {
         clip-path: var(--agy-hole-clip, none) !important;
       }
-      .agy-shell.agy-pet-chat-docked [data-agy-composer-host="1"],
-      .agy-shell.agy-pet-chat-docked [data-testid="agent-input-box"],
-      .agy-shell.agy-pet-chat-docked .surface-composer {
+      .agy-shell.agy-pet-chat-docked [data-agy-composer-wrap="1"] {
         height: 0 !important;
         min-height: 0 !important;
         max-height: 0 !important;
-        overflow: hidden !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: 0 !important;
+        flex: 0 0 0px !important;
+        overflow: visible !important;
+      }
+      .agy-shell.agy-pet-chat-docked .surface-composer[data-agy-composer-host="1"] {
+        position: fixed !important;
+        z-index: 2147483002 !important;
+        width: var(--agy-pet-comp-w, min(500px, calc(100vw - 24px))) !important;
+        max-width: calc(100vw - 24px) !important;
+        left: var(--agy-pet-comp-left, auto) !important;
+        top: var(--agy-pet-comp-top, auto) !important;
+        right: auto !important;
+        bottom: auto !important;
+        margin: 0 !important;
+        height: auto !important;
+        max-height: min(65vh, 480px) !important;
+        overflow: visible !important;
+        transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0.18s !important;
+      }
+      .agy-shell.agy-pet-chat-docked:not([data-agy-pet-chat-open="1"]) .surface-composer[data-agy-composer-host="1"] {
         opacity: 0 !important;
         pointer-events: none !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        border: 0 !important;
+        visibility: hidden !important;
+        transform: translateY(-6px) scale(0.98) !important;
+      }
+      .agy-shell.agy-pet-chat-docked[data-agy-pet-chat-open="1"] .surface-composer[data-agy-composer-host="1"] {
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        visibility: visible !important;
+        transform: translateY(0) scale(1) !important;
+        transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s !important;
+      }
+      .agy-shell.agy-pet-chat-docked .surface-composer[data-agy-composer-host="1"]::before,
+      .agy-shell.agy-pet-chat-docked .surface-composer[data-agy-composer-host="1"]::after {
+        display: none !important;
       }
       .agy-shell [data-agy-greeting] {
         font-size: 0 !important;
@@ -4656,6 +4760,8 @@
     }
     syncEmptyGreeting(st);
     syncComposerHost(st);
+    syncCustomBrandLogo(st);
+    syncScrollControls(st);
     syncTitleBarOverlay(st);
     scheduleTitleBarSync(st);
   }
@@ -4714,6 +4820,12 @@
     if (fxLayer) fxLayer.remove();
     removeDynamicHudWidgets();
     removeBetterPet();
+    const brandLogo = document.getElementById('agy-custom-brand-logo');
+    if (brandLogo) brandLogo.remove();
+    const watermark = document.getElementById('agy-bg-emblem-watermark');
+    if (watermark) watermark.remove();
+    const scrollCtrl = document.getElementById('agy-scroll-controls');
+    if (scrollCtrl) scrollCtrl.remove();
     dismissThemeIntro();
     teardownBootOverlay();
     clearRevealRaf();
@@ -4724,6 +4836,9 @@
       el.removeAttribute('data-agy-greeting');
       delete el.dataset.agyGreetingOrig;
     });
+    document.querySelectorAll('[data-agy-composer-wrap]').forEach((el) => {
+      el.removeAttribute('data-agy-composer-wrap');
+    });
     document.querySelectorAll('[data-agy-composer-host]').forEach((el) => {
       el.removeAttribute('data-agy-composer-host');
     });
@@ -4731,9 +4846,15 @@
     if (shell) {
       shell.classList.remove('agy-pet-chat-docked');
       delete shell.dataset.agyHoleActive;
+      delete shell.dataset.agyPetChatOpen;
+      delete shell.dataset.agyAgentRunning;
       shell.style.removeProperty('--agy-hole-clip');
       shell.style.removeProperty('--agy-l-glass-bg');
+      shell.style.removeProperty('--agy-pet-comp-left');
+      shell.style.removeProperty('--agy-pet-comp-top');
+      shell.style.removeProperty('--agy-pet-comp-w');
     }
+    delete document.body.dataset.agyPetChatOpen;
     if (window.electronNative && typeof window.electronNative.setTitleBarOverlay === 'function') {
       try {
         window.electronNative.setTitleBarOverlay({ color: '#111114', symbolColor: '#f8fafc' });
@@ -4746,6 +4867,10 @@
     dismissThemeIntro();
     const staleFx = document.getElementById('agy-dynamic-fx-layer');
     if (staleFx) staleFx.remove();
+    ['agy-custom-brand-logo', 'agy-bg-emblem-watermark', 'agy-scroll-controls', 'agy-pet-composer-close'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    });
     document.querySelectorAll('[id^="agy-hud-"]').forEach((el) => el.remove());
     removeDynamicHudWidgets();
     removeBetterPet();
@@ -7290,6 +7415,8 @@
     hookShellMetrics();
     syncEmptyGreeting();
     syncComposerHost();
+    syncCustomBrandLogo();
+    syncScrollControls();
     syncTaskCompletionVoice();
     syncTelemetryState();
   }

@@ -20,6 +20,7 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
     ? escapeHtml
     : (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+  const DEFAULT_SIGIL_SVG_INNER = '<path d="M12 2.5L14.8 9.2L21.5 12L14.8 14.8L12 21.5L9.2 14.8L2.5 12L9.2 9.2Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="none"/><path d="M12 6.5L16.5 12L12 17.5L7.5 12Z" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" fill="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="9.2" stroke="currentColor" stroke-width="1.1" stroke-dasharray="3 4" fill="none"/>';
   const ALLOWED_SVG_TAGS = new Set(['path', 'circle', 'ellipse', 'rect', 'polygon', 'polyline', 'line', 'g']);
 
   function unwrapAndSanitizeSvg(raw) {
@@ -85,7 +86,7 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
     teardownBootOverlay();
     window.__AGY_BOOT_TIMERS__ = window.__AGY_BOOT_TIMERS__ || [];
 
-    const activeThemeName = ctx.themeName || st.themeName || (typeof getDefaultThemeKey === 'function' ? getDefaultThemeKey() : 'ANTIGRAVITY');
+    const activeThemeName = ctx.themeName || st.themeName || (typeof getDefaultThemeKey === 'function' ? getDefaultThemeKey() : 'CUSTOM STUDIO');
     const mainTheme = ctx.mainTheme || (THEMES && THEMES[activeThemeName]) || {};
     const pack = ctx.pack || (typeof resolveDynamicPack === 'function' ? resolveDynamicPack(mainTheme) : {});
     const ui = pack.uiDesign || mainTheme.uiDesign || {};
@@ -105,10 +106,12 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
     const voiceWelcome = ctx.voiceWelcome || pack.voiceWelcome || mainTheme.voiceWelcome || '';
 
     const rawEmblem = ctx.emblemSvgInner || ui.emblemSvgInner || mainTheme.emblemSvgInner || '';
-    const rawSigil = ctx.sigilSvgInner || workIdentity.sigilSvgInner || rawEmblem || '';
-    const sigilParsed = unwrapAndSanitizeSvg(rawSigil);
-    const emblemParsed = unwrapAndSanitizeSvg(rawEmblem || rawSigil);
-    const hasCustomSigil = Boolean(sigilParsed.inner);
+    const rawSigil = ctx.sigilSvgInner || workIdentity.sigilSvgInner || rawEmblem || DEFAULT_SIGIL_SVG_INNER;
+    const sigilParsedInitial = unwrapAndSanitizeSvg(rawSigil);
+    const sigilParsed = sigilParsedInitial.inner ? sigilParsedInitial : unwrapAndSanitizeSvg(DEFAULT_SIGIL_SVG_INNER);
+    const emblemParsedInitial = unwrapAndSanitizeSvg(rawEmblem || rawSigil);
+    const emblemParsed = emblemParsedInitial.inner ? emblemParsedInitial : sigilParsed;
+    const hasCustomSigil = true;
 
     const characterName = String(
       workIdentity.characterName
@@ -116,13 +119,13 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
       || petDirective.petName
       || hudWidget.title
       || activeThemeName
-      || 'ANTIGRAVITY'
+      || 'COMPANION'
     ).trim();
     const franchise = String(
       workIdentity.franchise
       || mainTheme.name
       || activeThemeName
-      || 'ANTIGRAVITY'
+      || 'CUSTOM STUDIO'
     ).trim();
     const bootTagline = String(
       workIdentity.bootTagline
@@ -144,7 +147,6 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
       : `CHÀO MỪNG ${operatorName} • ${brandTitle} READY`;
 
     const starfieldUrl = sanitizeCssUrl(resolveMediaUrl(BOOT_ASSETS.starfieldBg || 'assets/starfield-boot-bg.jpg'));
-    const iconColorUrl = resolveMediaUrl(BOOT_ASSETS.agyColorIcon || 'assets/agy-icon-color.png');
     const rawWallpaper = ctx.wallpaper || st.customWp || mainTheme.wallpaper || mainTheme.wallpaperUrl || '';
     const wallpaperUrl = rawWallpaper ? sanitizeCssUrl(resolveMediaUrl(rawWallpaper)) : '';
     const bgPosition = safeCssColor(mainTheme.bgPosition, 'center center');
@@ -171,67 +173,70 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
       4: resolveMediaUrl(BOOT_ASSETS.voice4 || 'assets/voice/tawa_voice4.mp3')
     };
 
-    const emblemBadgeHtml = emblemParsed.inner
-      ? `<span class="agy-boot-emblem" aria-hidden="true"><svg viewBox="${esc(emblemParsed.viewBox)}" width="20" height="20" fill="none">${emblemParsed.inner}</svg></span>`
-      : '';
+    const renderSigilSvg = (parsed, gradId, extraClass = '') => {
+      const gradRef = `url(#${gradId})`;
+      return `
+        <svg class="agy-sigil-svg-mark ${extraClass}" viewBox="${esc(parsed.viewBox)}" fill="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="${gradId}" x1="10%" y1="90%" x2="88%" y2="12%">
+              <stop offset="0%" stop-color="${esc(primary)}" />
+              <stop offset="55%" stop-color="${esc(secondary)}" />
+              <stop offset="100%" stop-color="${esc(primary)}" />
+            </linearGradient>
+          </defs>
+          <g class="agy-sigil-mark-group" style="--agy-sigil-grad:${gradRef}">${parsed.inner}</g>
+        </svg>
+      `;
+    };
 
-    const renderIdentityBadge = (sizeClass = 'is-md') => {
+    const emblemBadgeHtml = `<span class="agy-boot-emblem" aria-hidden="true">${renderSigilSvg(emblemParsed, 'agyBootHeaderGrad')}</span>`;
+
+    const renderPortraitMini = (sizeClass = 'is-sm') => {
       if (agentAvatarUrl) {
         return `<div class="agy-boot-badge ${sizeClass} is-avatar" style="background-image:url('${agentAvatarUrl}')" role="img" aria-label="${esc(characterName)}"></div>`;
       }
       if (petSpriteUrl) {
         return `<div class="agy-boot-badge ${sizeClass} is-pet" role="img" aria-label="${esc(characterName)}"><div class="agy-boot-pet-crop" style="background-image:url('${petSpriteUrl}')"></div></div>`;
       }
-      if (emblemParsed.inner) {
-        return `<div class="agy-boot-badge ${sizeClass} is-sigil" aria-hidden="true"><svg viewBox="${esc(emblemParsed.viewBox)}" fill="none">${emblemParsed.inner}</svg></div>`;
-      }
-      return `<div class="agy-boot-badge ${sizeClass} is-icon"><img src="${iconColorUrl}" alt="${esc(brandTitle)}" /></div>`;
+      return '';
+    };
+
+    const renderIdentityBadge = (sizeClass = 'is-md', gradId = 'agyBootBadgeGrad') => {
+      const portrait = renderPortraitMini(sizeClass);
+      if (portrait) return portrait;
+      return `<div class="agy-boot-badge ${sizeClass} is-sigil" aria-hidden="true">${renderSigilSvg(sigilParsed, gradId)}</div>`;
     };
 
     const miniPetChipHtml = (agentAvatarUrl && petSpriteUrl)
       ? `<div class="agy-boot-pet-mini" title="${esc(characterName)}"><div class="agy-boot-pet-crop" style="background-image:url('${petSpriteUrl}')"></div></div>`
       : '';
 
-    const morphGraphicHtml = hasCustomSigil
-      ? `
-        <svg class="agy-icon-outline-svg agy-sigil-svg" id="agy-icon-outline-svg" viewBox="${esc(sigilParsed.viewBox)}">
-          <defs>
-            <linearGradient id="agyBootStrokeGrad" x1="10%" y1="90%" x2="88%" y2="12%">
-              <stop offset="0%" stop-color="${esc(primary)}" />
-              <stop offset="50%" stop-color="${esc(secondary)}" />
-              <stop offset="100%" stop-color="${esc(primary)}" />
-            </linearGradient>
-          </defs>
-          <g id="agy-sigil-stroke-group" class="agy-sigil-stroke-group">${sigilParsed.inner}</g>
-        </svg>
-        <svg class="agy-icon-color-fill agy-sigil-fill-svg" id="agy-boot-color-fill" viewBox="${esc(sigilParsed.viewBox)}">
-          <defs>
-            <linearGradient id="agyBootFillGrad" x1="10%" y1="90%" x2="88%" y2="12%">
-              <stop offset="0%" stop-color="${esc(primary)}" />
-              <stop offset="55%" stop-color="${esc(secondary)}" />
-              <stop offset="100%" stop-color="${esc(primary)}" />
-            </linearGradient>
-          </defs>
-          <g id="agy-sigil-fill-group" class="agy-sigil-fill-group">${sigilParsed.inner}</g>
-        </svg>
-      `
-      : `
-        <svg class="agy-icon-outline-svg" id="agy-icon-outline-svg" viewBox="0 0 256 256">
-          <defs>
-            <linearGradient id="agyBootStrokeGrad" x1="10%" y1="90%" x2="88%" y2="12%">
-              <stop offset="0%" stop-color="${esc(primary)}" />
-              <stop offset="50%" stop-color="${esc(secondary)}" />
-              <stop offset="100%" stop-color="${esc(primary)}" />
-            </linearGradient>
-          </defs>
-          <path
-            id="agy-boot-outline-path"
-            class="agy-icon-outline-path"
-            d="M 116.50,42.00 Q 111.00,44.00 105.00,49.50 Q 99.00,55.00 94.00,64.00 Q 89.00,73.00 74.50,119.50 Q 60.00,166.00 53.50,178.00 Q 47.00,190.00 40.00,198.00 Q 33.00,206.00 32.50,209.00 Q 32.00,212.00 34.00,213.50 Q 36.00,215.00 39.00,215.00 Q 42.00,215.00 49.00,211.00 Q 56.00,207.00 64.50,198.00 Q 73.00,189.00 82.50,173.00 Q 92.00,157.00 98.00,149.50 Q 104.00,142.00 110.00,138.50 Q 116.00,135.00 125.50,134.50 Q 135.00,134.00 141.50,137.00 Q 148.00,140.00 152.50,144.50 Q 157.00,149.00 169.00,168.50 Q 181.00,188.00 187.50,195.50 Q 194.00,203.00 200.50,208.00 Q 207.00,213.00 210.00,214.00 Q 213.00,215.00 216.50,214.50 Q 220.00,214.00 221.00,213.00 Q 222.00,212.00 221.50,208.50 Q 221.00,205.00 212.00,194.00 Q 203.00,183.00 197.00,170.00 Q 191.00,157.00 182.50,127.00 Q 174.00,97.00 166.50,78.50 Q 159.00,60.00 153.50,53.50 Q 148.00,47.00 144.00,44.50 Q 140.00,42.00 131.00,41.00 Q 122.00,40.00 116.50,42.00 Z"
-          />
-        </svg>
-        <img id="agy-boot-color-fill" class="agy-icon-color-fill" src="${iconColorUrl}" alt="${esc(brandTitle)}" />
-      `;
+    const splashPortraitHtml = renderPortraitMini('is-sm');
+    const morphPortraitHtml = renderPortraitMini('is-sm');
+    const welcomePortraitHtml = renderPortraitMini('is-lg');
+
+    const morphGraphicHtml = `
+      <svg class="agy-icon-outline-svg agy-sigil-svg" id="agy-icon-outline-svg" viewBox="${esc(sigilParsed.viewBox)}" fill="none">
+        <defs>
+          <linearGradient id="agyBootStrokeGrad" x1="10%" y1="90%" x2="88%" y2="12%">
+            <stop offset="0%" stop-color="${esc(primary)}" />
+            <stop offset="50%" stop-color="${esc(secondary)}" />
+            <stop offset="100%" stop-color="${esc(primary)}" />
+          </linearGradient>
+        </defs>
+        <g id="agy-sigil-stroke-group" class="agy-sigil-stroke-group">${sigilParsed.inner}</g>
+      </svg>
+      <svg class="agy-icon-color-fill agy-sigil-fill-svg" id="agy-boot-color-fill" viewBox="${esc(sigilParsed.viewBox)}" fill="none">
+        <defs>
+          <linearGradient id="agyBootFillGrad" x1="10%" y1="90%" x2="88%" y2="12%">
+            <stop offset="0%" stop-color="${esc(primary)}" />
+            <stop offset="55%" stop-color="${esc(secondary)}" />
+            <stop offset="100%" stop-color="${esc(primary)}" />
+          </linearGradient>
+        </defs>
+        <g id="agy-sigil-fill-group" class="agy-sigil-fill-group">${sigilParsed.inner}</g>
+      </svg>
+    `;
 
     const wallpaperLayerStyle = wallpaperUrl
       ? `background: url("${wallpaperUrl}") ${bgPosition} / cover no-repeat;`
@@ -371,6 +376,20 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
         border-radius: 6px; border: 1px solid ${primary}; background: rgba(5, 8, 16, 0.78);
         color: ${primary}; box-shadow: 0 0 12px ${glow}; flex: none;
       }
+      #agy-boot-overlay .agy-boot-emblem svg { width: 18px; height: 18px; display: block; }
+      #agy-boot-overlay .agy-sigil-svg-mark { width: 100%; height: 100%; display: block; }
+      #agy-boot-overlay .agy-sigil-mark-group :is(path, circle, ellipse, rect, polygon, polyline, line) {
+        stroke: var(--agy-sigil-grad, ${primary});
+        vector-effect: non-scaling-stroke;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      #agy-boot-overlay .agy-sigil-mark-group :is(path, circle, ellipse, rect, polygon, polyline, line)[stroke="none"] {
+        stroke: none;
+      }
+      #agy-boot-overlay .agy-sigil-mark-group :is(path, circle, ellipse, rect, polygon, polyline, line)[fill="currentColor"] {
+        fill: var(--agy-sigil-grad, ${primary});
+      }
       #agy-boot-overlay .agy-boot-brand strong {
         font-size: 14px; color: #ffffff; letter-spacing: 0.16em;
         font-family: var(--agy-font-vibe); font-weight: 700;
@@ -406,13 +425,20 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
       #agy-boot-overlay .agy-welcome-reveal { opacity: 0; transform: translateY(6px); animation: agyWelcomeIn 0.48s cubic-bezier(0.22,1,0.36,1) forwards; }
       @keyframes agyWelcomeIn { to { opacity: 1; transform: translateY(0); } }
 
+      #agy-boot-overlay .agy-splash-emblem-row {
+        display: inline-flex; align-items: center; justify-content: center; gap: 14px;
+        margin-bottom: 16px; opacity: 0; animation: agySplashFade 2.5s ease forwards;
+      }
       #agy-boot-overlay .agy-splash-logo {
-        width: 68px; height: 68px; object-fit: contain; margin-bottom: 16px; opacity: 0;
-        filter: drop-shadow(0 0 22px ${glow}); animation: agySplashFade 2.5s ease forwards;
+        width: 82px; height: 82px; display: inline-flex; align-items: center; justify-content: center;
+        padding: 12px; border-radius: 18px;
+        border: 1px solid ${primary}; background: rgba(6, 10, 18, 0.74);
+        filter: drop-shadow(0 0 22px ${glow}) drop-shadow(0 0 10px ${secondaryGlow});
       }
       #agy-boot-overlay .agy-splash-wordmark {
-        font-family: var(--agy-font-vibe); font-size: 16px; font-weight: 700; letter-spacing: 0.38em;
-        color: #ffffff; margin-bottom: 6px; opacity: 0; animation: agySplashFade 2.5s ease 0.15s forwards;
+        font-family: var(--agy-font-vibe); font-size: 17px; font-weight: 700; letter-spacing: 0.34em;
+        color: #ffffff; margin-bottom: 6px; opacity: 0; text-shadow: 0 0 16px ${glow};
+        animation: agySplashFade 2.5s ease 0.15s forwards;
       }
       #agy-boot-overlay .agy-splash-caption {
         font-size: 9.5px; letter-spacing: 0.32em; color: ${secondary}; opacity: 0; animation: agySplashFade 2.5s ease 0.25s forwards;
@@ -475,8 +501,7 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
       #agy-boot-overlay .agy-boot-badge.is-avatar { background-size: cover; background-position: center; }
       #agy-boot-overlay .agy-boot-badge.is-pet,
       #agy-boot-overlay .agy-boot-badge.is-sigil { padding: 3px; color: ${primary}; }
-      #agy-boot-overlay .agy-boot-badge.is-sigil svg { width: 72%; height: 72%; }
-      #agy-boot-overlay .agy-boot-badge.is-icon img { width: 76%; height: 76%; object-fit: contain; }
+      #agy-boot-overlay .agy-boot-badge.is-sigil svg { width: 76%; height: 76%; }
       #agy-boot-overlay .agy-boot-pet-crop {
         width: 100%; height: 100%; aspect-ratio: 192 / 208;
         background-repeat: no-repeat; background-size: 800% 1100%; background-position: 0% 0%;
@@ -550,11 +575,11 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
       @keyframes agyTraceOutline { to { stroke-dashoffset: 0; } }
 
       #agy-boot-overlay .agy-icon-color-fill {
-        position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: fill;
-        clip-path: inset(85% 0 0 0); opacity: 0;
-        transition: clip-path 1.05s cubic-bezier(0.35,0.05,0.25,1), opacity 0.14s ease, filter 0.45s ease;
+        position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+        clip-path: inset(100% 0 0 0); opacity: 0;
+        transition: clip-path 1.05s cubic-bezier(0.35,0.05,0.25,1), opacity 0.18s ease, filter 0.45s ease;
       }
-      #agy-boot-overlay .agy-icon-color-fill.filled { clip-path: inset(13% 0 0 0); opacity: 1; filter: drop-shadow(0 0 16px ${glow}); }
+      #agy-boot-overlay .agy-icon-color-fill.filled { clip-path: inset(0% 0 0 0); opacity: 1; filter: drop-shadow(0 0 18px ${glow}) drop-shadow(0 0 8px ${secondaryGlow}); }
       #agy-boot-overlay .agy-sigil-fill-svg {
         color: ${primary};
         clip-path: inset(100% 0 0 0);
@@ -562,11 +587,22 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
       #agy-boot-overlay .agy-sigil-fill-svg.filled {
         clip-path: inset(0% 0 0 0);
         opacity: 1;
-        filter: drop-shadow(0 0 18px ${glow});
+        filter: drop-shadow(0 0 20px ${glow}) drop-shadow(0 0 8px ${secondaryGlow});
       }
       #agy-boot-overlay .agy-sigil-fill-group :is(path, circle, ellipse, rect, polygon, polyline, line) {
         stroke: url(#agyBootFillGrad);
         vector-effect: non-scaling-stroke;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      #agy-boot-overlay .agy-sigil-fill-group :is(path, circle, ellipse, rect, polygon, polyline, line)[stroke="none"] {
+        stroke: none;
+      }
+      #agy-boot-overlay .agy-sigil-fill-group :is(path, circle, ellipse, rect, polygon, polyline, line)[fill="currentColor"] {
+        fill: url(#agyBootFillGrad);
+      }
+      #agy-boot-overlay .agy-morph-identity {
+        display: inline-flex; align-items: center; justify-content: center; gap: 10px; margin-top: 2px;
       }
 
       #agy-boot-overlay .agy-dot-grid-small { font-size: 10px; letter-spacing: 0.42em; color: #cbd5e1; line-height: 1.8; }
@@ -647,7 +683,10 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
 
       <div class="agy-boot-stage-wrap">
         <div class="agy-boot-stage active" id="agy-stage-0">
-          <img class="agy-splash-logo" id="agy-splash-logo" src="${iconColorUrl}" alt="${esc(brandTitle)}" />
+          <div class="agy-splash-emblem-row">
+            <div class="agy-splash-logo" id="agy-splash-logo" aria-hidden="true">${renderSigilSvg(sigilParsed, 'agyBootSplashGrad')}</div>
+            ${splashPortraitHtml}
+          </div>
           <div class="agy-splash-wordmark">${esc(brandTitle)}</div>
           <div class="agy-splash-caption">${esc(brandSub)}</div>
         </div>
@@ -703,7 +742,10 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
           <div class="agy-icon-morph-box">
             ${morphGraphicHtml}
           </div>
-          <div class="agy-dot-grid-small">${esc(characterUpper)}<br />· · · · · · · · · ·</div>
+          <div class="agy-morph-identity">
+            ${morphPortraitHtml}
+            <div class="agy-dot-grid-small">${esc(brandTitle)} · ${esc(characterUpper)}<br />· · · · · · · · · ·</div>
+          </div>
         </div>
 
         <div class="agy-boot-stage" id="agy-stage-5">
@@ -732,9 +774,9 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
           <div class="agy-welcome-eyebrow" data-stagger="28">WELCOME TO</div>
           <div class="agy-welcome-solid-box agy-welcome-reveal" style="animation-delay:240ms">${esc(brandTitle)}</div>
           <div class="agy-welcome-flare-wrap agy-welcome-reveal" style="animation-delay:360ms">
-            ${renderIdentityBadge('is-lg')}
+            <div class="agy-boot-badge is-lg is-sigil" aria-hidden="true">${renderSigilSvg(sigilParsed, 'agyBootWelcomeGrad')}</div>
+            ${welcomePortraitHtml}
             ${miniPetChipHtml}
-            ${emblemBadgeHtml}
           </div>
           <div class="agy-dot-grid-small agy-welcome-reveal" style="margin-bottom:8px;animation-delay:460ms">${esc(brandSub)}</div>
           <div class="agy-hud-hint agy-welcome-reveal" style="color:#cbd5e1;letter-spacing:0.2em;animation-delay:540ms">${esc(welcomeSubline)}</div>
@@ -771,43 +813,27 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
 
     let traceTargets = [];
     let longestTraceEl = null;
-    if (hasCustomSigil) {
-      traceTargets = Array.from(iconOutlineSvg.querySelectorAll(
-        '#agy-sigil-stroke-group path, #agy-sigil-stroke-group circle, #agy-sigil-stroke-group ellipse, #agy-sigil-stroke-group rect, #agy-sigil-stroke-group polygon, #agy-sigil-stroke-group polyline, #agy-sigil-stroke-group line'
-      ));
-      let maxLen = -1;
-      traceTargets.forEach((el) => {
-        let len = 120;
-        try {
-          if (typeof el.getTotalLength === 'function') {
-            const measured = el.getTotalLength();
-            if (Number.isFinite(measured) && measured > 0) len = Math.ceil(measured);
-          }
-        } catch (_) {}
-        el.dataset.strokeLen = String(len);
-        el.style.strokeDasharray = `${len}`;
-        el.style.strokeDashoffset = `${len}`;
-        el.classList.add('agy-sigil-trace-el');
-        if (len > maxLen) {
-          maxLen = len;
-          longestTraceEl = el;
+    traceTargets = Array.from(iconOutlineSvg.querySelectorAll(
+      '#agy-sigil-stroke-group path, #agy-sigil-stroke-group circle, #agy-sigil-stroke-group ellipse, #agy-sigil-stroke-group rect, #agy-sigil-stroke-group polygon, #agy-sigil-stroke-group polyline, #agy-sigil-stroke-group line'
+    ));
+    let maxLen = -1;
+    traceTargets.forEach((el) => {
+      let len = 120;
+      try {
+        if (typeof el.getTotalLength === 'function') {
+          const measured = el.getTotalLength();
+          if (Number.isFinite(measured) && measured > 0) len = Math.ceil(measured);
         }
-      });
-    } else {
-      const outlinePath = document.getElementById('agy-boot-outline-path');
-      if (outlinePath) {
-        let outlineTotalLen = 673;
-        try {
-          const measured = outlinePath.getTotalLength();
-          if (Number.isFinite(measured) && measured > 0) outlineTotalLen = Math.ceil(measured);
-        } catch (_) {}
-        outlinePath.dataset.strokeLen = String(outlineTotalLen);
-        outlinePath.style.strokeDasharray = `${outlineTotalLen}`;
-        outlinePath.style.strokeDashoffset = `${outlineTotalLen}`;
-        traceTargets = [outlinePath];
-        longestTraceEl = outlinePath;
+      } catch (_) {}
+      el.dataset.strokeLen = String(len);
+      el.style.strokeDasharray = `${len}`;
+      el.style.strokeDashoffset = `${len}`;
+      el.classList.add('agy-sigil-trace-el');
+      if (len > maxLen) {
+        maxLen = len;
+        longestTraceEl = el;
       }
-    }
+    });
 
     let currentStage = 0;
     let grantTriggered = false;

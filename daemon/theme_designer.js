@@ -15,7 +15,7 @@ const { generatePetSprite, buildFallbackResult, FALLBACK_SPRITE_URL } = require(
 const ROOT_DIR = path.resolve(__dirname, '..');
 const THEMES_JSON = path.join(ROOT_DIR, 'themes', 'themes.json');
 const USER_MEDIA_DIR = path.join(ROOT_DIR, 'themes', 'user_media');
-const DEFAULT_SIGIL_SVG_INNER = '<path d="M12 2L14.8 9.2L22 12L14.8 14.8L12 22L9.2 14.8L2 12L9.2 9.2Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="none"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.4" fill="none"/>';
+const DEFAULT_SIGIL_SVG_INNER = '<path d="M12 2.5L14.8 9.2L21.5 12L14.8 14.8L12 21.5L9.2 14.8L2.5 12L9.2 9.2Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="none"/><path d="M12 6.5L16.5 12L12 17.5L7.5 12Z" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" fill="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="9.2" stroke="currentColor" stroke-width="1.1" stroke-dasharray="3 4" fill="none"/>';
 
 const TARGET_W = 3840;
 const TARGET_H = 2160;
@@ -642,13 +642,13 @@ function buildPrompt(absImagePath, { srcW, srcH, needsAiPaint }) {
         '  * `centerStage`: `{ cardStyle: "glass-card"|"editorial-sheet"|"hud-hairline", radiusPx: number (8..16), typographyVibe: "sans"|"mono"|"serif", contrastFloor: "wcag-aa-dark"|"wcag-aa-light" }`',
         '  * `rightColumn`: `{ panelMode: "unified-glass"|"clean-slate"|"split-accent", sashGlow: "subtle"|"crisp"|"none", tabIndicator: "underline"|"pill"|"dot" }`',
         '  * `motionRules`: `{ budget: "calm"|"atmospheric"|"kinetic", particleCount: number (0 for calm, 6..8 for atmospheric/kinetic), particleOpacity: [min, max] within [0.22, 0.42] }`',
-        '- Design `workIdentity` so the 1-click Boot Intro (`boot.js`) and IDE share one bespoke identity derived from THIS image:',
-        '  * `franchise`: short evocative work/world/theme title matching the image (e.g. "SAO // AINCRAD", "STARLIGHT CONCERTO", "RAINY CAFE").',
+        '- Design `workIdentity` so the 1-click Boot Intro (`boot.js`) and IDE top-left brand emblem replace the default Antigravity logo with one bespoke identity derived from THIS image:',
+        '  * `franchise`: short evocative work/world/theme title matching the image (e.g. "SAO // AINCRAD", "STARLIGHT CONCERTO", "RAINY CAFE") — NEVER "ANTIGRAVITY".',
         '  * `characterName`: main character name or personified object/subject title visible in the image (e.g. "Asuna", "Violinist", "Mocha Spirit").',
         '  * `operator`: short operator callsign/role fitting the image (e.g. "SWORDSMAN", "MAESTRO", "BARISTA", "SENSEI").',
         '  * `bootTagline`: concise evocative 4-10 word boot tagline for this artwork.',
         '  * `secondary`: valid CSS hex color harmonized with the theme\'s `secondary` accent.',
-        '  * `sigilSvgInner`: clean vector SVG primitives (`<path>`, `<circle>`, `<ellipse>`, `<rect>`, `<polygon>`, `<polyline>`, `<line>`, `<g>`) designed specifically for `viewBox="0 0 24 24"` representing the iconic emblem, crest, or main object of THIS image (so `boot.js` renders a unique stroke-trace Intro per image). Use `stroke="currentColor"` / `fill="none"` (or subtle `fill="currentColor"`), NO `<svg>` wrapper, NO `<script>`, NO `<image>`, NO `<foreignObject>`, NO `<style>`, NO `on*` handlers, NO `javascript:` or external references.',
+        '  * `sigilSvgInner`: MANDATORY bespoke brand logo/emblem used in BOTH the Boot HUD (Splash, Morph stroke-trace + gradient fill, Welcome) AND the IDE top-left corner logo. Output 3 to 7 distinct, crisp, iconic vector primitives (`<path>`, `<circle>`, `<ellipse>`, `<rect>`, `<polygon>`, `<polyline>`, `<line>`, `<g>`) crafted specifically for `viewBox="0 0 24 24"` (coordinates padded within 2..22) depicting the signature crest, silhouette, or iconic motif of THIS image. STRICTLY FORBIDDEN: a single plain circle/square or generic placeholder! Use `stroke="currentColor"` `stroke-width="1.4"`–`"1.7"` `stroke-linecap="round"` `stroke-linejoin="round"` `fill="none"` (plus at most 1–2 small focal dots/gems with `fill="currentColor"` `stroke="none"`), NO `<svg>` wrapper, NO `<script>`, NO `<image>`, NO `<foreignObject>`, NO `<style>`, NO `on*` handlers, NO `javascript:` or external references.',
         '- Design `petDirective` for the synchronized `Neito112/desktop-agent_pet` v2 8x11 companion:',
         '  * If the input image depicts a character or creature: set `hasCharacter: true`, `sourceObject: ""`, and write `spritePrompt` describing that character adapted into a crisp 8x11 pixel/chibi mascot atlas (silhouette, hair/ears/horns, outfit colors, signature prop).',
         '  * If the input image has NO character (scenery, cafe, mecha, architecture, abstract): set `hasCharacter: false`, identify 1 iconic main object (`sourceObject`, e.g. "steaming ceramic espresso cup"), personify it (`personifiedConcept`, e.g. "Tiny Cozy Latte Spirit with a whipped-cream beret and warm amber eyes"), and write `spritePrompt` describing that mascot in a crisp 8x11 pixel/chibi atlas.',
@@ -1040,7 +1040,7 @@ function normalizeWorkIdentity(theme) {
     const dpHud = (dpUi.hudWidget && typeof dpUi.hudWidget === 'object') ? dpUi.hudWidget : {};
     const pd = (theme && theme.petDirective && typeof theme.petDirective === 'object') ? theme.petDirective : {};
 
-    const franchise = str(raw.franchise, (theme && theme.name) || dp.archetypeLabel || 'ANTIGRAVITY', 40);
+    const franchise = str(raw.franchise, (theme && theme.name) || dp.archetypeLabel || 'CUSTOM STUDIO', 40);
     const characterName = str(raw.characterName || raw.role, pd.petName || (theme && theme.name) || 'Companion', 40);
     const operator = str(raw.operator, 'SENSEI', 32);
     const bootTagline = str(raw.bootTagline || raw.tagline, dp.introSubtitle || (theme && theme.concept) || 'NEURAL INTERFACE SYNCED', 80);
@@ -1048,7 +1048,8 @@ function normalizeWorkIdentity(theme) {
         ? raw.secondary.trim()
         : (isSafeCssColor(theme && theme.secondary) ? theme.secondary.trim() : '#f472b6');
     const cleanSigil = sanitizeSvgFragment(raw.sigilSvgInner, 2400);
-    const sigilSvgInner = cleanSigil || DEFAULT_SIGIL_SVG_INNER;
+    const hasSigilShape = /<(path|circle|ellipse|rect|polygon|polyline|line)\b/i.test(cleanSigil);
+    const sigilSvgInner = hasSigilShape ? cleanSigil : DEFAULT_SIGIL_SVG_INNER;
 
     return {
         franchise,
