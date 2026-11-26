@@ -1807,17 +1807,17 @@
     };
 
     if (leftCol) {
-      const leftRect = leftCollapsed ? null : leftCol.getBoundingClientRect();
-      const leftW = (!leftCollapsed && leftRect && leftRect.width > 12) ? Math.round(leftRect.right) : 0;
+      const leftRect = leftCol.getBoundingClientRect();
+      const leftEdge = (leftRect && leftRect.width > 12) ? Math.round(leftRect.right) : 320;
       const btn = ensureCollapseBtn(
         'agy-collapse-left-btn',
-        'Cuộn gọn / Mở cột trái',
-        '<span class="agy-roll-grip" aria-hidden="true"><span></span><span></span><span></span></span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>',
+        'Trượt thu gọn / Mở bảng trái',
+        '<span class="agy-roll-grip" aria-hidden="true"><span></span><span></span><span></span></span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>',
         () => runRollToggle('left', STORAGE_COLLAPSE_LEFT)
       );
       btn.dataset.collapsed = leftCollapsed ? 'true' : 'false';
-      btn.title = leftCollapsed ? 'Mở cuộn Sidebar trái' : 'Cuộn gọn Sidebar trái';
-      btn.style.left = leftCollapsed ? '6px' : `${Math.max(6, leftW - 4)}px`;
+      btn.title = leftCollapsed ? 'Mở bảng trái từ Topbar' : 'Cuộn bảng trái lên Topbar';
+      btn.style.left = `${Math.max(10, leftEdge - 12)}px`;
       btn.style.display = 'inline-flex';
     } else {
       const btn = document.getElementById('agy-collapse-left-btn');
@@ -1829,19 +1829,19 @@
       rightCol.setAttribute('data-agy-right-open', hasRightOpen ? '1' : '0');
     }
     if (rightCol && hasRightOpen) {
-      const rightRect = rightCollapsed ? null : rightCol.getBoundingClientRect();
-      const rightEdge = (!rightCollapsed && rightRect && rightRect.width > 12)
-        ? Math.max(6, Math.round(window.innerWidth - rightRect.left - 4))
-        : 6;
+      const rightRect = rightCol.getBoundingClientRect();
+      const rightEdge = (rightRect && rightRect.width > 12)
+        ? Math.max(10, Math.round(window.innerWidth - rightRect.left - 12))
+        : 10;
       const btn = ensureCollapseBtn(
         'agy-collapse-right-btn',
-        'Cuộn gọn / Mở cột phải',
-        '<span class="agy-roll-grip" aria-hidden="true"><span></span><span></span><span></span></span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
+        'Trượt thu gọn / Mở bảng phải',
+        '<span class="agy-roll-grip" aria-hidden="true"><span></span><span></span><span></span></span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>',
         () => runRollToggle('right', STORAGE_COLLAPSE_RIGHT)
       );
       btn.dataset.collapsed = rightCollapsed ? 'true' : 'false';
-      btn.title = rightCollapsed ? 'Mở cuộn Panel phải' : 'Cuộn gọn Panel phải';
-      btn.style.right = rightCollapsed ? '6px' : `${rightEdge}px`;
+      btn.title = rightCollapsed ? 'Mở bảng phải từ Topbar' : 'Cuộn bảng phải lên Topbar';
+      btn.style.right = `${rightEdge}px`;
       btn.style.display = 'inline-flex';
     } else {
       const btn = document.getElementById('agy-collapse-right-btn');
@@ -5244,120 +5244,133 @@
       .agy-shell:not(.agy-pet-chat-docked) [data-agy-composer-wrap="1"] {
         padding-bottom: 52px !important;
       }
-      /* Full-Width Workspace Unlock (no layout-thrashing max-width transition) */
+      /* Full-Width Workspace Unlock (bố cục chính giữa luôn giữ nguyên khi thu gọn 2 bên) */
       .agy-shell [data-testid="conversation-view"] .mx-auto.w-full {
         max-width: min(1240px, calc(100% - 24px)) !important;
         transition: none !important;
       }
-      .agy-shell:is([data-agy-left-collapsed="1"], [data-agy-right-collapsed="1"]) [data-testid="conversation-view"] .mx-auto.w-full {
-        max-width: calc(100% - 20px) !important;
-      }
-      /* GPU-composited Top-Down Grow (mọc từ thanh topbar xuống 60fps) + Glass Frame cho 2 cột trái/phải */
-      .agy-shell [data-agy-left-col="1"] {
-        transform-origin: top center !important;
-        transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease !important;
-        will-change: transform, opacity;
-      }
-      .agy-shell:not([data-agy-left-collapsed="1"]) [data-agy-left-col="1"] {
-        margin: 0 4px 10px 10px !important;
-        height: calc(100% - 10px) !important;
-        align-self: stretch !important;
-        border-radius: 0 0 16px 16px !important;
-        border: 1px solid ${glassRimBorder} !important;
-        border-top: 0 !important;
-        background: ${cleanBubbleBg} !important;
-        box-shadow: ${glassRimShadow}, 0 8px 28px rgba(0, 0, 0, 0.28) !important;
-        overflow: hidden !important;
-      }
+      /* 1. Thanh Topbar dài, glass, bo góc thống nhất (trái + giữa + phải nối liền) */
+      .agy-shell [data-agy-left-col="1"],
       .agy-shell [data-agy-right-col="1"] {
-        transform-origin: top center !important;
-        transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease !important;
-        will-change: transform, opacity;
-      }
-      .agy-shell:not([data-agy-right-collapsed="1"]) [data-agy-right-col="1"][data-agy-right-open="1"] {
-        margin: 0 10px 10px 4px !important;
-        height: calc(100% - 10px) !important;
-        align-self: stretch !important;
-        border-radius: 0 0 16px 16px !important;
-        border: 1px solid ${glassRimBorder} !important;
-        border-top: 0 !important;
-        background: ${cleanBubbleBg} !important;
-        box-shadow: ${glassRimShadow}, 0 8px 28px rgba(0, 0, 0, 0.28) !important;
-        overflow: hidden !important;
-      }
-      .agy-shell:not([data-agy-left-collapsed="1"]) [data-agy-left-col="1"] > *,
-      .agy-shell:not([data-agy-right-collapsed="1"]) [data-agy-right-col="1"][data-agy-right-open="1"] > * {
         background: transparent !important;
-        background-color: transparent !important;
-        border-radius: 0 0 15px 15px !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        overflow: visible !important;
       }
-      .agy-shell[data-agy-left-anim="closing"] [data-agy-left-col="1"],
-      .agy-shell[data-agy-left-anim="opening"] [data-agy-left-col="1"] {
-        transform: scaleY(0.02) !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
+      .agy-shell [data-agy-left-col="1"] [role="navigation"][aria-label="Sidebar"] {
+        position: relative !important;
+        background: transparent !important;
       }
-      .agy-shell[data-agy-right-anim="closing"] [data-agy-right-col="1"],
-      .agy-shell[data-agy-right-anim="opening"] [data-agy-right-col="1"] {
-        transform: scaleY(0.02) !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
+      .agy-shell [data-agy-left-col="1"] [role="navigation"][aria-label="Sidebar"] > :first-child {
+        height: 40px !important;
+        margin: 6px 0 6px 10px !important;
+        padding-left: 4px !important;
+        background: ${cleanBubbleBg} !important;
+        border-top: 1px solid ${glassRimBorder} !important;
+        border-bottom: 1px solid ${glassRimBorder} !important;
+        border-left: 1px solid ${glassRimBorder} !important;
+        border-right: 0 !important;
+        border-radius: 14px 0 0 14px !important;
+        box-shadow: inset 0 1px 0 ${glassInnerSheen}, 0 4px 16px rgba(0, 0, 0, 0.18) !important;
+        box-sizing: border-box !important;
+        position: relative !important;
+        z-index: 2 !important;
       }
       .agy-shell [data-main-content-header] {
         box-sizing: border-box !important;
         width: 100% !important;
         max-width: 100% !important;
-        margin: 0 !important;
+        height: 40px !important;
+        margin: 6px 0 !important;
         border-radius: 0 !important;
         border: 0 !important;
+        border-top: 1px solid ${glassRimBorder} !important;
         border-bottom: 1px solid ${glassRimBorder} !important;
         background: ${cleanBubbleBg} !important;
-        box-shadow: inset 0 1px 0 ${glassInnerSheen} !important;
+        box-shadow: inset 0 1px 0 ${glassInnerSheen}, 0 4px 16px rgba(0, 0, 0, 0.18) !important;
         overflow: visible !important;
       }
-      .agy-shell[data-agy-left-collapsed="1"] [data-main-content-header] {
-        padding-left: var(--agy-topleft-pad, 178px) !important;
+      .agy-shell:not(:has([data-agy-right-col="1"][data-agy-right-open="1"])) [data-main-content-header] {
+        width: calc(100% - 10px) !important;
+        margin-right: 10px !important;
+        border-right: 1px solid ${glassRimBorder} !important;
+        border-radius: 0 14px 14px 0 !important;
       }
-      .agy-shell[data-agy-left-collapsed="1"] [data-agy-left-col="1"] {
-        width: 0px !important;
-        min-width: 0px !important;
-        max-width: 0px !important;
-        flex: 0 0 0px !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        opacity: 0 !important;
+      .agy-shell [data-agy-right-col="1"][data-agy-right-open="1"] [data-side-panel-strip] {
+        height: 40px !important;
+        margin: 6px 10px 6px 0 !important;
+        background: ${cleanBubbleBg} !important;
+        border-top: 1px solid ${glassRimBorder} !important;
+        border-bottom: 1px solid ${glassRimBorder} !important;
+        border-right: 1px solid ${glassRimBorder} !important;
+        border-left: 0 !important;
+        border-radius: 0 14px 14px 0 !important;
+        box-shadow: inset 0 1px 0 ${glassInnerSheen}, 0 4px 16px rgba(0, 0, 0, 0.18) !important;
+        box-sizing: border-box !important;
+        position: relative !important;
+        z-index: 2 !important;
+      }
+      /* 2. Bảng trái & bảng phải bên dưới Topbar: khung glass bo góc, mọc mượt 60fps từ Topbar xuống */
+      .agy-shell [data-agy-left-col="1"] [role="navigation"][aria-label="Sidebar"]::before {
+        content: "" !important;
+        position: absolute !important;
+        top: 52px !important;
+        bottom: 10px !important;
+        left: 10px !important;
+        right: 4px !important;
+        border-radius: 16px !important;
+        border: 1px solid ${glassRimBorder} !important;
+        background: ${cleanBubbleBg} !important;
+        box-shadow: ${glassRimShadow}, 0 10px 28px rgba(0, 0, 0, 0.28) !important;
         pointer-events: none !important;
+        z-index: 0 !important;
+        transform-origin: top center !important;
+        transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease !important;
+        will-change: transform, opacity;
+      }
+      .agy-shell [data-agy-left-col="1"] [role="navigation"][aria-label="Sidebar"] > :not(:first-child) {
+        position: relative !important;
+        z-index: 1 !important;
+        margin-left: 10px !important;
+        margin-right: 4px !important;
+        transform-origin: top center !important;
+        transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease !important;
+        will-change: transform, opacity;
+      }
+      .agy-shell [data-agy-right-col="1"][data-agy-right-open="1"] [data-side-panel-body] {
+        margin: 0 10px 10px 4px !important;
+        border-radius: 16px !important;
+        border: 1px solid ${glassRimBorder} !important;
+        background: ${cleanBubbleBg} !important;
+        box-shadow: ${glassRimShadow}, 0 10px 28px rgba(0, 0, 0, 0.28) !important;
         overflow: hidden !important;
+        transform-origin: top center !important;
+        transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease !important;
+        will-change: transform, opacity;
       }
-      .agy-shell[data-agy-left-collapsed="1"] [data-agy-left-col="1"] + [data-split-sash="true"] {
-        width: 0px !important;
+      .agy-shell:is([data-agy-left-anim="closing"], [data-agy-left-anim="opening"], [data-agy-left-collapsed="1"]) [data-agy-left-col="1"] [role="navigation"][aria-label="Sidebar"]::before,
+      .agy-shell:is([data-agy-left-anim="closing"], [data-agy-left-anim="opening"], [data-agy-left-collapsed="1"]) [data-agy-left-col="1"] [role="navigation"][aria-label="Sidebar"] > :not(:first-child) {
+        transform: scaleY(0.01) !important;
         opacity: 0 !important;
         pointer-events: none !important;
       }
-      .agy-shell[data-agy-right-collapsed="1"] [data-agy-right-col="1"] {
-        width: 0px !important;
-        min-width: 0px !important;
-        max-width: 0px !important;
-        flex: 0 0 0px !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-        overflow: hidden !important;
-      }
-      .agy-shell[data-agy-right-collapsed="1"] [data-testid="aux-pane-split"] > [data-split-sash="true"] {
-        width: 0px !important;
+      .agy-shell:is([data-agy-right-anim="closing"], [data-agy-right-anim="opening"], [data-agy-right-collapsed="1"]) [data-agy-right-col="1"] [data-side-panel-body] {
+        transform: scaleY(0.01) !important;
         opacity: 0 !important;
         pointer-events: none !important;
       }
+      /* 3. Nút cuộn pill dọc (thiết kế lại sắc nét theo mẫu, đặt ngay dưới Topbar) */
       .agy-collapse-edge-btn {
         position: fixed;
         z-index: 9515;
         display: inline-flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 3px;
-        background: var(--agy-btn-surface, rgba(12, 16, 26, 0.86));
+        gap: 4px;
+        width: 24px;
+        height: 46px;
+        background: var(--agy-btn-surface, rgba(12, 16, 26, 0.88));
         border: 1px solid ${glassRimBorder};
         color: var(--agy-btn-ink, #f8fafc);
         border-radius: 9999px;
@@ -5365,47 +5378,41 @@
         user-select: none;
         -webkit-app-region: no-drag;
         backdrop-filter: none !important;
-        opacity: 0.92;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 2px 8px rgba(0, 0, 0, 0.34);
-        transition: opacity 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+        opacity: 0.94;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24), 0 4px 14px rgba(0, 0, 0, 0.42);
+        transition: opacity 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
       }
       .agy-collapse-edge-btn:hover {
         opacity: 1;
         color: var(--agy-btn-accent, #38bdf8);
         border-color: var(--agy-btn-accent, #38bdf8);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.30), 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 10px ${mainTheme.glow || 'rgba(56, 189, 248, 0.22)'};
       }
       .agy-roll-grip {
         display: inline-flex;
         flex-direction: column;
-        gap: 2.5px;
+        gap: 3px;
       }
       .agy-roll-grip span {
-        width: 2.5px;
-        height: 2.5px;
+        width: 3px;
+        height: 3px;
         border-radius: 9999px;
         background: currentColor;
-        opacity: 0.55;
-      }
-      .agy-roll-grip--h {
-        flex-direction: row;
+        opacity: 0.65;
       }
       .agy-collapse-edge-btn svg {
-        transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+        transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
       }
       .agy-collapse-edge-btn[data-collapsed="true"] svg {
         transform: rotate(180deg);
       }
       #agy-collapse-left-btn,
       #agy-collapse-right-btn {
-        top: 50%;
-        flex-direction: column;
-        width: 16px;
-        height: 48px;
-        transform: translateY(-50%);
+        top: 84px;
       }
       #agy-collapse-left-btn:active,
       #agy-collapse-right-btn:active {
-        transform: translateY(-50%) scale(0.94);
+        transform: scale(0.92);
       }
       /* Compact YouTube Music Bar (no preview, title + time only) */
       #agy-yt-bar {
