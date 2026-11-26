@@ -3949,9 +3949,13 @@
         ${isLight ? `color: ${uiInk} !important;` : ''}
         backdrop-filter: none !important;
       }
-      .agy-shell [data-side-panel-body] :is(iframe, webview) {
+      .agy-shell [data-side-panel-body] :is(iframe, webview, [data-testid="sidecar-iframe-slot"], [data-testid="sidecar-iframe"], div) {
         background: transparent !important;
         background-color: transparent !important;
+      }
+      .agy-shell [data-side-panel-body] :is(iframe, webview, [data-testid="sidecar-iframe-slot"]) {
+        border: 0 !important;
+        box-shadow: none !important;
         border-radius: 15px !important;
       }
       body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-body="true"]:not([data-has-browser-hole="true"]):not(:has([data-browser-hole]:not([data-browser-hole="false"]))) pre {

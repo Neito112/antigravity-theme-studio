@@ -269,11 +269,11 @@ function buildPluginGlassExpr() {
     const isLight = Boolean(cfg && cfg.themeName && /light|paper|sakura|snow|ivory|day/i.test(String(cfg.themeName)));
     const accent = (cfg && cfg.customThemes && cfg.themeName && cfg.customThemes[cfg.themeName]?.primary) || '#ff6b35';
     const css = `
-      html, body, #root, #app, main, .app, .board, [class*="container"], [class*="shell"] {
+      html, body, #root, #app, main, header, .header, nav, .tabs, .app, .board, [class*="container"], [class*="shell"] {
         background: transparent !important;
         background-color: transparent !important;
       }
-      :is(.card, .panel, .surface, [class*="card"], [class*="panel"], [class*="box"], [class*="row"]):not(button) {
+      :is(.card, .panel, .surface, [class*="card"], [class*="panel"], [class*="box"]):not(button):not(.header-row) {
         background: ${isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.04)'} !important;
         border-color: ${isLight ? 'rgba(15, 23, 42, 0.12)' : 'rgba(255, 255, 255, 0.10)'} !important;
         backdrop-filter: none !important;
