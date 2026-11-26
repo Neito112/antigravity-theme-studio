@@ -3595,30 +3595,17 @@
         }
       `;
       const rightColumnCss = `
-        .agy-shell [data-side-panel-docked] {
-          background: transparent !important;
-          border: none !important;
-          box-shadow: none !important;
-        }
-        body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-open="true"] {
-          margin: 0 !important;
-          width: 100% !important;
-          height: 100% !important;
-          border-radius: 0 !important;
-          border: none !important;
-          border-left: 1px solid rgba(255, 255, 255, 0.10) !important;
-          box-shadow: none !important;
-          overflow: hidden !important;
-          background: ${rightBg} !important;
-          backdrop-filter: none !important;
-        }
+        .agy-shell [data-side-panel-docked],
+        body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-open="true"],
         body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-strip] {
-          background: ${mainTheme.headerBg || rightBg} !important;
+          background: transparent !important;
+          background-color: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
           backdrop-filter: none !important;
-          border-color: ${rightHairline} !important;
         }
         .agy-shell [data-side-panel-sash] {
-          background: ${sashBg} !important;
+          background: transparent !important;
           width: 1px !important;
         }
         ${tabIndicatorCss}
@@ -4270,29 +4257,19 @@
         background: ${pillHoverBg} !important;
       }
 
-      /* 3. Right-Side Artifact / Preview / Aux Panels */
-      .agy-shell [data-side-panel-docked] {
+      /* 3. Right-Side Artifact / Preview / Aux Panels (giữ container trong suốt, chỉ [data-side-panel-body] có khung glass) */
+      .agy-shell [data-side-panel-docked],
+      body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-open],
+      .agy-shell [data-side-panel-strip] {
         background: transparent !important;
+        background-color: transparent !important;
         border: none !important;
-        box-shadow: none !important;
-      }
-      body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-open] {
-        background: ${st.wpEnabled ? `rgba(${overlayRgb}, ${isLight ? '0.68' : Math.min(0.56, Math.max(0.42, textScrimAlpha * 0.85)).toFixed(2)})` : smokedSurface} !important;
-        border: none !important;
-        border-left: 1px solid rgba(255, 255, 255, 0.10) !important;
-        border-radius: 0 !important;
         box-shadow: none !important;
         backdrop-filter: none !important;
       }
       .agy-shell :is([data-side-panel-sash], [data-testid="side-panel-sash"]) {
-        background: ${cleanSoftHairline} !important;
-        transition: ${isDynamicMode ? 'background-color 0.16s ease' : 'none'} !important;
+        background: transparent !important;
       }
-      .agy-shell :is([data-side-panel-sash], [data-testid="side-panel-sash"]):hover {
-        background: ${pSync} !important;
-      }
-      .agy-shell [data-side-panel-strip] {
-        background: ${mainTheme.headerBg || smokedElevated} !important;
         border-bottom: 1px solid ${cleanSoftHairline} !important;
         backdrop-filter: none !important;
       }
@@ -5262,12 +5239,14 @@
         position: relative !important;
         background: transparent !important;
       }
-      /* Các phần header & cluster icon bên trong thanh Topbar: hoàn toàn trong suốt, căn giữa dọc 36px */
+      /* Các phần header & cluster icon bên trong thanh Topbar: hoàn toàn trong suốt, căn giữa dọc chuẩn tâm 52px (top 4px + height 36px) */
       .agy-shell [data-agy-left-col="1"] [role="navigation"][aria-label="Sidebar"] > :first-child,
       .agy-shell [data-main-content-header],
       .agy-shell [data-agy-right-col="1"] [data-side-panel-strip] {
         box-sizing: border-box !important;
         height: 36px !important;
+        min-height: 36px !important;
+        max-height: 36px !important;
         margin: 4px 0 !important;
         background: transparent !important;
         background-color: transparent !important;
@@ -5282,13 +5261,14 @@
         padding-left: 14px !important;
       }
       .agy-shell [data-agy-right-col="1"] [data-side-panel-strip] {
-        padding-right: 48px !important;
+        padding-left: 8px !important;
+        padding-right: 78px !important;
       }
       .agy-shell > .agy-inset-shell :has(> [data-testid="app-icon-new-conversation-button"]),
-      .agy-shell > .agy-inset-shell :has(> [data-testid="toggle-aux-sidebar"]) {
+      .agy-shell > .agy-inset-shell :has(> [data-testid="sidebar-toggle"]) {
         height: 36px !important;
-        top: 4px !important;
-        margin: 0 !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
         background: transparent !important;
         background-color: transparent !important;
         box-shadow: none !important;
@@ -5296,10 +5276,27 @@
         align-items: center !important;
       }
       .agy-shell > .agy-inset-shell :has(> [data-testid="app-icon-new-conversation-button"]) {
+        margin-top: 4px !important;
+        margin-bottom: 4px !important;
         padding-left: 16px !important;
       }
+      .agy-shell > .agy-inset-shell .absolute.right-0:has([data-testid="toggle-aux-sidebar"]) {
+        top: 4px !important;
+        height: 36px !important;
+        margin: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+      }
       .agy-shell > .agy-inset-shell :has(> [data-testid="toggle-aux-sidebar"]) {
+        height: 36px !important;
+        top: 0 !important;
+        margin: 0 !important;
         padding-right: 16px !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        box-shadow: none !important;
+        display: flex !important;
+        align-items: center !important;
       }
       /* 2 nút tròn trên Topbar cho side panel trái & phải */
       .agy-shell [data-testid="sidebar-toggle"],
@@ -5367,13 +5364,15 @@
       }
       .agy-shell:is([data-agy-left-anim="closing"], [data-agy-left-anim="opening"], [data-agy-left-collapsed="1"]) [data-agy-left-col="1"] [role="navigation"][aria-label="Sidebar"]::before,
       .agy-shell:is([data-agy-left-anim="closing"], [data-agy-left-anim="opening"], [data-agy-left-collapsed="1"]) [data-agy-left-col="1"] [role="navigation"][aria-label="Sidebar"] > :not(:first-child) {
-        transform: scaleY(0.01) !important;
+        transform: scaleY(0) !important;
         opacity: 0 !important;
+        visibility: hidden !important;
         pointer-events: none !important;
       }
       .agy-shell:is([data-agy-right-anim="closing"], [data-agy-right-anim="opening"], [data-agy-right-collapsed="1"]) [data-agy-right-col="1"] [data-side-panel-body] {
-        transform: scaleY(0.01) !important;
+        transform: scaleY(0) !important;
         opacity: 0 !important;
+        visibility: hidden !important;
         pointer-events: none !important;
       }
       /* Compact YouTube Music Bar (no preview, title + time only) */
