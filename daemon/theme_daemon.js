@@ -1472,17 +1472,21 @@ async function probeActiveAntigravityState() {
             let rawText = '';
             for (let i = resps.length - 1; i >= 0; i--) {
                 const el = resps[i];
-                const blocks = Array.from(el.querySelectorAll('div:not([role="status"]) > p, p')).filter(p => !p.closest('[role="status"], button'));
-                const txt = (blocks.length ? blocks.map(n => String(n.innerText || '').trim()).filter(Boolean).join(' ') : String(el.innerText || '').trim()).replace(/\\s+/g, ' ').trim();
+                const blocks = Array.from(el.querySelectorAll('p')).filter(p => !p.closest('[role="status"], button, [aria-expanded], [data-testid*="step"]'));
+                const txt = (blocks.length ? blocks.map(n => String(n.innerText || '').trim()).filter(Boolean).join(' ') : '').replace(/\\s+/g, ' ').trim();
                 if (txt) { rawText = txt; break; }
             }
             const latestReply = rawText.length > 260 ? (rawText.slice(0, 257) + '…') : rawText;
             const state = runEl ? 'running' : (waitEl ? 'waiting' : (errEl ? 'failed' : (resps.length ? 'ready' : 'idle')));
+            const modelBtn = document.querySelector('[data-testid="model-selector-trigger"]');
+            const permBtn = document.querySelector('[data-testid="permissions-selector-trigger"]');
             return {
                 agentState: state,
                 latestReply,
                 replySeq: resps.length ? (resps.length + ':' + rawText.length + ':' + rawText.slice(-24)) : '',
-                pageTitle: document.title || 'Antigravity'
+                pageTitle: document.title || 'Antigravity',
+                modelLabel: modelBtn ? String(modelBtn.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 32) : '',
+                permLabel: permBtn ? String(permBtn.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 18) : ''
             };
         })()`);
         if (probe && typeof probe === 'object') {
@@ -1514,6 +1518,12 @@ async function getOverlayStateSnapshot() {
         themeName,
         petName,
         petSpriteUrl,
+        wallpaperUrl: cfg.wpEnabled === false ? '' : (cfg.customWp || th.wallpaper || th.wallpaperUrl || ''),
+        sticker: th.sticker || '',
+        stickerW: Number(th.stickerW) || 88,
+        stickerH: Number(th.stickerH) || 28,
+        stickerTop: Number.isFinite(Number(th.stickerTop)) ? Number(th.stickerTop) : -14,
+        stickerRight: Number.isFinite(Number(th.stickerRight)) ? Number(th.stickerRight) : 14,
         petVoices,
         desktopOverlayMode: cfg.desktopOverlayMode || 'auto',
         desktopOverlayPos: cfg.desktopOverlayPos || null,

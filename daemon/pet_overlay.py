@@ -7,8 +7,10 @@ Shows automatically when Antigravity is minimized or in the background (or alway
 """
 
 import argparse
+import base64
 import ctypes
 import ctypes.wintypes
+import io
 import json
 import math
 import os
@@ -18,13 +20,15 @@ import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
-from PIL import Image
+from PIL import Image, ImageFilter
 
 try:
-    from PyQt6.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt, QTimer, pyqtSignal
-    from PyQt6.QtGui import QAction, QColor, QCursor, QFont, QImage, QPainter, QPainterPath, QPen, QPixmap, QGuiApplication
+    from PyQt6.QtCore import QByteArray, QEvent, QObject, QPoint, QRect, QRectF, QSize, Qt, QTimer, pyqtSignal
+    from PyQt6.QtGui import QAction, QColor, QCursor, QFont, QImage, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap, QGuiApplication
+    from PyQt6.QtSvg import QSvgRenderer
     from PyQt6.QtWidgets import (
         QApplication,
         QFrame,
@@ -38,8 +42,9 @@ try:
     )
     QT_VER = 6
 except ImportError:
-    from PyQt5.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt, QTimer, pyqtSignal
-    from PyQt5.QtGui import QColor, QCursor, QFont, QImage, QPainter, QPainterPath, QPen, QPixmap, QGuiApplication
+    from PyQt5.QtCore import QByteArray, QEvent, QObject, QPoint, QRect, QRectF, QSize, Qt, QTimer, pyqtSignal
+    from PyQt5.QtGui import QColor, QCursor, QFont, QImage, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap, QGuiApplication
+    from PyQt5.QtSvg import QSvgRenderer
     from PyQt5.QtWidgets import (
         QAction,
         QApplication,
@@ -237,12 +242,74 @@ class StatePoller(QObject):
         threading.Thread(target=_worker, daemon=True).start()
 
 
+class GlassThemedFrame(QFrame):
+    """50% translucent smoked-glass card painted with the active theme's blurred wallpaper and gradient frame."""
+
+    def __init__(self, parent=None, radius=15, wp_opacity=0.42, base_alpha=128):
+        super().__init__(parent)
+        self._radius = radius
+        self._wp_opacity = wp_opacity
+        self._base_alpha = base_alpha
+        self._wp_pixmap = None
+        self._primary = '#38bdf8'
+        self._secondary = '#c084fc'
+
+    def set_theme_visuals(self, wp_pixmap, primary, secondary):
+        self._wp_pixmap = wp_pixmap
+        self._primary = parse_hex_color(primary, '#38bdf8')
+        self._secondary = parse_hex_color(secondary, '#c084fc')
+        self.update()
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        if QT_VER == 6:
+            p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+            p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+        else:
+            p.setRenderHint(QPainter.Antialiasing, True)
+            p.setRenderHint(QPainter.SmoothPixmapTransform, True)
+
+        rect = QRectF(0.75, 0.75, max(1.0, self.width() - 1.5), max(1.0, self.height() - 1.5))
+        path = QPainterPath()
+        path.addRoundedRect(rect, self._radius, self._radius)
+        p.setClipPath(path)
+
+        # 50% translucent dark smoked glass base
+        p.fillPath(path, QColor(8, 12, 22, self._base_alpha))
+
+        # Blurred theme wallpaper texture inside composer / reply card (cover crop)
+        if self._wp_pixmap and not self._wp_pixmap.isNull():
+            pw, ph = self._wp_pixmap.width(), self._wp_pixmap.height()
+            ww, wh = max(1, self.width()), max(1, self.height())
+            scale = max(ww / pw, wh / ph)
+            dw, dh = pw * scale, ph * scale
+            dx = (ww - dw) / 2.0
+            dy = (wh - dh) / 2.0
+            p.setOpacity(self._wp_opacity)
+            p.drawPixmap(QRectF(dx, dy, dw, dh), self._wp_pixmap, QRectF(0, 0, pw, ph))
+            p.setOpacity(1.0)
+            # Light dark veil to keep 50% glass feel & crisp text readability
+            p.fillPath(path, QColor(7, 10, 19, 108))
+
+        p.setClipping(False)
+        grad = QLinearGradient(0, 0, self.width(), self.height())
+        c1 = QColor(self._primary)
+        c1.setAlpha(175)
+        c2 = QColor(self._secondary)
+        c2.setAlpha(150)
+        grad.setColorAt(0.0, c1)
+        grad.setColorAt(1.0, c2)
+        p.setPen(QPen(grad, 1.35))
+        p.drawRoundedRect(rect, self._radius, self._radius)
+        p.end()
+
+
 class ChatInputBox(QPlainTextEdit):
     submitRequested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setPlaceholderText('Nhắn nhanh với Antigravity (Enter gửi)...')
+        self.setPlaceholderText('Ask anything, hoặc gõ để chat với Antigravity...')
         self.setMaximumHeight(112)
         self.setMinimumHeight(50)
         self.setFixedHeight(50)
@@ -395,6 +462,10 @@ class DesktopPetOverlay(QWidget):
         }
         self._frames_cache = {}
         self._loaded_sprite_key = ''
+        self._wp_pixmap = None
+        self._loaded_wp_key = ''
+        self._loaded_sticker_key = ''
+        self._sticker_size = (88, 28)
         self._frame_idx = 0
         self._chat_open = False
         self._reply_dismissed_seq = ''
@@ -441,9 +512,9 @@ class DesktopPetOverlay(QWidget):
             root_lay.setAlignment(Qt.AlignHCenter | Qt.AlignBottom)
 
         # ── Compact Reply Bubble (appears when Antigravity replies or while chat open) ──
-        self.reply_card = QFrame(self)
+        self.reply_card = GlassThemedFrame(self, radius=14, wp_opacity=0.35, base_alpha=128)
         self.reply_card.setObjectName('agyOverlayReplyCard')
-        self.reply_card.setFixedWidth(332)
+        self.reply_card.setFixedWidth(342)
         self.reply_card.hide()
         r_lay = QVBoxLayout(self.reply_card)
         r_lay.setContentsMargins(12, 9, 10, 10)
@@ -475,7 +546,7 @@ class DesktopPetOverlay(QWidget):
         self.reply_body = QLabel('', self.reply_card)
         self.reply_body.setObjectName('agyOverlayReplyBody')
         self.reply_body.setWordWrap(True)
-        self.reply_body.setFixedWidth(308)
+        self.reply_body.setFixedWidth(318)
         r_lay.addLayout(r_head)
         r_lay.addWidget(self.reply_body)
         root_lay.addWidget(self.reply_card, 0, Qt.AlignmentFlag.AlignHCenter if QT_VER == 6 else Qt.AlignHCenter)
@@ -501,14 +572,14 @@ class DesktopPetOverlay(QWidget):
         self.status_pill.customContextMenuRequested.connect(lambda _p: self._show_context_menu(QCursor.pos()))
         root_lay.addWidget(self.status_pill, 0, Qt.AlignmentFlag.AlignHCenter if QT_VER == 6 else Qt.AlignHCenter)
 
-        # ── Floating Smoked Glass Chat Composer ──
-        self.chat_card = QFrame(self)
+        # ── Floating In-App Style Composer (Wallpaper 50% Glass + Ornament Sticker) ──
+        self.chat_card = GlassThemedFrame(self, radius=15, wp_opacity=0.46, base_alpha=128)
         self.chat_card.setObjectName('agyOverlayChatCard')
-        self.chat_card.setFixedWidth(332)
+        self.chat_card.setFixedWidth(342)
         self.chat_card.hide()
         c_lay = QVBoxLayout(self.chat_card)
-        c_lay.setContentsMargins(10, 9, 10, 9)
-        c_lay.setSpacing(6)
+        c_lay.setContentsMargins(11, 10, 11, 9)
+        c_lay.setSpacing(7)
 
         self.chat_input = ChatInputBox(self.chat_card)
         self.chat_input.setObjectName('agyOverlayChatInput')
@@ -516,21 +587,31 @@ class DesktopPetOverlay(QWidget):
         c_lay.addWidget(self.chat_input)
 
         c_foot = QHBoxLayout()
-        c_foot.setContentsMargins(0, 0, 0, 0)
+        c_foot.setContentsMargins(2, 0, 0, 0)
         c_foot.setSpacing(6)
-        self.chat_hint = QLabel('Antigravity Bridge', self.chat_card)
+        self.chat_hint = QLabel('✦ Gemini 4 · Turbo', self.chat_card)
         self.chat_hint.setObjectName('agyOverlayHint')
         self.restore_btn = QPushButton('Mở App', self.chat_card)
         self.restore_btn.setObjectName('agyOverlaySecondaryBtn')
         self.restore_btn.clicked.connect(self._restore_antigravity)
-        self.send_btn = QPushButton('Gửi ↵', self.chat_card)
+        self.send_btn = QPushButton('↑', self.chat_card)
         self.send_btn.setObjectName('agyOverlaySendBtn')
+        self.send_btn.setFixedSize(28, 28)
+        self.send_btn.setToolTip('Gửi vào Antigravity (Enter)')
         self.send_btn.clicked.connect(self._submit_chat)
         c_foot.addWidget(self.chat_hint, 1)
         c_foot.addWidget(self.restore_btn)
         c_foot.addWidget(self.send_btn)
         c_lay.addLayout(c_foot)
         root_lay.addWidget(self.chat_card, 0, Qt.AlignmentFlag.AlignHCenter if QT_VER == 6 else Qt.AlignHCenter)
+
+        # Ornament SVG sticker floating cleanly above top-right corner of chat_card (matching in-app composer)
+        self.sticker_label = QLabel(self)
+        if QT_VER == 6:
+            self.sticker_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        else:
+            self.sticker_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.sticker_label.hide()
 
     def _apply_styles(self):
         colors = self.theme_state.get('colors') or {}
@@ -558,9 +639,8 @@ class DesktopPetOverlay(QWidget):
                 border-color: {primary};
             }}
             #agyOverlayChatCard, #agyOverlayReplyCard {{
-                background: rgba(8, 12, 22, 128);
-                border: 1px solid {border_rgba};
-                border-radius: 14px;
+                background: transparent;
+                border: none;
             }}
             #agyOverlayReplyTitle {{
                 color: {primary};
@@ -568,14 +648,14 @@ class DesktopPetOverlay(QWidget):
                 font-weight: 700;
             }}
             #agyOverlayReplyBody {{
-                color: #f1f5f9;
+                color: #f8fafc;
                 font-size: 12px;
             }}
             #agyOverlayChatInput {{
-                background: rgba(5, 8, 16, 132);
+                background: rgba(4, 7, 14, 118);
                 color: #f8fafc;
-                border: 1px solid rgba(255, 255, 255, 52);
-                border-radius: 9px;
+                border: 1px solid rgba(255, 255, 255, 42);
+                border-radius: 10px;
                 padding: 7px 9px;
                 font-size: 12.5px;
                 selection-background-color: {primary};
@@ -584,20 +664,20 @@ class DesktopPetOverlay(QWidget):
                 border: 1px solid {primary};
             }}
             #agyOverlayHint {{
-                color: #94a3b8;
+                color: #cbd5e1;
                 font-size: 11px;
+                font-weight: 500;
             }}
             #agyOverlaySendBtn {{
-                background: {primary};
+                background: #f8fafc;
                 color: #080c14;
                 border: none;
-                border-radius: 8px;
-                padding: 5px 12px;
-                font-size: 11.5px;
-                font-weight: 700;
+                border-radius: 14px;
+                font-size: 14px;
+                font-weight: 800;
             }}
             #agyOverlaySendBtn:hover {{
-                background: {secondary};
+                background: {primary};
             }}
             #agyOverlaySecondaryBtn, #agyOverlayMiniBtn {{
                 background: {soft_bg_rgba};
@@ -616,6 +696,97 @@ class DesktopPetOverlay(QWidget):
                 border-color: {primary};
             }}
         """)
+
+        self.reply_card.set_theme_visuals(self._wp_pixmap, primary, secondary)
+        self.chat_card.set_theme_visuals(self._wp_pixmap, primary, secondary)
+
+    def _load_wallpaper_visual(self, wp_url):
+        key = str(wp_url or '').strip()
+        if key == self._loaded_wp_key:
+            return
+        self._loaded_wp_key = key
+        if not key:
+            self._wp_pixmap = None
+            return
+        im = None
+        try:
+            if key.startswith('data:image/') and ';base64,' in key:
+                b64 = key.split(';base64,', 1)[1]
+                im = Image.open(io.BytesIO(base64.b64decode(b64))).convert('RGBA')
+            else:
+                disk = self._resolve_disk_media(key)
+                if disk and os.path.exists(disk):
+                    im = Image.open(disk).convert('RGBA')
+                elif key.startswith('http') or key.startswith('assets/') or key.startswith('user_media/'):
+                    url = key if key.startswith('http') else f'{self.base_url}/{key.lstrip("/")}'
+                    with urllib.request.urlopen(url, timeout=3.0) as resp:
+                        im = Image.open(io.BytesIO(resp.read())).convert('RGBA')
+        except Exception:
+            im = None
+        if im is not None:
+            im.thumbnail((512, 288), Image.Resampling.LANCZOS)
+            im = im.filter(ImageFilter.GaussianBlur(radius=5))
+            raw = im.tobytes('raw', 'RGBA')
+            fmt = QImage.Format.Format_RGBA8888
+            qimg = QImage(raw, im.width, im.height, im.width * 4, fmt).copy()
+            self._wp_pixmap = QPixmap.fromImage(qimg)
+        else:
+            self._wp_pixmap = None
+
+    def _load_sticker_visual(self, sticker_url, w=88, h=28):
+        key = f'{sticker_url}|{w}x{h}'
+        if key == self._loaded_sticker_key:
+            return
+        self._loaded_sticker_key = key
+        self._sticker_size = (max(36, min(140, int(w))), max(16, min(48, int(h))))
+        sw, sh = self._sticker_size
+        raw_str = str(sticker_url or '').strip()
+        if not raw_str:
+            self.sticker_label.hide()
+            return
+        svg_bytes = None
+        try:
+            if raw_str.startswith('data:image/svg+xml,'):
+                svg_bytes = urllib.parse.unquote(raw_str[len('data:image/svg+xml,'):]).encode('utf-8')
+            elif raw_str.startswith('data:image/svg+xml;base64,'):
+                svg_bytes = base64.b64decode(raw_str[len('data:image/svg+xml;base64,'):])
+            else:
+                disk = self._resolve_disk_media(raw_str)
+                if disk and os.path.exists(disk):
+                    svg_bytes = open(disk, 'rb').read()
+        except Exception:
+            svg_bytes = None
+
+        if svg_bytes:
+            renderer = QSvgRenderer(QByteArray(svg_bytes))
+            if renderer.isValid():
+                pm = QPixmap(sw * 2, sh * 2)
+                pm.fill(Qt.GlobalColor.transparent if QT_VER == 6 else Qt.transparent)
+                pt = QPainter(pm)
+                renderer.render(pt)
+                pt.end()
+                pm.setDevicePixelRatio(2.0)
+                self.sticker_label.setPixmap(pm)
+                self.sticker_label.resize(sw, sh)
+                self._sync_sticker_geometry()
+                return
+        self.sticker_label.hide()
+
+    def _sync_sticker_geometry(self):
+        if not self._chat_open or self.chat_card.isHidden() or not self.sticker_label.pixmap() or self.sticker_label.pixmap().isNull():
+            self.sticker_label.hide()
+            return
+        if self.layout():
+            self.layout().activate()
+        sw, sh = self._sticker_size
+        top_off = int(self.theme_state.get('stickerTop', -14))
+        right_off = int(self.theme_state.get('stickerRight', 14))
+        cg = self.chat_card.geometry()
+        sx = cg.right() - sw - right_off
+        sy = cg.top() + max(-12, top_off)
+        self.sticker_label.move(sx, sy)
+        self.sticker_label.show()
+        self.sticker_label.raise_()
 
     def _resolve_disk_media(self, rel_or_url):
         s = str(rel_or_url or '').strip()
@@ -750,13 +921,16 @@ class DesktopPetOverlay(QWidget):
             self.setAttribute(no_act, True)
 
         self.adjustSize()
+        self._sync_sticker_geometry()
         # Keep anchor stable while keeping chat card comfortably on screen
         new_pt = self._clamp_pos(QPoint(self.x(), max(8, old_bottom - self.height() if self._chat_open else self.y())))
         self.move(new_pt)
+        self._sync_sticker_geometry()
         if self._chat_open:
             self.activateWindow()
             self.raise_()
             self.chat_input.setFocus()
+            QTimer.singleShot(15, self._sync_sticker_geometry)
 
     def _auto_hide_reply_card(self):
         if self._chat_open:
@@ -777,7 +951,7 @@ class DesktopPetOverlay(QWidget):
             return
         self.chat_input.clear()
         self.send_btn.setEnabled(False)
-        self.send_btn.setText('Đang gửi…')
+        self.send_btn.setText('…')
         self._last_sending_at = time.time()
         self._reaction_state = 'running'
         self._reaction_until = time.time() + 3.5
@@ -786,7 +960,7 @@ class DesktopPetOverlay(QWidget):
 
     def _on_chat_result(self, ok, err):
         self.send_btn.setEnabled(True)
-        self.send_btn.setText('Gửi ↵')
+        self.send_btn.setText('↑')
         if ok:
             self.chat_hint.setText('✓ Đã gửi vào Antigravity')
             QTimer.singleShot(2800, lambda: self.chat_hint.setText(self._workspace_hint()))
@@ -794,6 +968,11 @@ class DesktopPetOverlay(QWidget):
             self.chat_hint.setText(f'⚠️ {err[:36] or "Lỗi gửi"}')
 
     def _workspace_hint(self):
+        model = str(self.theme_state.get('modelLabel') or '').strip()
+        perm = str(self.theme_state.get('permLabel') or '').strip()
+        if model:
+            short_m = model.replace('High', '').replace('Medium', '').strip()[:20]
+            return f'✦ {short_m} · {perm}' if perm else f'✦ {short_m}'
         title = str(self.theme_state.get('pageTitle') or 'Antigravity').split(' - ')[0].strip()
         return f'→ {title[:26]}' if title else 'Antigravity Bridge'
 
@@ -862,13 +1041,19 @@ class DesktopPetOverlay(QWidget):
     def _on_state_updated(self, data):
         prev_colors = self.theme_state.get('colors')
         prev_sprite = self.theme_state.get('petSpriteUrl')
+        prev_wp = self.theme_state.get('wallpaperUrl')
+        prev_sticker = self.theme_state.get('sticker')
         prev_state = self._prev_agent_state
         prev_reply_seq = str(self.theme_state.get('replySeq') or '')
         self.theme_state.update(data)
 
         if data.get('petSpriteUrl') and data.get('petSpriteUrl') != prev_sprite:
             self._load_sprite_sheet(data.get('petSpriteUrl'))
-        if data.get('colors') != prev_colors:
+        if data.get('wallpaperUrl') != prev_wp:
+            self._load_wallpaper_visual(data.get('wallpaperUrl'))
+        if data.get('sticker') != prev_sticker:
+            self._load_sticker_visual(data.get('sticker'), data.get('stickerW', 88), data.get('stickerH', 28))
+        if data.get('colors') != prev_colors or data.get('wallpaperUrl') != prev_wp:
             self._apply_styles()
 
         cur_state = str(data.get('agentState') or 'idle')
