@@ -1,25 +1,41 @@
 ---
 name: ui-vfx-director
-description: Transform any wallpaper or reference image analysis into a cohesive UI VFX Blueprint (vfxSpec) and Companion Pet Directive (petDirective) for Antigravity Theme Studio — Fusion Edition, matching the Neito112/desktop-agent_pet v2 sprite contract and zero-jank glass rules.
+description: Transform any wallpaper or reference image analysis into a cohesive UI VFX Blueprint (vfxSpec), Boot Work Identity (workIdentity), and Input-Synchronized Companion Pet Directive (petDirective) for Antigravity Theme Studio — matching fullscreen 4K floating-card layout, refined game-UI micro-interactions, and Neito112/desktop-agent_pet v2 8x11 spritesheets.
 ---
 
 # UI VFX Director
 
-Converts any image analysis into a clean, high-contrast **UI VFX Blueprint (`vfxSpec`)** and **Companion Pet Directive (`petDirective`)** without visual clutter or Electron scroll jank.
+Converts any image analysis into a clean, high-contrast **UI VFX Blueprint (`vfxSpec`)**, **Boot & IDE Work Identity (`workIdentity`)**, and **Input-Synchronized Companion Pet Directive (`petDirective`)** without visual clutter or Electron scroll jank.
 
 ## 1. Image Content Analysis
 
 Before choosing tokens or animations, analyze the source image across four axes:
 
 1. **Mood & Lighting**: Identify overall atmosphere (e.g., cozy rain, neon rain, sunlit botanical, abyssal sci-fi, minimal editorial) and light direction/contrast.
-2. **Color Temperature & Palette**: Extract `primary` (accent), `secondary` (paired highlight), `overlayRgb` (`"R, G, B"`), and polarity (`isLight: true` for bright/daytime/pastel scenes, `false` for dark/moody scenes).
-3. **Subject Presence (`petDirective.hasCharacter`)**:
-   - **Character / Creature Present (`hasCharacter: true`)**: Design the companion pet faithfully after the character or creature in the image (silhouette, hair/ears/horns, outfit colors, signature prop). Set `sourceObject: ""`.
-   - **No Character Present (`hasCharacter: false`)**: For landscapes, rooms, coffee shops, weapons, mecha, architecture, or abstract art, **personify 1 iconic main object** from the scene into a cute mascot companion (`petDirective.sourceObject` -> `petDirective.personifiedConcept`).
+2. **Color Temperature & Palette**: Extract `primary` (accent), `secondary` (paired highlight), `overlayRgb` (`"R, G, B"`), and polarity (`isLight: false` default dark smoked glass for high-contrast Antigravity readability).
+3. **Work & Emblem Identity (`workIdentity`)**:
+   - Extract `franchise` (short evocative title/world), `characterName` (character or personified subject name), `operator` (callsign), `bootTagline` (concise boot subtitle), `secondary` (hex/CSS accent matching `theme.secondary`), and `sigilSvgInner` (clean inline SVG vector primitives for `viewBox="0 0 24 24"`, representing the iconic emblem/symbol/object of the artwork — NO `<svg>` wrapper, NO `<script>`, `<image>`, `<foreignObject>`, `<style>`, or `on*` handlers).
+   - Shared across both the **1-click Boot Intro (`engine/boot.js`)** (splash/identity badge, `sigilSvgInner` stroke-trace morph, corner ornaments, wallpaper backdrop) and the **in-IDE theme (`engine/core.js`)**.
+4. **Subject Presence (`petDirective.hasCharacter`)**:
+   - **Character / Creature Present (`hasCharacter: true`)**: Design the companion pet faithfully after the character or creature in the input image (`sourceImagePath` passed directly to `image-generator`: matching silhouette, hair/ears/horns, eyes, outfit colors, signature prop). Set `sourceObject: ""`.
+   - **No Character Present (`hasCharacter: false`)**: For landscapes, rooms, coffee shops, weapons, mecha, architecture, or abstract art, **personify 1 iconic main object** directly from `sourceImagePath` into a cute mascot companion (`petDirective.sourceObject` -> `petDirective.personifiedConcept`).
      - Examples:
        - Steaming latte cup -> `"Tiny Cozy Latte Spirit with a whipped-cream beret and warm amber eyes"`
        - Glowing submarine sonar -> `"Chibi Brass Bathyscaphe Sprite with a periscope antenna"`
        - Floating crystal lantern -> `"Little Starlight Lantern Wisp with a brass cap and soft cyan glow"`
+
+### `workIdentity` Contract
+
+```json
+{
+  "franchise": "STARLIGHT CONCERTO",
+  "characterName": "Celestial Violinist",
+  "operator": "CONDUCTOR",
+  "bootTagline": "HARMONIC RESONANCE // SYNC 100%",
+  "secondary": "#f472b6",
+  "sigilSvgInner": "<path d=\"M12 2L14.8 9.2L22 12L14.8 14.8L12 22L9.2 14.8L2 12L9.2 9.2Z\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linejoin=\"round\" fill=\"none\"/><circle cx=\"12\" cy=\"12\" r=\"3\" stroke=\"currentColor\" stroke-width=\"1.4\" fill=\"none\"/>"
+}
+```
 
 ### `petDirective` Contract
 
@@ -33,7 +49,9 @@ Before choosing tokens or animations, analyze the source image across four axes:
   "palette": ["#d99b66", "#f5e6d3", "#4a2c1d", "#ffcf87"],
   "idleMood": "content-warmth",
   "prop": "mini saucer",
-  "signatureAction": "happy steam puff bounce"
+  "signatureAction": "happy steam puff bounce",
+  "spritePrompt": "8x11 pixel chibi mascot sprite atlas of Mocha: Tiny Cozy Latte Spirit with a whipped-cream beret and warm amber eyes, holding mini saucer, content-warmth mood",
+  "animationMood": "content-warmth"
 }
 ```
 
@@ -48,10 +66,25 @@ Before choosing tokens or animations, analyze the source image across four axes:
 | `idleMood` | `string` | Short mood slug (e.g. `"calm-focus"`, `"playful-spark"`, `"sleepy-cozy"`) |
 | `prop` | `string` | Small held or worn prop that stays consistent across all 11 sprite rows |
 | `signatureAction` | `string` | Expressive gesture for `waving` / `jumping` rows |
+| `spritePrompt` | `string` | Explicit visual synthesis prompt passed to `pet_generator.js` alongside `sourceImagePath` |
+| `animationMood` | `string` | Motion temperament slug guiding idle/action energy |
 
 ---
 
-## 2. UI VFX Blueprint (`vfxSpec`)
+## 2. Fullscreen 4K Canvas & Floating IDE Blocks (`main`-Style Layout + Game-UI Polish)
+
+The IDE renders a crisp **fullscreen 4K 16:9 (`3840×2160` WebP) wallpaper** (or video) across `.agy-shell`, with Antigravity's functional surfaces floating cleanly above it as **distinct, well-spaced cards**:
+
+- **Separated Floating Surfaces (`margin: ~6px`)**: Left sidebar (`[role="navigation"][aria-label="Sidebar"]`), top title/menu bar (`[data-testid="title-menu-bar"]` / `[data-main-content-header]`), center task/agent cards (`[data-testid="agent-response"]`, `.agy-user-bubble-frame`, `[data-step-index]`, `[data-testid="worked-for-collapsible"]`), and right side panel (`[data-side-panel-docked]`, `[data-side-panel-strip]`) remain cleanly separated with subtle `1px` borders and soft depth shadows so the 4K artwork breathes between panels.
+- **Refined Game-UI Micro-Interactions**:
+  - Subtle `1px` hover lift (`translateY(-1px)`) + crisp `primary/glow` hairline highlight.
+  - Tactile `:active { transform: scale(0.985) }` press feedback on interactive buttons, task cards, and tabs.
+  - Compact active tab/menu/step indicator bars (underline/pill/dot) instead of noisy full-box outlines.
+  - Synchronized subtle decor (`cornerSvg` corner accents and compact `sticker` ornament) matching the Boot Intro's `workIdentity` without covering text.
+
+---
+
+## 3. UI VFX Blueprint (`vfxSpec`)
 
 Every preset or AI-generated theme produces a `vfxSpec` object targeting Antigravity's three columns and motion layer cleanly.
 
@@ -59,17 +92,17 @@ Every preset or AI-generated theme produces a `vfxSpec` object targeting Antigra
 
 | Field | Allowed Values | Purpose |
 | :--- | :--- | :--- |
-| `surfaceMode` | `'smoked-glass' \| 'matte-tint' \| 'rail-accent'` | Pre-baked glass tint or clean matte rail surface |
+| `surfaceMode` | `'smoked-glass' \| 'matte-tint' \| 'rail-accent'` | Pre-baked glass tint or clean matte floating rail surface |
 | `density` | `'compact' \| 'balanced' \| 'spacious'` | Row padding rhythm for conversation rows |
 | `borderHairline` | `'subtle' \| 'accent-left' \| 'none'` | Crisp `1px` edge separation (`accent-left` highlights active row) |
 | `showOrnament` | `boolean` | Enables a subtle corner/rail ornament cleanly placed so it **never** overlaps sidebar text |
 
-### Center Stage (`centerStage` — Chat Cards, Composer, Code/Step Blocks)
+### Center Stage (`centerStage` — Chat Cards, Step Blocks, Docked Pet Chat)
 
 | Field | Allowed Values | Purpose |
 | :--- | :--- | :--- |
-| `cardStyle` | `'glass-card' \| 'editorial-sheet' \| 'hud-hairline'` | Strictly subtle `1px` borders — **NO** thick `2.5px` double/dashed clutter boxes |
-| `radiusPx` | `number` (`8..16`) | Clean corner radius for `[data-testid="agent-response"]`, `.agy-user-bubble-frame`, `.surface-composer`, and `[data-step-index]` |
+| `cardStyle` | `'glass-card' \| 'editorial-sheet' \| 'hud-hairline'` | Strictly subtle `1px` borders — **NO** thick `2.5px`/`3px` double/dashed clutter boxes |
+| `radiusPx` | `number` (`8..16`) | Clean corner radius for `[data-testid="agent-response"]`, `.agy-user-bubble-frame`, `[data-step-index]`, and `#agy-better-pet-chat` |
 | `typographyVibe` | `'sans' \| 'mono' \| 'serif'` | Editorial / technical / classic typography mood |
 | `contrastFloor` | `'wcag-aa-dark' \| 'wcag-aa-light'` | Enforces readable smoked glass (`aiCardBg >= 0.84` dark / `0.88` light, `>= 4.5:1` AA minimum, `>= 7:1` AAA target for primary text) |
 
@@ -77,7 +110,7 @@ Every preset or AI-generated theme produces a `vfxSpec` object targeting Antigra
 
 | Field | Allowed Values | Purpose |
 | :--- | :--- | :--- |
-| `panelMode` | `'unified-glass' \| 'clean-slate' \| 'split-accent'` | Sidecar panel surface treatment |
+| `panelMode` | `'unified-glass' \| 'clean-slate' \| 'split-accent'` | Floating sidecar panel surface treatment |
 | `sashGlow` | `'subtle' \| 'crisp' \| 'none'` | `[data-side-panel-sash]` `1px` divider accent |
 | `tabIndicator` | `'underline' \| 'pill' \| 'dot'` | Active tab indicator inside `[data-side-panel-strip]` |
 
@@ -91,22 +124,25 @@ Every preset or AI-generated theme produces a `vfxSpec` object targeting Antigra
 
 ---
 
-## 3. Non-Negotiable Performance & Cleanliness Guardrails
+## 4. Non-Negotiable Performance & Cleanliness Guardrails
 
 1. **Zero Live `backdrop-filter: blur()`**: Never apply live CSS `backdrop-filter: blur(...)` on Antigravity DOM surfaces; use offscreen pre-baked glass (`syncPrebakedGlass`) only.
 2. **Zero `:has()` Selectors**: Never emit `:has(...)` in injected stylesheets (prevents Electron style-recalc stalls).
-3. **Zero Floating Clutter Banners**: Never cover UI text with floating status banners, giant top-bar pills, `body::before` neon bars, or thick `2.5px` `double`/`dashed` borders.
-4. **Static Mode Cleanliness**: When the user selects Static mode (`🧊 Tĩnh`), all animations, particles, and `#agy-better-pet` are cleanly disabled/removed.
+3. **Zero Floating Clutter Banners**: Never cover UI text with floating status banners, giant top-bar pills, `body::before` neon bars, or thick `2.5px`/`3px` `double`/`dashed` borders.
+4. **Clean SVG Security**: All inline SVG fragments (`sigilSvgInner`, `particleSvgInner`, `hudSvgInner`, `cornerSvgMarkup`, `stickerSvgMarkup`) use geometric primitives only — **no** `<script>`, `<image>`, `<foreignObject>`, `<style>`, `<iframe>`, `on*` handlers, or `javascript:` URLs.
+5. **Static Mode Cleanliness**: When the user selects Static mode (`🧊 Tĩnh`), all animations, particles, and `#agy-better-pet` are cleanly disabled/removed.
 
 ---
 
-## 4. Companion Pet Sprite Contract (`Neito112/desktop-agent_pet` v2)
+## 5. Companion Pet Sprite Contract (`Neito112/desktop-agent_pet` v2) & Pet Chat UX
 
-All generated or bundled pets conform 1:1 to the `desktop-agent_pet` v2 atlas:
+All generated or bundled pets conform 1:1 to the `desktop-agent_pet` v2 atlas and synchronize directly with the user's input image:
 
-- **Dimensions**: `1536×2288` transparent WebP/PNG (`8 columns × 11 rows`, `192×208` cell size), `spriteVersionNumber: 2`.
+- **Input-Image Synchronization**: `theme_designer.js` passes `sourceImagePath` (the user's original uploaded image) to `pet_generator.js`, which passes `--add-dir` and `sourceImagePath` directly to `image-generator` so the generated `8×11` sheet matches the real input character (`hasCharacter: true`) or personifies the prominent input object (`hasCharacter: false`), saved to `themes/user_media/pet_<slug>.webp`.
+- **Dimensions**: `1536×2288` transparent WebP (`8 columns × 11 rows`, `192×208` cell size), `spriteVersionNumber: 2`, `#00FF00` chroma-keyed + edge-despilled.
 - **CSS Rendering**: `background-size: 800% 1100%`, `aspect-ratio: 192 / 208`, `image-rendering: pixelated`, `-webkit-app-region: no-drag`, drag lift `--pet-launch-shift: -16px`.
 - **Fallback Sprite**: `"assets/pets/rocky.webp"` (bundled at `themes/assets/pets/rocky.webp`).
+- **Pet Pill & Docked Pet Chat**: `#agy-better-pet` pairs with a compact status pill (`#agy-better-pet-pill`) and a click-to-toggle floating chat drawer (`#agy-better-pet-chat`); when `.agy-pet-chat-docked` is active, the center `.surface-composer` collapses cleanly so the conversation workspace expands across the 4K canvas.
 
 | Row | State | Columns | Durations / Angles |
 | :--- | :--- | :---: | :--- |
@@ -124,10 +160,18 @@ All generated or bundled pets conform 1:1 to the `desktop-agent_pet` v2 atlas:
 
 ---
 
-## 5. Complete Blueprint Example
+## 6. Complete Blueprint Example
 
 ```json
 {
+  "workIdentity": {
+    "franchise": "STARLIGHT CONCERTO",
+    "characterName": "Lumina",
+    "operator": "MAESTRO",
+    "bootTagline": "CELESTIAL RESONANCE // SYNC 100%",
+    "secondary": "#f472b6",
+    "sigilSvgInner": "<path d=\"M12 2L14.8 9.2L22 12L14.8 14.8L12 22L9.2 14.8L2 12L9.2 9.2Z\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linejoin=\"round\" fill=\"none\"/><circle cx=\"12\" cy=\"12\" r=\"3\" stroke=\"currentColor\" stroke-width=\"1.4\" fill=\"none\"/>"
+  },
   "vfxSpec": {
     "leftColumn": {
       "surfaceMode": "smoked-glass",
@@ -161,7 +205,9 @@ All generated or bundled pets conform 1:1 to the `desktop-agent_pet` v2 atlas:
     "palette": ["#7dd3fc", "#f472b6", "#1e1b4b", "#fef08a"],
     "idleMood": "serene-wonder",
     "prop": "floating starlight prism",
-    "signatureAction": "twirling halo wave"
+    "signatureAction": "twirling halo wave",
+    "spritePrompt": "8x11 pixel chibi mascot sprite atlas of Lumina matching the celestial character in the input image, holding floating starlight prism",
+    "animationMood": "serene-wonder"
   }
 }
 ```

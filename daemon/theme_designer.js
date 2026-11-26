@@ -14,6 +14,8 @@ const { generatePetSprite, buildFallbackResult, FALLBACK_SPRITE_URL } = require(
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const THEMES_JSON = path.join(ROOT_DIR, 'themes', 'themes.json');
+const USER_MEDIA_DIR = path.join(ROOT_DIR, 'themes', 'user_media');
+const DEFAULT_SIGIL_SVG_INNER = '<path d="M12 2L14.8 9.2L22 12L14.8 14.8L12 22L9.2 14.8L2 12L9.2 9.2Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="none"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.4" fill="none"/>';
 
 const TARGET_W = 3840;
 const TARGET_H = 2160;
@@ -383,6 +385,25 @@ const PET_DIRECTIVE_SCHEMA = {
     ]
 };
 
+const WORK_IDENTITY_SCHEMA = {
+    type: 'object',
+    properties: {
+        franchise: STR,
+        characterName: STR,
+        operator: STR,
+        bootTagline: STR,
+        secondary: STR,
+        sigilSvgInner: STR,
+        role: STR,
+        badge: STR,
+        tagline: STR,
+        focusLabel: STR
+    },
+    required: [
+        'franchise', 'characterName', 'operator', 'bootTagline', 'secondary', 'sigilSvgInner'
+    ]
+};
+
 const BASE_PROPERTIES = {
     name: STR, concept: STR, primary: STR, secondary: STR, glow: STR, secondaryGlow: STR,
     bg: STR, frameBg: STR, textColor: STR, borderColor: STR, innerBorder: STR,
@@ -395,6 +416,7 @@ const BASE_PROPERTIES = {
     pillBg: STR, pillHoverBg: STR, pillTextColor: STR, pillBorder: STR,
     stickerW: NUM, stickerH: NUM, stickerTop: NUM, stickerRight: NUM,
     cornerSvgMarkup: STR, stickerSvgMarkup: STR,
+    workIdentity: WORK_IDENTITY_SCHEMA,
     dynamicPack: DYNAMIC_PACK_SCHEMA,
     vfxSpec: VFX_SPEC_SCHEMA,
     petDirective: PET_DIRECTIVE_SCHEMA,
@@ -406,7 +428,7 @@ const BASE_REQUIRED = [
     'borderColor', 'innerBorder', 'overlayRgb', 'bgPosition', 'sidebarBg', 'sidebarHoverBg',
     'aiCardBg', 'aiCardBorder', 'headerBg', 'headerBorder', 'btnBg', 'inputGlassBg', 'inputCardBg',
     'modalBg', 'modalHeaderBg', 'cardBg', 'cardSelectedBg', 'isLight',
-    'cornerSvgMarkup', 'stickerSvgMarkup', 'dynamicPack', 'vfxSpec', 'petDirective'
+    'cornerSvgMarkup', 'stickerSvgMarkup', 'workIdentity', 'dynamicPack', 'vfxSpec', 'petDirective'
 ];
 
 function buildSchema(needsAiPaint) {
@@ -519,6 +541,7 @@ function buildLocalTheme(pal) {
     theme.dynamicPack = normalizeDynamicPack(theme);
     theme.vfxSpec = normalizeVfxSpec(theme);
     theme.petDirective = normalizePetDirective(theme);
+    theme.workIdentity = normalizeWorkIdentity(theme);
     const petFb = buildFallbackResult(theme.petDirective, 'local-fallback');
     theme.petSpriteUrl = petFb.petSpriteUrl;
     theme.petId = petFb.petId;
@@ -619,6 +642,13 @@ function buildPrompt(absImagePath, { srcW, srcH, needsAiPaint }) {
         '  * `centerStage`: `{ cardStyle: "glass-card"|"editorial-sheet"|"hud-hairline", radiusPx: number (8..16), typographyVibe: "sans"|"mono"|"serif", contrastFloor: "wcag-aa-dark"|"wcag-aa-light" }`',
         '  * `rightColumn`: `{ panelMode: "unified-glass"|"clean-slate"|"split-accent", sashGlow: "subtle"|"crisp"|"none", tabIndicator: "underline"|"pill"|"dot" }`',
         '  * `motionRules`: `{ budget: "calm"|"atmospheric"|"kinetic", particleCount: number (0 for calm, 6..8 for atmospheric/kinetic), particleOpacity: [min, max] within [0.22, 0.42] }`',
+        '- Design `workIdentity` so the 1-click Boot Intro (`boot.js`) and IDE share one bespoke identity derived from THIS image:',
+        '  * `franchise`: short evocative work/world/theme title matching the image (e.g. "SAO // AINCRAD", "STARLIGHT CONCERTO", "RAINY CAFE").',
+        '  * `characterName`: main character name or personified object/subject title visible in the image (e.g. "Asuna", "Violinist", "Mocha Spirit").',
+        '  * `operator`: short operator callsign/role fitting the image (e.g. "SWORDSMAN", "MAESTRO", "BARISTA", "SENSEI").',
+        '  * `bootTagline`: concise evocative 4-10 word boot tagline for this artwork.',
+        '  * `secondary`: valid CSS hex color harmonized with the theme\'s `secondary` accent.',
+        '  * `sigilSvgInner`: clean vector SVG primitives (`<path>`, `<circle>`, `<ellipse>`, `<rect>`, `<polygon>`, `<polyline>`, `<line>`, `<g>`) designed specifically for `viewBox="0 0 24 24"` representing the iconic emblem, crest, or main object of THIS image (so `boot.js` renders a unique stroke-trace Intro per image). Use `stroke="currentColor"` / `fill="none"` (or subtle `fill="currentColor"`), NO `<svg>` wrapper, NO `<script>`, NO `<image>`, NO `<foreignObject>`, NO `<style>`, NO `on*` handlers, NO `javascript:` or external references.',
         '- Design `petDirective` for the synchronized `Neito112/desktop-agent_pet` v2 8x11 companion:',
         '  * If the input image depicts a character or creature: set `hasCharacter: true`, `sourceObject: ""`, and write `spritePrompt` describing that character adapted into a crisp 8x11 pixel/chibi mascot atlas (silhouette, hair/ears/horns, outfit colors, signature prop).',
         '  * If the input image has NO character (scenery, cafe, mecha, architecture, abstract): set `hasCharacter: false`, identify 1 iconic main object (`sourceObject`, e.g. "steaming ceramic espresso cup"), personify it (`personifiedConcept`, e.g. "Tiny Cozy Latte Spirit with a whipped-cream beret and warm amber eyes"), and write `spritePrompt` describing that mascot in a crisp 8x11 pixel/chibi atlas.',
@@ -764,8 +794,9 @@ function sanitizeSvgFragment(raw, maxLen = 2400) {
     if (typeof raw !== 'string') return '';
     let s = raw.trim();
     if (!s) return '';
-    s = s.replace(/<\s*(script|foreignObject|style|iframe|object|embed)\b[\s\S]*?<\s*\/\s*\1\s*>/gi, '');
-    s = s.replace(/<\s*(script|foreignObject|style|iframe|object|embed)\b[^>]*\/?\s*>/gi, '');
+    s = s.replace(/<!--[\s\S]*?-->/g, '');
+    s = s.replace(/<\s*(script|foreignObject|style|iframe|object|embed|image|use)\b[\s\S]*?<\s*\/\s*\1\s*>/gi, '');
+    s = s.replace(/<\s*(script|foreignObject|style|iframe|object|embed|image|use)\b[^>]*\/?\s*>/gi, '');
     const ALLOWED_TAGS = new Set(['path', 'circle', 'ellipse', 'rect', 'polygon', 'polyline', 'line', 'g']);
     s = s.replace(/<\s*(\/?)\s*([a-zA-Z0-9:-]+)([^>]*)>/g, (_match, slash, tag, attrs) => {
         const lower = tag.toLowerCase();
@@ -773,8 +804,10 @@ function sanitizeSvgFragment(raw, maxLen = 2400) {
         if (slash) return `</${lower}>`;
         const cleanAttrs = attrs
             .replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-            .replace(/(href|xlink:href|src)\s*=\s*(?:"\s*(?:javascript|data):[^"]*"|'\s*(?:javascript|data):[^']*')/gi, '')
-            .replace(/javascript\s*:/gi, '');
+            .replace(/\s+(?:xlink:)?href\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+            .replace(/\s+src\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+            .replace(/\s+style\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+            .replace(/javascript\s*:|data\s*:|url\s*\(/gi, '');
         return `<${lower}${cleanAttrs}>`;
     });
     return s.trim().slice(0, maxLen);
@@ -989,6 +1022,73 @@ function normalizePetDirective(theme) {
     };
 }
 
+function isSafeCssColor(val) {
+    if (typeof val !== 'string') return false;
+    const s = val.trim();
+    if (!s || s.length > 64 || /url\s*\(|expression|javascript|;/i.test(s)) return false;
+    return /^#[0-9a-f]{3,8}$/i.test(s) || /^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)$/i.test(s);
+}
+
+function normalizeWorkIdentity(theme) {
+    const raw = (theme && theme.workIdentity && typeof theme.workIdentity === 'object') ? theme.workIdentity : {};
+    const str = (val, fallback, maxLen) => {
+        const s = typeof val === 'string' ? val.trim() : '';
+        return s ? s.slice(0, maxLen) : fallback;
+    };
+    const dp = (theme && theme.dynamicPack && typeof theme.dynamicPack === 'object') ? theme.dynamicPack : {};
+    const dpUi = (dp.uiDesign && typeof dp.uiDesign === 'object') ? dp.uiDesign : {};
+    const dpHud = (dpUi.hudWidget && typeof dpUi.hudWidget === 'object') ? dpUi.hudWidget : {};
+    const pd = (theme && theme.petDirective && typeof theme.petDirective === 'object') ? theme.petDirective : {};
+
+    const franchise = str(raw.franchise, (theme && theme.name) || dp.archetypeLabel || 'ANTIGRAVITY', 40);
+    const characterName = str(raw.characterName || raw.role, pd.petName || (theme && theme.name) || 'Companion', 40);
+    const operator = str(raw.operator, 'SENSEI', 32);
+    const bootTagline = str(raw.bootTagline || raw.tagline, dp.introSubtitle || (theme && theme.concept) || 'NEURAL INTERFACE SYNCED', 80);
+    const secondary = isSafeCssColor(raw.secondary)
+        ? raw.secondary.trim()
+        : (isSafeCssColor(theme && theme.secondary) ? theme.secondary.trim() : '#f472b6');
+    const cleanSigil = sanitizeSvgFragment(raw.sigilSvgInner, 2400);
+    const sigilSvgInner = cleanSigil || DEFAULT_SIGIL_SVG_INNER;
+
+    return {
+        franchise,
+        characterName,
+        operator,
+        bootTagline,
+        secondary,
+        sigilSvgInner,
+        role: str(raw.role, characterName, 48),
+        badge: str(raw.badge, dpHud.badge || franchise, 28).toUpperCase(),
+        tagline: str(raw.tagline, bootTagline, 80),
+        focusLabel: str(raw.focusLabel, dpHud.statusText || 'SYNC ACTIVE', 32).toUpperCase()
+    };
+}
+
+function slugifyMediaName(name, fallback = 'theme') {
+    const base = String(name || fallback)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 32);
+    return base || fallback;
+}
+
+function persistWallpaperToUserMedia(webpPath, nameHint) {
+    if (!webpPath || !fs.existsSync(webpPath)) return '';
+    try {
+        const stat = fs.statSync(webpPath);
+        if (!stat.isFile() || stat.size === 0) return '';
+        fs.mkdirSync(USER_MEDIA_DIR, { recursive: true });
+        const slug = `${slugifyMediaName(nameHint, 'wallpaper')}-${Date.now().toString(36).slice(-4)}`;
+        const filename = `wp_${slug}.webp`;
+        const destPath = path.join(USER_MEDIA_DIR, filename);
+        fs.copyFileSync(webpPath, destPath);
+        return `user_media/${filename}`;
+    } catch (_) {
+        return '';
+    }
+}
+
 function designTheme(dataUrl, opts = {}) {
     const timeoutMs = opts.timeoutMs || 420000;
     const log = opts.log || (() => {});
@@ -1032,10 +1132,12 @@ function designTheme(dataUrl, opts = {}) {
                 // Pillow is present; without Pillow it returns the original
                 // image, so report the source size in that case.
                 const is4k = fs.existsSync(outWebpPath);
+                const wallpaperUrl = is4k ? persistWallpaperToUserMedia(outWebpPath, theme.name || 'local-palette') : '';
                 resolve({
                     theme,
                     wallpaperDataUrl,
-                    wpMeta: { width: is4k ? TARGET_W : (srcW || TARGET_W), height: is4k ? TARGET_H : (srcH || TARGET_H), aiOutpainted: false },
+                    wallpaperUrl,
+                    wpMeta: { width: is4k ? TARGET_W : (srcW || TARGET_W), height: is4k ? TARGET_H : (srcH || TARGET_H), aiOutpainted: false, wallpaperUrl },
                     petSpriteUrl: theme.petSpriteUrl || FALLBACK_SPRITE_URL,
                     petId: theme.petId || 'rocky',
                     petMeta: theme.petMeta || null
@@ -1077,13 +1179,16 @@ function designTheme(dataUrl, opts = {}) {
                 theme.dynamicPack = normalizeDynamicPack(theme);
                 theme.vfxSpec = normalizeVfxSpec(theme);
                 theme.petDirective = normalizePetDirective(theme);
+                theme.workIdentity = normalizeWorkIdentity(theme);
+                const wallpaperUrl = persistWallpaperToUserMedia(outWebpPath, theme.name || theme.workIdentity.franchise);
 
                 let petRes;
                 try {
                     petRes = await generatePetSprite(theme.petDirective, {
                         log,
                         timeoutMs: opts.petTimeoutMs || 180000,
-                        slugHint: theme.petDirective.petName || theme.name
+                        slugHint: theme.petDirective.petName || theme.name,
+                        sourceImagePath: absImagePath
                     });
                 } catch (petErr) {
                     petRes = buildFallbackResult(theme.petDirective, petErr.message || 'pet-error');
@@ -1092,12 +1197,13 @@ function designTheme(dataUrl, opts = {}) {
                 theme.petId = petRes.petId;
                 theme.petMeta = petRes.petMeta;
 
-                log(`Theme designed in ${env.duration_seconds}s (4K 16:9, aiOutpainted=${needsAiPaint}, pet=${theme.petSpriteUrl})`);
+                log(`Theme designed in ${env.duration_seconds}s (4K 16:9, aiOutpainted=${needsAiPaint}, wp=${wallpaperUrl || 'inline'}, pet=${theme.petSpriteUrl})`);
                 settled = true;
                 resolve({
                     theme,
                     wallpaperDataUrl,
-                    wpMeta: { width: TARGET_W, height: TARGET_H, aiOutpainted: needsAiPaint },
+                    wallpaperUrl,
+                    wpMeta: { width: TARGET_W, height: TARGET_H, aiOutpainted: needsAiPaint, wallpaperUrl },
                     petSpriteUrl: theme.petSpriteUrl,
                     petId: theme.petId,
                     petMeta: theme.petMeta
@@ -1111,7 +1217,21 @@ function designTheme(dataUrl, opts = {}) {
     });
 }
 
-module.exports = { designTheme, normalizeDynamicPack, normalizeVfxSpec, normalizePetDirective, SCHEMA, buildSchema, ARCHETYPE_DEFAULTS, buildLocalTheme, extractPaletteViaPillow };
+module.exports = {
+    designTheme,
+    normalizeDynamicPack,
+    normalizeVfxSpec,
+    normalizePetDirective,
+    normalizeWorkIdentity,
+    sanitizeSvgFragment,
+    SCHEMA,
+    buildSchema,
+    WORK_IDENTITY_SCHEMA,
+    ARCHETYPE_DEFAULTS,
+    USER_MEDIA_DIR,
+    buildLocalTheme,
+    extractPaletteViaPillow
+};
 
 if (require.main === module) {
     const argv = process.argv.slice(2);

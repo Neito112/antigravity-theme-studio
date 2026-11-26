@@ -54,7 +54,7 @@ function findAgy() {
     return 'agy';
 }
 
-function buildPetSpritePrompt(petDirective, rawSheetPath) {
+function buildPetSpritePrompt(petDirective, rawSheetPath, sourceImagePath = '') {
     const d = petDirective && typeof petDirective === 'object' ? petDirective : {};
     const name = d.petName || 'Companion';
     const concept = d.personifiedConcept || 'Cute chibi pixel mascot';
@@ -63,11 +63,23 @@ function buildPetSpritePrompt(petDirective, rawSheetPath) {
     const palette = Array.isArray(d.palette) && d.palette.length ? d.palette.join(', ') : '#7dd3fc, #f472b6, #1e1b4b';
     const action = d.signatureAction || 'cheerful wave';
     const customPrompt = d.spritePrompt ? `\nCharacter & pose specification: ${d.spritePrompt}` : '';
+    const hasChar = Boolean(d.hasCharacter);
+    const sourceObject = d.sourceObject || concept;
+
+    const sourceInstructions = sourceImagePath ? [
+        `SOURCE INPUT IMAGE ON DISK: "${sourceImagePath}"`,
+        `1. First inspect "${sourceImagePath}" using \`read_file\` if needed, AND pass the exact reference image path "${sourceImagePath}" directly in your prompt to \`image-generator\` so the subagent looks directly at the original artwork.`,
+        hasChar
+            ? `2. CHARACTER SYNC MODE (hasCharacter: true): \`image-generator\` MUST closely match the actual character/creature in "${sourceImagePath}" — preserve their exact hairstyle/ears/horns, eye color, facial vibe, outfit/armor colors, silhouette, and signature prop (${prop}) while adapting them into a cute chibi/pixel 8x11 sprite sheet.`
+            : `2. OBJECT PERSONIFICATION MODE (hasCharacter: false): \`image-generator\` MUST look directly at the prominent object ("${sourceObject}") in "${sourceImagePath}" and personify that exact object into a cohesive, expressive chibi/pixel mascot (${concept}, ${prop}) in the 8x11 sprite sheet, keeping the object's signature silhouette, colors, and materials.`,
+        ''
+    ] : [];
 
     return [
         `You are a pixel/chibi game sprite artist. Call \`invoke_subagent\` with \`TypeName: "image-generator"\` and \`Role: "2D Sprite Sheet Artist"\` to generate a single 8-column by 11-row sprite sheet PNG saved to "${rawSheetPath}".`,
         'Do not run shell commands (`run_command`), do not edit workspace source files.',
         '',
+        ...sourceInstructions,
         'STRICT SPRITE SHEET LAYOUT (8 columns x 11 rows, aspect ratio 1536x2288 / 3:4.46, uniform grid, NO gridlines, NO labels, NO text):',
         `- Subject: "${name}" — ${concept}, ${prop}.`,
         `- Style: crisp ${style} mascot art, clean dark outline, readable silhouette at small sizes. Palette: ${palette}.${customPrompt}`,
@@ -220,7 +232,7 @@ function buildFallbackResult(petDirective, reason) {
  * `assets/pets/rocky.webp` if generation or validation fails.
  *
  * @param {object} petDirective
- * @param {{timeoutMs?: number, log?: Function, slugHint?: string}} opts
+ * @param {{timeoutMs?: number, log?: Function, slugHint?: string, sourceImagePath?: string}} opts
  * @returns {Promise<{petSpriteUrl: string, petId: string, petMeta: object}>}
  */
 function generatePetSprite(petDirective, opts = {}) {
@@ -238,6 +250,16 @@ function generatePetSprite(petDirective, opts = {}) {
         return Promise.resolve(buildFallbackResult(d, 'python-pil-missing'));
     }
 
+    let sourceImagePath = '';
+    if (typeof opts.sourceImagePath === 'string' && opts.sourceImagePath.trim()) {
+        try {
+            const resolved = path.resolve(opts.sourceImagePath.trim());
+            if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
+                sourceImagePath = resolved;
+            }
+        } catch (_) {}
+    }
+
     const slug = slugifyPetName(opts.slugHint || d.petName || 'companion');
     const uniqueSlug = `${slug}-${Date.now().toString(36).slice(-4)}`;
     const jobDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-pet-'));
@@ -251,8 +273,14 @@ function generatePetSprite(petDirective, opts = {}) {
         required: ['generatedSheetPath']
     }));
 
-    const prompt = buildPetSpritePrompt(d, rawSheetPath);
+    const prompt = buildPetSpritePrompt(d, rawSheetPath, sourceImagePath);
     const args = ['-p', prompt, '--mode', 'accept-edits', '--output-format', 'json', '--json-schema', schemaFile, '--disable-slash-commands', '--add-dir', jobDir];
+    if (sourceImagePath) {
+        const sourceDir = path.dirname(sourceImagePath);
+        if (path.resolve(sourceDir) !== path.resolve(jobDir)) {
+            args.push('--add-dir', sourceDir);
+        }
+    }
     if (process.env.AGY_THEME_MODEL) args.push('--model', process.env.AGY_THEME_MODEL);
     const bin = findAgy();
 
@@ -330,6 +358,7 @@ function generatePetSprite(petDirective, opts = {}) {
                         prop: d.prop || '',
                         signatureAction: d.signatureAction || 'wave',
                         animationMood: d.animationMood || d.idleMood || 'calm-focus',
+                        sourceImageUsed: Boolean(sourceImagePath),
                         spriteVersionNumber: 2,
                         fallback: false
                     }
@@ -343,9 +372,11 @@ function generatePetSprite(petDirective, opts = {}) {
 
 module.exports = {
     generatePetSprite,
+    buildPetSpritePrompt,
     processAndValidateAtlas,
     buildFallbackResult,
     slugifyPetName,
+    USER_MEDIA_DIR,
     FALLBACK_SPRITE_URL,
     ATLAS_COLS,
     ATLAS_ROWS,

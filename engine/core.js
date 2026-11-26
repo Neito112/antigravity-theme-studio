@@ -79,6 +79,7 @@
   const STORAGE_SKETCH_REVEAL = 'agy_sketch_reveal_v1';
   const STORAGE_TAWA_GREETING = 'agy_tawa_greeting_v1';
   const STORAGE_PET_ENABLED = 'agy_pet_enabled_v1';
+  const STORAGE_PET_CHAT_DOCK = 'agy_pet_chat_dock_v1';
   const GREETING_RX = /^(?:Hey\s+[^,]{1,40},\s+what\s+should\s+we\s+build\s+today\??|Good\s+to\s+see\s+you,\s+[^.]{1,40}\.\s+What'?s\s+next\??|What\s+(?:should|are)\s+we\s+build(?:ing)?\s+today\??|Welcome\s+back[,.!\s]+[^.!?]{0,40}(?:[.!?]\s*(?:Where\s+should\s+we\s+pick\s+up|What'?s\s+next|What\s+should\s+we\s+build)[^.!?]{0,40}[.!?]?)?|Where\s+should\s+we\s+pick\s+up\??|Ready\s+(?:to\s+build|when\s+you\s+are)[,.!\s]*.*)$/i;
 
   const CHECK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
@@ -1034,13 +1035,17 @@
     const petEnabled = rawPet !== null
       ? rawPet !== 'false'
       : (init.petEnabled !== undefined ? init.petEnabled : true);
+    const rawPetChatDock = localStorage.getItem(STORAGE_PET_CHAT_DOCK);
+    const petChatDocked = rawPetChatDock !== null
+      ? rawPetChatDock !== 'false'
+      : (init.petChatDocked !== undefined ? Boolean(init.petChatDocked) : true);
     return {
       themeName, bubbleName, inputStyle, dimming, wpEnabled, wpMode,
       customWp, customVideo, savedImages, savedVideos,
       taskVoices, taskVoiceEnabled, taskVoiceVol, customGreetings,
       userAvatar, agentAvatar, glassBlur, avatarSize, avatarRadius,
       themeMode, soundMuted, soundVolume, voiceEnabled, introEnabled,
-      bootIntro, sketchReveal, tawaGreeting, petEnabled
+      bootIntro, sketchReveal, tawaGreeting, petEnabled, petChatDocked
     };
   }
 
@@ -1291,7 +1296,7 @@
   function detectAntigravityPetState() {
     const shell = findActiveShell();
     const root = shell || document;
-    if (root.querySelector('[data-testid="status-task-running"], [data-testid="input-cancel-button"], [data-testid="status-loading-spinner"]')) {
+    if (root.querySelector('[data-testid="status-task-running"], [data-testid="input-cancel-button"], [data-testid="status-loading-spinner"], button[aria-label="Stop execution"], button[aria-label="Cancel Task"]')) {
       return 'running';
     }
     if (root.querySelector('[data-testid="approve-button"], [data-testid="confirm-button"], button[aria-label*="Approve" i], button[aria-label*="Allow" i]')) {
@@ -1303,8 +1308,136 @@
     return 'idle';
   }
 
+  function getPetPillStatusMeta(statusState) {
+    if (statusState === 'running') return { label: 'Thinking', tone: 'running' };
+    if (statusState === 'waiting') return { label: 'Needs input', tone: 'waiting' };
+    if (statusState === 'failed') return { label: 'Error', tone: 'failed' };
+    const shell = findActiveShell() || document;
+    const hasReply = Boolean(shell.querySelector('[data-testid="agent-response"]'));
+    return hasReply ? { label: 'Ready', tone: 'ready' } : { label: 'Idle', tone: 'idle' };
+  }
+
   function isAiTaskRunning() {
     return detectAntigravityPetState() === 'running';
+  }
+
+  function syncComposerHost(stOverride) {
+    const shell = findActiveShell() || document.querySelector('.agy-shell');
+    if (!shell) return;
+    const st = stOverride || getStateSafe();
+    const shouldDock = st.themeMode === 'dynamic' && st.petEnabled !== false && st.petChatDocked !== false;
+    shell.classList.toggle('agy-pet-chat-docked', shouldDock);
+
+    const composers = shell.querySelectorAll('.surface-composer');
+    composers.forEach((comp) => {
+      const convView = comp.closest('[data-testid="conversation-view"]');
+      let host = null;
+      if (convView) {
+        let cur = comp;
+        while (cur && cur.parentElement && cur.parentElement !== convView) {
+          cur = cur.parentElement;
+        }
+        if (cur && cur.parentElement === convView) {
+          host = cur;
+        }
+      }
+      if (!host) {
+        host = comp.closest('[data-testid="agent-input-box"]') || comp;
+      }
+      if (host && host.getAttribute('data-agy-composer-host') !== '1') {
+        host.setAttribute('data-agy-composer-host', '1');
+      }
+    });
+  }
+
+  function stopAntigravityTask() {
+    const shell = findActiveShell() || document;
+    const stopBtn = shell.querySelector(
+      '[data-testid="input-cancel-button"], button[aria-label="Stop execution"], button[aria-label="Cancel Task"], [data-testid="subagent-stop"]'
+    );
+    if (stopBtn && !stopBtn.disabled) {
+      stopBtn.click();
+      return true;
+    }
+    return false;
+  }
+
+  function sendToAntigravityComposer(rawText) {
+    const text = String(rawText || '').trim();
+    if (!text) return false;
+    const shell = findActiveShell() || document;
+    const comp = shell.querySelector('[data-main-content-body="true"] .surface-composer')
+      || shell.querySelector('.surface-composer')
+      || document.querySelector('.surface-composer');
+    if (!comp) return false;
+    const inputEl = comp.querySelector('[data-lexical-editor="true"], [contenteditable="true"], textarea, input:not([type="hidden"])');
+    if (!inputEl) return false;
+
+    const prevFocused = document.activeElement;
+    try { inputEl.focus({ preventScroll: true }); } catch (_) { try { inputEl.focus(); } catch (__) {} }
+
+    if (inputEl.tagName === 'TEXTAREA' || inputEl.tagName === 'INPUT') {
+      const proto = inputEl.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+      const desc = Object.getOwnPropertyDescriptor(proto, 'value');
+      if (desc && typeof desc.set === 'function') desc.set.call(inputEl, text);
+      else inputEl.value = text;
+      inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+      inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+    } else {
+      try {
+        const sel = window.getSelection();
+        if (sel) {
+          const range = document.createRange();
+          range.selectNodeContents(inputEl);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      } catch (_) {}
+
+      let inserted = false;
+      try {
+        inserted = Boolean(document.execCommand && document.execCommand('insertText', false, text));
+      } catch (_) {}
+
+      if (!inserted || !String(inputEl.textContent || '').trim()) {
+        try {
+          const dt = new DataTransfer();
+          dt.setData('text/plain', text);
+          inputEl.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+        } catch (_) {}
+      }
+
+      if (!String(inputEl.textContent || '').trim()) {
+        inputEl.textContent = text;
+        try {
+          inputEl.dispatchEvent(new InputEvent('input', { inputType: 'insertText', data: text, bubbles: true }));
+        } catch (_) {
+          inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
+    }
+
+    setTimeout(() => {
+      const sendBtn = comp.querySelector(
+        'button[data-testid*="send" i]:not([disabled]), button[aria-label*="Send" i]:not([disabled]), button[aria-label*="Submit" i]:not([disabled]), button[type="submit"]:not([disabled])'
+      ) || (comp.parentElement && comp.parentElement.querySelector(
+        'button[data-testid*="send" i]:not([disabled]), button[aria-label*="Send" i]:not([disabled])'
+      ));
+      if (sendBtn) {
+        sendBtn.click();
+      } else {
+        const evtOpts = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true };
+        inputEl.dispatchEvent(new KeyboardEvent('keydown', evtOpts));
+        inputEl.dispatchEvent(new KeyboardEvent('keypress', evtOpts));
+        inputEl.dispatchEvent(new KeyboardEvent('keyup', evtOpts));
+      }
+      if (prevFocused && prevFocused.id === 'agy-better-pet-chat-input' && prevFocused.isConnected) {
+        setTimeout(() => {
+          try { prevFocused.focus({ preventScroll: true }); } catch (_) {}
+        }, 40);
+      }
+    }, 45);
+    return true;
   }
 
   // ── Authentic desktop-agent_pet Renderer (#agy-better-pet) ────────────────────
@@ -1403,10 +1536,10 @@
       ctrl.destroy();
     }
     window.__AGY_BETTER_PET_CTRL__ = null;
-    const el = document.getElementById('agy-better-pet');
-    if (el) el.remove();
-    const legacy = document.getElementById('agy-ide-pet');
-    if (legacy) legacy.remove();
+    ['agy-better-pet', 'agy-better-pet-chat', 'agy-better-pet-menu', 'agy-ide-pet'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    });
   }
 
   function mountBetterPet(theme) {
@@ -1424,6 +1557,7 @@
     pet.setAttribute('aria-label', 'Companion Pet');
     pet.dataset.petState = 'idle';
     pet.dataset.petDragging = 'false';
+    pet.dataset.petChatOpen = 'false';
 
     const body = document.createElement('div');
     body.className = 'agy-better-pet__body';
@@ -1439,8 +1573,68 @@
     tooltip.className = 'agy-better-pet__tooltip';
     pet.appendChild(tooltip);
 
-    let x = Math.max(8, window.innerWidth - PET_WIDTH_PX - 20);
-    let y = Math.max(8, window.innerHeight - PET_HEIGHT_PX - 18);
+    // Compact status pill right under Pet (matching desktop-agent_pet)
+    const pill = document.createElement('button');
+    pill.id = 'agy-better-pet-pill';
+    pill.type = 'button';
+    pill.setAttribute('aria-expanded', 'false');
+    pill.setAttribute('title', 'Bấm để mở/đóng khung chat Pet (Chuột phải để tùy chọn)');
+    pill.innerHTML = `
+      <span class="agy-better-pet-pill__dot" aria-hidden="true"></span>
+      <span class="agy-better-pet-pill__label">Companion · Idle</span>
+      <span id="agy-better-pet-pill-chevron" class="agy-better-pet-pill__chevron" aria-hidden="true">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+      </span>
+    `;
+    pet.appendChild(pill);
+
+    // Floating Pet Chat popover
+    const chat = document.createElement('div');
+    chat.id = 'agy-better-pet-chat';
+    chat.setAttribute('role', 'dialog');
+    chat.setAttribute('aria-label', 'Pet Quick Chat');
+    chat.dataset.open = 'false';
+    chat.innerHTML = `
+      <div class="agy-better-pet-chat__head">
+        <div class="agy-better-pet-chat__title-wrap">
+          <span class="agy-better-pet-pill__dot" aria-hidden="true"></span>
+          <span class="agy-better-pet-chat__name">Companion</span>
+          <span class="agy-better-pet-chat__status">Idle</span>
+        </div>
+        <div class="agy-better-pet-chat__actions">
+          <button id="agy-better-pet-chat-undock" type="button" class="agy-better-pet-chat__icon-btn" title="Hiện / chuyển về thanh chat gốc ở giữa">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          </button>
+          <button id="agy-better-pet-chat-close" type="button" class="agy-better-pet-chat__icon-btn" title="Đóng khung chat Pet">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="agy-better-pet-chat__body">
+        <textarea id="agy-better-pet-chat-input" rows="1" placeholder="Nhắn cho Agent... (Enter gửi, Shift+Enter xuống dòng)"></textarea>
+        <button id="agy-better-pet-chat-send" type="button" class="agy-better-pet-chat__send-btn" title="Gửi tin nhắn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    `;
+
+    const menu = document.createElement('div');
+    menu.id = 'agy-better-pet-menu';
+    menu.setAttribute('role', 'menu');
+    menu.hidden = true;
+
+    const pillLabelEl = pill.querySelector('.agy-better-pet-pill__label');
+    const chatNameEl = chat.querySelector('.agy-better-pet-chat__name');
+    const chatStatusEl = chat.querySelector('.agy-better-pet-chat__status');
+    const chatInput = chat.querySelector('#agy-better-pet-chat-input');
+    const chatSendBtn = chat.querySelector('#agy-better-pet-chat-send');
+    const chatUndockBtn = chat.querySelector('#agy-better-pet-chat-undock');
+    const chatCloseBtn = chat.querySelector('#agy-better-pet-chat-close');
+
+    let activePetName = 'Companion';
+    let chatOpen = false;
+    let x = Math.max(8, window.innerWidth - PET_WIDTH_PX - 28);
+    let y = Math.max(8, window.innerHeight - PET_HEIGHT_PX - 46);
     let statusState = detectAntigravityPetState();
     let transient = null;
     let reactionState = null;
@@ -1461,18 +1655,106 @@
     const sig = ac.signal;
 
     const clampPos = (nx, ny) => {
-      const mx = Math.max(0, window.innerWidth - PET_WIDTH_PX);
-      const my = Math.max(0, window.innerHeight - PET_HEIGHT_PX - 8);
+      const mx = Math.max(8, window.innerWidth - PET_WIDTH_PX - 8);
+      const my = Math.max(8, window.innerHeight - PET_HEIGHT_PX - 38);
       return [
-        Math.min(Math.max(Math.round(nx), 0), mx),
-        Math.min(Math.max(Math.round(ny), 0), my)
+        Math.min(Math.max(Math.round(nx), 8), mx),
+        Math.min(Math.max(Math.round(ny), 8), my)
       ];
+    };
+
+    const updateChatAnchor = () => {
+      if (!chatOpen) return;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const cw = Math.min(340, Math.max(240, vw - 16));
+      chat.style.width = `${cw}px`;
+      const ch = chat.offsetHeight || 96;
+      const petCenterX = x + PET_WIDTH_PX / 2;
+      const left = Math.min(Math.max(8, Math.round(petCenterX - cw / 2)), Math.max(8, vw - cw - 8));
+      const pillBottom = y + PET_HEIGHT_PX + 32;
+      const spaceBelow = vh - pillBottom - 8;
+      const spaceAbove = y - 8;
+      let top;
+      let placement = 'above';
+      if (spaceAbove >= ch + 8 || spaceAbove >= spaceBelow) {
+        top = Math.max(8, Math.round(y - ch - 8));
+        placement = 'above';
+      } else {
+        top = Math.min(Math.max(8, Math.round(pillBottom + 6)), Math.max(8, vh - ch - 8));
+        placement = 'below';
+      }
+      chat.style.left = `${left}px`;
+      chat.style.top = `${top}px`;
+      chat.dataset.placement = placement;
+      pet.dataset.chatPlacement = placement;
     };
 
     const place = (nx, ny) => {
       [x, y] = clampPos(nx, ny);
       pet.style.left = `${x}px`;
       pet.style.top = `${y}px`;
+      updateChatAnchor();
+    };
+
+    const syncChatControls = () => {
+      const meta = getPetPillStatusMeta(statusState);
+      pet.dataset.petTone = meta.tone;
+      chat.dataset.petTone = meta.tone;
+      if (pillLabelEl) pillLabelEl.textContent = `${activePetName} · ${meta.label}`;
+      if (chatNameEl) chatNameEl.textContent = activePetName;
+      if (chatStatusEl) chatStatusEl.textContent = meta.label;
+      if (chatSendBtn) {
+        const hasText = Boolean(chatInput && chatInput.value.trim());
+        const showStop = statusState === 'running' && !hasText;
+        chatSendBtn.dataset.mode = showStop ? 'stop' : 'send';
+        chatSendBtn.setAttribute('title', showStop ? 'Dừng Agent đang chạy' : 'Gửi tin nhắn');
+        chatSendBtn.innerHTML = showStop
+          ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>'
+          : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
+      }
+      if (chatUndockBtn) {
+        const docked = getStateSafe().petChatDocked !== false;
+        chatUndockBtn.setAttribute('title', docked ? 'Hiện thanh chat gốc ở giữa' : 'Đang hiện thanh chat gốc (bấm để ẩn)');
+      }
+    };
+
+    const setChatOpen = (nextOpen, focusInput = true) => {
+      chatOpen = Boolean(nextOpen);
+      pet.dataset.petChatOpen = chatOpen ? 'true' : 'false';
+      pill.setAttribute('aria-expanded', chatOpen ? 'true' : 'false');
+      chat.dataset.open = chatOpen ? 'true' : 'false';
+      if (chatOpen) {
+        updateChatAnchor();
+        if (focusInput && chatInput) {
+          requestAnimationFrame(() => {
+            try { chatInput.focus({ preventScroll: true }); } catch (_) {}
+          });
+        }
+      }
+    };
+
+    const closeMenu = () => {
+      menu.hidden = true;
+      menu.innerHTML = '';
+    };
+
+    const openMenu = (clientX, clientY) => {
+      const stNow = getStateSafe();
+      const docked = stNow.petChatDocked !== false;
+      menu.innerHTML = `
+        <button type="button" class="agy-better-pet-menu__item" data-act="toggle-chat">${chatOpen ? '🔽 Đóng Pet Chat' : '💬 Mở Pet Chat'}</button>
+        <button type="button" class="agy-better-pet-menu__item" data-act="toggle-dock">${docked ? '👁️ Hiện lại thanh chat gốc' : '🧲 Ẩn thanh chat gốc (Pet Chat)'}</button>
+        <button type="button" class="agy-better-pet-menu__item" data-act="studio">🎨 Mở Custom Theme Studio</button>
+        <button type="button" class="agy-better-pet-menu__item" data-act="hide-pet">🐾 Ẩn Pet</button>
+      `;
+      menu.hidden = false;
+      const mw = 216;
+      const mh = 152;
+      const ml = Math.min(Math.max(8, Math.round(clientX)), Math.max(8, window.innerWidth - mw - 8));
+      const mt = Math.min(Math.max(8, Math.round(clientY - mh)), Math.max(8, window.innerHeight - mh - 8));
+      menu.style.left = `${ml}px`;
+      menu.style.top = `${mt}px`;
     };
 
     const effectiveState = () => {
@@ -1541,23 +1823,92 @@
       } else {
         paint();
       }
+      syncChatControls();
     };
 
     const updateTheme = (nextTheme) => {
       const t = nextTheme || {};
       const sheetRaw = t.petSpriteUrl || 'assets/pets/rocky.webp';
       const sheetUrl = resolveMediaUrl(sheetRaw);
-      pet.style.setProperty('--pet-sheet', `url(${JSON.stringify(sheetUrl)})`);
-      pet.style.setProperty('--pet-accent', t.primary || '#38bdf8');
-      pet.style.setProperty('--pet-glow', t.glow || 'rgba(56, 189, 248, 0.28)');
+      const primary = t.primary || '#38bdf8';
+      const secondary = t.secondary || primary;
+      const glow = t.glow || 'rgba(56, 189, 248, 0.28)';
+      const surface = t.aiCardBg || 'rgba(12, 16, 28, 0.90)';
+      const border = t.aiCardBorder || t.borderColor || 'rgba(255, 255, 255, 0.16)';
+      const ink = t.uiTextColor || '#f8fafc';
+      const muted = t.uiMutedColor || '#cbd5e1';
+      const pack = typeof resolveDynamicPack === 'function' ? resolveDynamicPack(t) : {};
+      const radius = Math.min(18, Math.max(10, Number(pack.uiDesign && pack.uiDesign.cardRadiusPx) || 14));
+
+      [pet, chat, menu].forEach((node) => {
+        node.style.setProperty('--pet-sheet', `url(${JSON.stringify(sheetUrl)})`);
+        node.style.setProperty('--pet-accent', primary);
+        node.style.setProperty('--pet-secondary', secondary);
+        node.style.setProperty('--pet-glow', glow);
+        node.style.setProperty('--pet-surface', surface);
+        node.style.setProperty('--pet-border', border);
+        node.style.setProperty('--pet-ink', ink);
+        node.style.setProperty('--pet-muted', muted);
+        node.style.setProperty('--pet-radius', `${radius}px`);
+      });
+
       const meta = (t.petMeta && typeof t.petMeta === 'object') ? t.petMeta : {};
-      const petName = meta.petName || t.name || 'Companion';
-      const petConcept = meta.personifiedConcept || t.concept || '';
-      tooltip.textContent = petConcept ? `${petName} · ${petConcept}` : petName;
+      const dir = (t.petDirective && typeof t.petDirective === 'object') ? t.petDirective : {};
+      const stCur = getStateSafe();
+      activePetName = meta.petName || dir.petName || stCur.themeName || t.name || 'Companion';
+      const petConcept = meta.personifiedConcept || dir.personifiedConcept || t.concept || '';
+      tooltip.textContent = petConcept ? `${activePetName} · ${petConcept}` : activePetName;
+      syncChatControls();
     };
+
+    const autoResizeInput = () => {
+      if (!chatInput) return;
+      chatInput.style.height = 'auto';
+      chatInput.style.height = `${Math.min(110, Math.max(22, chatInput.scrollHeight))}px`;
+      updateChatAnchor();
+    };
+
+    const submitPetChat = () => {
+      if (!chatInput) return;
+      const val = chatInput.value.trim();
+      if (!val) {
+        if (statusState === 'running') {
+          stopAntigravityTask();
+          syncChatControls();
+        }
+        return;
+      }
+      if (sendToAntigravityComposer(val)) {
+        const curTh = THEMES[getStateSafe().themeName] || th;
+        playClickSound(curTh);
+        chatInput.value = '';
+        autoResizeInput();
+        reactionState = 'jumping';
+        clearTimeout(reactionTimer);
+        reactionTimer = setTimeout(() => {
+          reactionState = null;
+          refresh();
+        }, 1200);
+        refresh();
+      }
+    };
+
+    pill.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+    }, { signal: sig });
+
+    pill.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      closeMenu();
+      const curTh = THEMES[getStateSafe().themeName] || th;
+      playClickSound(curTh);
+      setChatOpen(!chatOpen, true);
+    }, { signal: sig });
 
     pet.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
+      if (e.target && typeof e.target.closest === 'function' && e.target.closest('#agy-better-pet-pill')) return;
       if (e.shiftKey) {
         e.preventDefault();
         e.stopPropagation();
@@ -1566,6 +1917,7 @@
       }
       e.preventDefault();
       e.stopPropagation();
+      closeMenu();
       try { pet.setPointerCapture(e.pointerId); } catch (_) {}
       drag = {
         pointerId: e.pointerId,
@@ -1610,11 +1962,93 @@
           reactionState = null;
           refresh();
         }, 1600);
+        setChatOpen(!chatOpen, true);
       }
       refresh();
     };
     pet.addEventListener('pointerup', endDrag, { signal: sig });
     pet.addEventListener('pointercancel', endDrag, { signal: sig });
+
+    pet.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openMenu(e.clientX, e.clientY);
+    }, { signal: sig });
+
+    menu.addEventListener('click', (e) => {
+      const btn = e.target && typeof e.target.closest === 'function' ? e.target.closest('[data-act]') : null;
+      if (!btn) return;
+      const act = btn.dataset.act;
+      closeMenu();
+      if (act === 'toggle-chat') {
+        setChatOpen(!chatOpen, true);
+      } else if (act === 'toggle-dock') {
+        const nextDock = getStateSafe().petChatDocked === false;
+        applyTheme({ petChatDocked: nextDock });
+        syncExtraToggleBtns((THEMES[getStateSafe().themeName] || th).primary);
+        syncChatControls();
+      } else if (act === 'studio') {
+        openCustomThemeModal();
+      } else if (act === 'hide-pet') {
+        applyTheme({ petEnabled: false });
+      }
+    }, { signal: sig });
+
+    if (chatInput) {
+      chatInput.addEventListener('input', () => {
+        autoResizeInput();
+        syncChatControls();
+      }, { signal: sig });
+      chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          e.stopPropagation();
+          submitPetChat();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          setChatOpen(false, false);
+        }
+      }, { signal: sig });
+    }
+    if (chatSendBtn) {
+      chatSendBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        submitPetChat();
+      }, { signal: sig });
+    }
+    if (chatCloseBtn) {
+      chatCloseBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setChatOpen(false, false);
+      }, { signal: sig });
+    }
+    if (chatUndockBtn) {
+      chatUndockBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const curDocked = getStateSafe().petChatDocked !== false;
+        const nextDocked = !curDocked;
+        applyTheme({ petChatDocked: nextDocked });
+        syncExtraToggleBtns((THEMES[getStateSafe().themeName] || th).primary);
+        syncChatControls();
+        if (!nextDocked) {
+          setChatOpen(false, false);
+          const compInput = document.querySelector('.surface-composer [data-lexical-editor="true"], .surface-composer [contenteditable="true"], .surface-composer textarea');
+          if (compInput) {
+            setTimeout(() => { try { compInput.focus(); } catch (_) {} }, 50);
+          }
+        }
+      }, { signal: sig });
+    }
+
+    document.addEventListener('pointerdown', (e) => {
+      if (!menu.hidden && !menu.contains(e.target)) {
+        closeMenu();
+      }
+    }, { signal: sig });
 
     window.addEventListener('mousemove', (e) => {
       pointerAt = { x: e.clientX, y: e.clientY };
@@ -1637,6 +2071,8 @@
     place(x, y);
     updateTheme(th);
     document.body.appendChild(pet);
+    document.body.appendChild(chat);
+    document.body.appendChild(menu);
     rebuild();
 
     const ctrl = {
@@ -1651,6 +2087,8 @@
         clearTimeout(reactionTimer);
         ac.abort();
         pet.remove();
+        chat.remove();
+        menu.remove();
       }
     };
     window.__AGY_BETTER_PET_CTRL__ = ctrl;
@@ -2071,14 +2509,21 @@
     const mainTheme = THEMES[activeThemeName] || THEMES[getDefaultThemeKey()] || {};
     const pack = resolveDynamicPack(mainTheme);
     const ui = pack.uiDesign || mainTheme.uiDesign || {};
+    const wpUrl = resolveMediaUrl(st.customWp || mainTheme.wallpaper || mainTheme.posterUrl || '');
     const bootCtx = {
       ...window.__AGY_INTERNAL__,
       themeName: activeThemeName,
       mainTheme,
       pack,
       primary: mainTheme.primary || '#60a5fa',
+      secondary: mainTheme.secondary || mainTheme.primary || '#38bdf8',
       glow: mainTheme.glow || 'rgba(96, 165, 250, 0.35)',
       secondaryGlow: mainTheme.secondaryGlow || mainTheme.glow || 'rgba(59, 130, 246, 0.25)',
+      wallpaper: wpUrl,
+      petSpriteUrl: mainTheme.petSpriteUrl ? resolveMediaUrl(mainTheme.petSpriteUrl) : '',
+      agentAvatar: (st.agentAvatar && st.agentAvatar !== 'none')
+        ? st.agentAvatar
+        : (mainTheme.agentAvatar ? resolveMediaUrl(mainTheme.agentAvatar) : ''),
       workIdentity: pack.workIdentity || mainTheme.workIdentity || {},
       emblemSvgInner: ui.emblemSvgInner || '',
       hudWidget: ui.hudWidget || {},
@@ -2201,6 +2646,7 @@
       localStorage.setItem(STORAGE_VOICE_ENABLED, String(st.voiceEnabled));
       localStorage.setItem(STORAGE_INTRO_ENABLED, String(st.introEnabled));
       localStorage.setItem(STORAGE_PET_ENABLED, String(st.petEnabled));
+      localStorage.setItem(STORAGE_PET_CHAT_DOCK, String(st.petChatDocked !== false));
     } catch (e) {}
 
     if (window.agySaveThemeConfig) {
@@ -2473,37 +2919,37 @@
 
       let leftColumnCss = `
         ${sidebarNavSel} {
-          border-right: 1px solid ${lcBorder} !important;
+          margin: ${stCur.wpEnabled ? '6px' : '0'} !important;
+          width: ${stCur.wpEnabled ? 'calc(100% - 12px)' : '100%'} !important;
+          height: ${stCur.wpEnabled ? 'calc(100% - 12px)' : '100%'} !important;
+          border-radius: ${stCur.wpEnabled ? lcRadius : 0}px !important;
+          border: 1px solid ${lcBorder} !important;
+          ${surfaceMode === 'inset-panel' || surfaceMode === 'rail-accent' ? `border-left: 2px solid ${pColor} !important;` : ''}
+          box-shadow: ${stCur.wpEnabled ? `0 6px 22px rgba(0, 0, 0, ${lightMode ? '0.10' : '0.36'})` : 'none'} !important;
+          overflow: hidden !important;
           backdrop-filter: none !important;
+          position: relative !important;
+          ${stCur.wpEnabled && stCur.themeMode === 'dynamic' && mainTheme.unifiedGlass ? `background-color: ${sidebarBg} !important; background-image: var(--agy-l-glass-bg, none) !important; background-size: 100vw 100vh !important; background-position: ${bgPosition} !important; background-attachment: fixed !important; background-repeat: no-repeat !important;` : `background: ${subtleBg} !important;`}
         }
         ${sidebarItemSel} {
           border-radius: ${Math.max(4, lcRadius - 2)}px !important;
           border: 1px solid transparent !important;
           margin: ${itemMargin} !important;
           padding: ${itemPad} !important;
-          ${isDyn ? 'transition: background-color 0.15s ease, border-color 0.15s ease !important;' : 'transition: none !important;'}
+          ${isDyn ? 'transition: transform 0.14s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;' : 'transition: none !important;'}
         }
         ${sidebarItemSel}:hover {
-          border-color: ${hairline} !important;
+          border-color: ${pColor}66 !important;
+          ${isDyn ? `transform: translateY(-1px) !important; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.24), 0 0 8px ${gColor} !important;` : ''}
+        }
+        ${sidebarItemSel}:active {
+          transform: scale(0.985) !important;
+        }
+        ${sidebarNavSel} :is([aria-current="page"], [aria-selected="true"], [data-active="true"]) {
+          border-color: ${pColor}88 !important;
+          box-shadow: inset 2px 0 0 ${pColor}${isDyn ? `, 0 0 10px ${gColor}` : ''} !important;
         }
       `;
-      if (surfaceMode === 'inset-panel' || surfaceMode === 'rail-accent') {
-        leftColumnCss += `
-          ${sidebarNavSel} {
-            margin: 6px 0 6px 6px !important;
-            border-radius: ${lcRadius}px !important;
-            border: 1px solid ${lcBorder} !important;
-            border-left: 2px solid ${pColor} !important;
-            overflow: hidden !important;
-          }
-        `;
-      } else if (surfaceMode === 'clean-matte' || surfaceMode === 'matte-tint' || surfaceMode === 'smoked-glass') {
-        leftColumnCss += `
-          ${sidebarNavSel} {
-            background: ${subtleBg} !important;
-          }
-        `;
-      }
 
       // 2. Center Stage (Agent response, user bubble, composer, steps)
       const cs = (vfx.centerStage && typeof vfx.centerStage === 'object') ? vfx.centerStage : {};
@@ -2515,17 +2961,19 @@
 
       let centerStageCss = `
         .agy-shell [data-testid="agent-response"] {
+          margin-block: 6px !important;
           border: 1px solid ${hairline} !important;
           border-radius: ${csRadius}px !important;
-          box-shadow: 0 2px 12px rgba(0, 0, 0, ${lightMode ? '0.07' : '0.24'}) !important;
+          box-shadow: 0 4px 18px rgba(0, 0, 0, ${lightMode ? '0.08' : '0.28'}) !important;
           backdrop-filter: none !important;
           ${transitionCss}
         }
         .agy-shell .agy-user-bubble-frame {
+          margin-block: 6px !important;
           padding: 1px !important;
           border-radius: ${csRadius}px !important;
           background: ${th.frameBg || hairline} !important;
-          box-shadow: 0 2px 12px rgba(0, 0, 0, ${lightMode ? '0.08' : '0.28'}) !important;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, ${lightMode ? '0.09' : '0.30'}) !important;
           ${transitionCss}
         }
         .agy-shell .agy-user-bubble {
@@ -2545,6 +2993,7 @@
           backdrop-filter: none !important;
         }
         .agy-shell [data-step-index] {
+          margin-block: 6px !important;
           border-radius: ${Math.max(4, csRadius - 2)}px !important;
         }
       `;
@@ -2553,6 +3002,7 @@
           .agy-shell [data-testid="agent-response"]:hover,
           .agy-shell .agy-user-bubble-frame:hover {
             transform: translateY(-1px) !important;
+            border-color: ${pColor}88 !important;
             box-shadow: 0 6px 20px rgba(0, 0, 0, ${lightMode ? '0.10' : '0.34'}), 0 0 12px ${gColor} !important;
           }
           .agy-shell .surface-composer:focus-within {
@@ -2571,12 +3021,12 @@
         centerStageCss += `
           .agy-shell [data-testid="agent-response"],
           .agy-shell .surface-composer-card {
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 12px rgba(0, 0, 0, 0.24) !important;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 4px 16px rgba(0, 0, 0, 0.28) !important;
           }
         `;
       }
 
-      // 3. Right Column (Side Panel)
+      // 3. Right Column (Side Panel — keep [data-side-panel-docked] transparent so it never covers center wallpaper)
       const rc = (vfx.rightColumn && typeof vfx.rightColumn === 'object') ? vfx.rightColumn : {};
       const tabIndicator = rc.tabIndicator || 'underline';
       const rightBg = rc.panelMode === 'transparent' ? 'transparent' : rightTint;
@@ -2614,9 +3064,24 @@
         `;
       }
       const rightColumnCss = `
-        body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-docked],
-        body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-strip] {
+        .agy-shell [data-side-panel-docked] {
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+        }
+        body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-open="true"] {
+          margin: ${stCur.wpEnabled ? '6px' : '0'} !important;
+          width: ${stCur.wpEnabled ? 'calc(100% - 12px)' : '100%'} !important;
+          height: ${stCur.wpEnabled ? 'calc(100% - 12px)' : '100%'} !important;
+          border-radius: ${stCur.wpEnabled ? csRadius : 0}px !important;
+          border: 1px solid ${hairline} !important;
+          box-shadow: ${stCur.wpEnabled ? `0 6px 22px rgba(0, 0, 0, ${lightMode ? '0.10' : '0.36'})` : 'none'} !important;
+          overflow: hidden !important;
           background: ${rightBg} !important;
+          backdrop-filter: none !important;
+        }
+        body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-strip] {
+          background: ${mainTheme.headerBg || rightBg} !important;
           backdrop-filter: none !important;
           border-color: ${hairline} !important;
         }
@@ -2627,7 +3092,7 @@
         ${tabIndicatorCss}
       `;
 
-      // 4. Motion Rules (calm | atmospheric | kinetic)
+      // 4. Motion Rules & Subtle Theme Decor
       const motionRule = isDyn ? resolveVfxMotionRule(th, mainPack) : 'none';
       const motionCss = motionRule === 'none'
         ? `
@@ -2638,20 +3103,22 @@
             animation: none !important;
           }
         `
-        : (motionRule === 'kinetic'
-          ? `
-            .agy-shell [data-testid="agent-response"]::after {
-              content: "";
-              position: absolute;
-              top: 0;
-              left: 16px;
-              right: 16px;
-              height: 1px;
-              background: linear-gradient(90deg, transparent, ${pColor}66, transparent);
-              pointer-events: none;
-            }
-          `
-          : '');
+        : `
+          .agy-shell [data-testid="agent-response"]::after {
+            content: "";
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            width: 14px;
+            height: 14px;
+            background-image: url("${cornerFiligreeUrl}");
+            background-size: contain;
+            background-repeat: no-repeat;
+            transform: scaleX(-1);
+            opacity: 0.56;
+            pointer-events: none;
+          }
+        `;
 
       return `
         /* Refined vfxSpec Blueprint (${surfaceMode} / ${surfaceStyle} / ${tabIndicator} / ${motionRule}) */
@@ -2983,53 +3450,34 @@
     ` : '';
 
     const headerCss = mainTheme.headerBg ? `
-      /* Frosted top titlebar & seamless L-shaped unified glass (zero live backdrop-filter) */
-      ${useUnifiedGlass ? `
+      /* Floating top titlebar & unified pre-baked glass (zero live backdrop-filter, clear gaps between panels) */
       .agy-shell {
         position: relative !important;
       }
       .agy-shell > div:first-of-type {
         position: relative !important;
         z-index: 3 !important;
+        background: transparent !important;
       }
       .agy-shell > div:not(:first-of-type) {
         position: relative !important;
         z-index: 2 !important;
       }
       .agy-shell::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        z-index: 1;
-        pointer-events: none;
-        background-color: ${mainTheme.headerBg};
-        background-image: var(--agy-l-glass-bg, none);
-        background-size: cover;
-        background-position: ${bgPosition};
-        background-repeat: no-repeat;
+        content: none !important;
+        display: none !important;
+      }
+      .agy-shell [data-testid="title-menu-bar"],
+      .agy-shell [data-main-content-header] {
+        background-color: ${mainTheme.headerBg} !important;
+        ${useUnifiedGlass ? `background-image: var(--agy-l-glass-bg, none) !important; background-size: 100vw 100vh !important; background-position: ${bgPosition} !important; background-attachment: fixed !important; background-repeat: no-repeat !important;` : ''}
         backdrop-filter: none !important;
-        will-change: transform;
-        clip-path: polygon(
-          0 0,
-          100% 0,
-          100% var(--agy-hdr-h, 75px),
-          var(--agy-sidebar-w, 256px) var(--agy-hdr-h, 75px),
-          var(--agy-sidebar-w, 256px) 100%,
-          0 100%
-        );
       }
       .agy-shell [class*="@container/titlebar"] {
         background: transparent !important;
         backdrop-filter: none !important;
-        border-bottom: 1px solid ${mainTheme.headerBorder || 'rgba(56, 189, 248, 0.10)'} !important;
+        border-bottom: none !important;
       }
-      ` : `
-      .agy-shell [class*="@container/titlebar"] {
-        background: ${mainTheme.headerBg} !important;
-        backdrop-filter: none !important;
-        border-bottom: 1px solid ${mainTheme.headerBorder || 'rgba(56, 189, 248, 0.15)'} !important;
-      }
-      `}
       .agy-shell [class*="@container/titlebar"] :is(button, span, a):not(#agy-custom-theme-badge),
       .agy-shell [class*="@container/titlebar"] [data-testid="breadcrumb-segment"] {
         color: ${uiInk} !important;
@@ -3044,15 +3492,15 @@
     const sidebarOuterCss = useUnifiedGlass ? `
       .agy-shell aside,
       .agy-shell [data-sidebar="true"],
-      .agy-shell .bg-sidebar:not(.surface-opaque) {
+      .agy-shell .bg-sidebar:not(.surface-opaque):not([role="navigation"]) {
         background: transparent !important;
         backdrop-filter: none !important;
       }
     ` : `
       .agy-shell aside,
       .agy-shell [data-sidebar="true"],
-      .agy-shell .bg-sidebar:not(.surface-opaque) {
-        background: ${sidebarBg} !important;
+      .agy-shell .bg-sidebar:not(.surface-opaque):not([role="navigation"]) {
+        background: transparent !important;
         backdrop-filter: none !important;
       }
     `;
@@ -3066,27 +3514,39 @@
     const smokedBorder = mainTheme.aiCardBorder || mainTheme.borderColor || (isLight ? 'rgba(15, 23, 42, 0.16)' : 'rgba(255, 255, 255, 0.14)');
     const compactRadius = borderStyle === 'chamfered' ? 4 : Math.max(6, cardRadiusPx - 4);
     const subCardRadius = borderStyle === 'chamfered' ? 4 : Math.max(8, cardRadiusPx - 2);
-    const stepBorderAccent = borderStyle === 'double'
-      ? `3px double ${pSync}`
-      : (borderStyle === 'dashed' ? `1.5px dashed ${pSync}` : `1px solid ${smokedBorder}`);
+    const stepBorderAccent = borderStyle === 'dashed' ? `1px dashed ${pSync}` : `1px solid ${smokedBorder}`;
     const isDynamicMode = st.themeMode === 'dynamic';
 
     const globalIdeSyncCss = `
-      /* 1. Top Titlebar, Menu Bar, Workspace Tabs & Breadcrumbs */
-      .agy-shell [data-testid="title-menu-bar"],
+      /* 1. Floating Top Titlebar, Menu Bar, Workspace Tabs & Breadcrumbs */
+      .agy-shell [data-testid="title-menu-bar"] {
+        margin: ${st.wpEnabled ? '4px 6px 2px 6px' : '0'} !important;
+        width: ${st.wpEnabled ? 'calc(100% - 12px)' : '100%'} !important;
+        height: ${st.wpEnabled ? 'calc(100% - 6px)' : '100%'} !important;
+        border-radius: ${st.wpEnabled ? Math.min(10, compactRadius) : 0}px !important;
+        border: 1px solid ${mainTheme.headerBorder || smokedBorder} !important;
+        box-shadow: ${st.wpEnabled ? `0 4px 16px rgba(0, 0, 0, ${isLight ? '0.08' : '0.30'})` : 'none'} !important;
+      }
       .agy-shell [data-main-content-header] {
-        border-bottom: 1px solid ${mainTheme.headerBorder || smokedBorder} !important;
-        ${isDynamicMode ? `box-shadow: inset 0 -1px 0 ${gSync} !important;` : ''}
+        margin: ${st.wpEnabled ? '6px 6px 0 6px' : '0'} !important;
+        width: ${st.wpEnabled ? 'calc(100% - 12px)' : '100%'} !important;
+        border-radius: ${st.wpEnabled ? subCardRadius : 0}px !important;
+        border: 1px solid ${mainTheme.headerBorder || smokedBorder} !important;
+        box-shadow: ${st.wpEnabled ? `0 4px 18px rgba(0, 0, 0, ${isLight ? '0.08' : '0.32'})` : 'none'}${isDynamicMode ? `, inset 0 -1px 0 ${gSync}` : ''} !important;
+        overflow: hidden !important;
       }
       .agy-shell [data-testid="title-menu-bar-item"] {
         border-radius: 6px !important;
         color: ${uiInk} !important;
-        transition: ${isDynamicMode ? 'background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease' : 'none'} !important;
+        transition: ${isDynamicMode ? 'transform 0.14s ease, background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease' : 'none'} !important;
       }
       .agy-shell [data-testid="title-menu-bar-item"]:hover {
         background: ${pillHoverBg} !important;
         color: ${pSync} !important;
-        ${isDynamicMode ? `box-shadow: 0 0 8px ${gSync} !important;` : ''}
+        ${isDynamicMode ? `transform: translateY(-1px) !important; box-shadow: 0 0 8px ${gSync} !important;` : ''}
+      }
+      .agy-shell [data-testid="title-menu-bar-item"]:active {
+        transform: scale(0.985) !important;
       }
       .agy-shell nav[aria-label="Breadcrumb"] [data-testid="breadcrumb-segment"] {
         border-radius: 6px !important;
@@ -3109,14 +3569,18 @@
         border: 1px solid ${pillBorder} !important;
         border-radius: ${Math.min(10, compactRadius)}px !important;
         color: ${uiInk} !important;
-        transition: ${isDynamicMode ? 'background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease' : 'none'} !important;
+        transition: ${isDynamicMode ? 'transform 0.14s ease, background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease' : 'none'} !important;
       }
       .agy-shell [data-testid="pane-titlebar-toolbar"] :is(button, [role="button"]):not(#agy-custom-theme-topbar-btn):hover,
       .agy-shell :is([data-testid="sidebar-toggle"], [data-testid="sidebar-search-button"], [data-testid="toggle-overview-panel"], [data-overview-panel-toggle], [data-testid="toggle-aux-sidebar"], [data-testid="toggle-maximize-pane"], [data-testid="open-editor-single"], [data-testid="titlebar-more-actions"]):hover {
         background: ${pillHoverBg} !important;
         border-color: ${pSync} !important;
         color: ${pSync} !important;
-        ${isDynamicMode ? `box-shadow: 0 0 10px ${gSync} !important;` : ''}
+        ${isDynamicMode ? `transform: translateY(-1px) !important; box-shadow: 0 0 10px ${gSync} !important;` : ''}
+      }
+      .agy-shell [data-testid="pane-titlebar-toolbar"] :is(button, [role="button"]):not(#agy-custom-theme-topbar-btn):active,
+      .agy-shell :is([data-testid="sidebar-toggle"], [data-testid="sidebar-search-button"], [data-testid="toggle-overview-panel"], [data-overview-panel-toggle], [data-testid="toggle-aux-sidebar"], [data-testid="toggle-maximize-pane"], [data-testid="open-editor-single"], [data-testid="titlebar-more-actions"]):active {
+        transform: scale(0.985) !important;
       }
       .agy-shell :is([data-testid="toggle-overview-panel"], [data-overview-panel-toggle], [data-testid="toggle-aux-sidebar"], [data-testid="toggle-maximize-pane"]):is([aria-expanded="true"], [aria-pressed="true"], [data-state="open"]) {
         border-color: ${pSync} !important;
@@ -3124,39 +3588,50 @@
         box-shadow: inset 0 -2px 0 ${pSync}${isDynamicMode ? `, 0 0 12px ${gSync}` : ''} !important;
       }
 
-      /* 2. Conversation Task, Step, Thinking, Code & Overview Blocks */
+      /* 2. Conversation Task, Step, Thinking, Code & Overview Floating Cards */
       .agy-shell [data-testid="turn-cards-container"],
       .agy-shell [data-step-list] {
         border-radius: ${subCardRadius}px !important;
       }
       .agy-shell [data-step-index] {
+        margin-block: 6px !important;
         background: ${smokedSurface} !important;
         border: ${stepBorderAccent} !important;
-        border-left: 3px solid ${pSync} !important;
+        border-left: 2px solid ${pSync} !important;
         border-radius: ${subCardRadius}px !important;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, ${isLight ? '0.06' : '0.22'}) !important;
         backdrop-filter: none !important;
-        transition: ${isDynamicMode ? 'background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease' : 'none'} !important;
+        transition: ${isDynamicMode ? 'transform 0.14s ease, background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease' : 'none'} !important;
       }
       .agy-shell [data-step-index]:hover,
       .agy-shell .agy-hover-row:hover {
         background: ${smokedElevated} !important;
         border-color: ${pSync} !important;
-        ${isDynamicMode ? `box-shadow: 0 4px 16px rgba(0, 0, 0, 0.32), 0 0 12px ${gSync} !important;` : ''}
+        ${isDynamicMode ? `transform: translateY(-1px) !important; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.32), 0 0 12px ${gSync} !important;` : ''}
+      }
+      .agy-shell [data-step-index]:active {
+        transform: scale(0.985) !important;
       }
       .agy-shell [data-testid="worked-for-collapsible"],
       .agy-shell [data-testid="agent-response"] button[aria-expanded] {
+        margin: 4px 0 !important;
         background: ${pillBg} !important;
         border: 1px solid ${pillBorder} !important;
         border-radius: ${compactRadius}px !important;
         color: ${uiInk} !important;
         padding: 4px 10px !important;
-        transition: ${isDynamicMode ? 'background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease' : 'none'} !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22) !important;
+        transition: ${isDynamicMode ? 'transform 0.14s ease, background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease' : 'none'} !important;
       }
       .agy-shell [data-testid="worked-for-collapsible"]:hover,
       .agy-shell [data-testid="agent-response"] button[aria-expanded]:hover {
         background: ${pillHoverBg} !important;
         border-color: ${pSync} !important;
-        ${isDynamicMode ? `box-shadow: 0 0 10px ${gSync} !important;` : ''}
+        ${isDynamicMode ? `transform: translateY(-1px) !important; box-shadow: 0 0 10px ${gSync} !important;` : ''}
+      }
+      .agy-shell [data-testid="worked-for-collapsible"]:active,
+      .agy-shell [data-testid="agent-response"] button[aria-expanded]:active {
+        transform: scale(0.985) !important;
       }
       .agy-shell [data-markdown-root] pre,
       .agy-shell [data-step-index] pre {
@@ -3248,10 +3723,14 @@
       }
 
       /* 3. Right-Side Artifact / Preview / Aux Panels */
-      .agy-shell [data-side-panel-docked],
-      .agy-shell [data-side-panel-open] {
+      .agy-shell [data-side-panel-docked] {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+      }
+      body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-open] {
         background: ${smokedSurface} !important;
-        border-left: 1px solid ${smokedBorder} !important;
+        border: 1px solid ${smokedBorder} !important;
         backdrop-filter: none !important;
       }
       .agy-shell :is([data-side-panel-sash], [data-testid="side-panel-sash"]) {
@@ -3272,7 +3751,7 @@
         border-radius: ${Math.min(10, compactRadius)}px !important;
         border: 1px solid transparent !important;
         color: ${uiMutedInk} !important;
-        transition: ${isDynamicMode ? 'background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease' : 'none'} !important;
+        transition: ${isDynamicMode ? 'transform 0.14s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease' : 'none'} !important;
       }
       .agy-shell .agy-aux-tab-title {
         font-family: var(--agy-font-vibe, ${fontVibeStack}) !important;
@@ -3282,6 +3761,11 @@
         background: ${pillHoverBg} !important;
         border-color: ${pillBorder} !important;
         color: ${uiInk} !important;
+        ${isDynamicMode ? 'transform: translateY(-1px) !important;' : ''}
+      }
+      .agy-shell .agy-aux-tab:active,
+      .agy-shell [data-side-panel-strip] button[data-tab-id]:active {
+        transform: scale(0.985) !important;
       }
       .agy-shell .agy-aux-tab:is([aria-selected="true"], [data-active="true"]),
       .agy-shell [data-side-panel-strip] button[data-tab-id]:is([aria-selected="true"], [data-active="true"]) {
@@ -3747,6 +4231,257 @@
         opacity: 1;
         transform: translateY(0);
       }
+      #agy-better-pet-pill {
+        position: absolute;
+        top: calc(100% + 2px);
+        left: 50%;
+        transform: translateX(-50%);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        max-width: 196px;
+        height: 24px;
+        padding: 0 8px 0 9px;
+        border-radius: 9999px;
+        background: var(--pet-surface, rgba(12, 16, 28, 0.90));
+        border: 1px solid var(--pet-border, rgba(255, 255, 255, 0.16));
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.42), 0 0 10px var(--pet-glow, rgba(56, 189, 248, 0.22));
+        color: var(--pet-ink, #f8fafc);
+        font: 600 11px/1 system-ui, -apple-system, sans-serif;
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+        -webkit-app-region: no-drag;
+        backdrop-filter: none !important;
+        transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+      }
+      #agy-better-pet-pill:hover {
+        border-color: var(--pet-accent, #38bdf8);
+        transform: translateX(-50%) translateY(-1px);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.48), 0 0 12px var(--pet-glow, rgba(56, 189, 248, 0.32));
+      }
+      #agy-better-pet-pill:active {
+        transform: translateX(-50%) scale(0.985);
+      }
+      .agy-better-pet-pill__dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 9999px;
+        flex-shrink: 0;
+        background: #40c977;
+        box-shadow: 0 0 6px rgba(64, 201, 119, 0.65);
+      }
+      [data-pet-tone="running"] .agy-better-pet-pill__dot {
+        background: var(--pet-accent, #38bdf8);
+        box-shadow: 0 0 8px var(--pet-accent, #38bdf8);
+        animation: agyTelemetryPulse 1.1s ease-in-out infinite;
+      }
+      [data-pet-tone="waiting"] .agy-better-pet-pill__dot {
+        background: #ff8549;
+        box-shadow: 0 0 8px #ff8549;
+      }
+      [data-pet-tone="failed"] .agy-better-pet-pill__dot {
+        background: #ff6764;
+        box-shadow: 0 0 8px #ff6764;
+      }
+      [data-pet-tone="idle"] .agy-better-pet-pill__dot {
+        background: var(--pet-muted, #94a3b8);
+        box-shadow: none;
+      }
+      .agy-better-pet-pill__label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 138px;
+      }
+      .agy-better-pet-pill__chevron {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--pet-muted, #cbd5e1);
+        transition: transform 0.16s ease;
+      }
+      #agy-better-pet[data-pet-chat-open="true"] .agy-better-pet-pill__chevron {
+        transform: rotate(180deg);
+        color: var(--pet-accent, #38bdf8);
+      }
+      #agy-better-pet-chat {
+        position: fixed;
+        z-index: 9515;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 9px 11px;
+        border-radius: var(--pet-radius, 14px);
+        background: var(--pet-surface, rgba(12, 16, 28, 0.92));
+        border: 1px solid var(--pet-border, rgba(255, 255, 255, 0.16));
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.54), 0 0 16px var(--pet-glow, rgba(56, 189, 248, 0.25));
+        color: var(--pet-ink, #f8fafc);
+        font-family: system-ui, -apple-system, sans-serif;
+        -webkit-app-region: no-drag;
+        backdrop-filter: none !important;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(4px) scale(0.98);
+        transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
+      }
+      #agy-better-pet-chat[data-open="true"] {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translateY(0) scale(1);
+      }
+      .agy-better-pet-chat__head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .agy-better-pet-chat__title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        font-size: 11.5px;
+      }
+      .agy-better-pet-chat__name {
+        font-weight: 700;
+        color: var(--pet-ink, #f8fafc);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .agy-better-pet-chat__status {
+        font-size: 10px;
+        font-weight: 600;
+        padding: 1px 6px;
+        border-radius: 9999px;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--pet-muted, #cbd5e1);
+        white-space: nowrap;
+      }
+      .agy-better-pet-chat__actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .agy-better-pet-chat__icon-btn {
+        width: 22px;
+        height: 22px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--pet-muted, #cbd5e1);
+        cursor: pointer;
+        transition: background-color 0.14s ease, color 0.14s ease, transform 0.12s ease;
+      }
+      .agy-better-pet-chat__icon-btn:hover {
+        background: rgba(255, 255, 255, 0.10);
+        color: var(--pet-accent, #38bdf8);
+      }
+      .agy-better-pet-chat__icon-btn:active {
+        transform: scale(0.95);
+      }
+      .agy-better-pet-chat__body {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        padding: 6px 8px;
+        border-radius: calc(var(--pet-radius, 14px) - 4px);
+        background: rgba(0, 0, 0, 0.28);
+        border: 1px solid var(--pet-border, rgba(255, 255, 255, 0.14));
+      }
+      .agy-better-pet-chat__body:focus-within {
+        border-color: var(--pet-accent, #38bdf8);
+        box-shadow: 0 0 0 1px var(--pet-glow, rgba(56, 189, 248, 0.28));
+      }
+      #agy-better-pet-chat-input,
+      #agy-better-pet-chat-input:focus,
+      #agy-better-pet-chat-input:focus-visible {
+        flex: 1 1 auto;
+        min-width: 0;
+        min-height: 22px;
+        max-height: 110px;
+        resize: none;
+        overflow-y: auto;
+        background: transparent !important;
+        border: 0 !important;
+        outline: none !important;
+        outline-offset: 0 !important;
+        box-shadow: none !important;
+        padding: 2px 0;
+        margin: 0;
+        color: var(--pet-ink, #f8fafc);
+        font: 400 12.5px/1.42 system-ui, -apple-system, sans-serif;
+      }
+      #agy-better-pet-chat-input::placeholder {
+        color: var(--pet-muted, #94a3b8);
+        opacity: 0.78;
+      }
+      .agy-better-pet-chat__send-btn {
+        flex: 0 0 auto;
+        width: 28px;
+        height: 28px;
+        border-radius: 9999px;
+        border: 1px solid var(--pet-accent, #38bdf8);
+        background: var(--pet-accent, #38bdf8);
+        color: #060a14;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: transform 0.12s ease, opacity 0.14s ease, box-shadow 0.14s ease;
+      }
+      .agy-better-pet-chat__send-btn[data-mode="stop"] {
+        background: rgba(239, 68, 68, 0.22);
+        border-color: #ef4444;
+        color: #fca5a5;
+      }
+      .agy-better-pet-chat__send-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 0 10px var(--pet-glow, rgba(56, 189, 248, 0.35));
+      }
+      .agy-better-pet-chat__send-btn:active {
+        transform: scale(0.95);
+      }
+      #agy-better-pet-menu {
+        position: fixed;
+        z-index: 9520;
+        min-width: 210px;
+        padding: 5px;
+        border-radius: 12px;
+        background: var(--pet-surface, rgba(14, 16, 28, 0.96));
+        border: 1px solid var(--pet-border, rgba(255, 255, 255, 0.18));
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+        color: var(--pet-ink, #f8fafc);
+        font: 500 12px/1.35 system-ui, -apple-system, sans-serif;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        -webkit-app-region: no-drag;
+        backdrop-filter: none !important;
+      }
+      #agy-better-pet-menu[hidden] {
+        display: none;
+      }
+      .agy-better-pet-menu__item {
+        width: 100%;
+        text-align: left;
+        padding: 6px 9px;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+      }
+      .agy-better-pet-menu__item:hover {
+        background: rgba(255, 255, 255, 0.10);
+        color: var(--pet-accent, #38bdf8);
+      }
       @keyframes agyParticleFloat {
         0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.22; }
         50% { transform: translate3d(12px, -22px, 0) scale(1.1); opacity: 0.38; }
@@ -3858,6 +4593,19 @@
       body[data-has-browser-hole="true"] .agy-shell[data-agy-hole-active="1"] > #agy-live-bg-layer {
         clip-path: var(--agy-hole-clip, none) !important;
       }
+      .agy-shell.agy-pet-chat-docked [data-agy-composer-host="1"],
+      .agy-shell.agy-pet-chat-docked [data-testid="agent-input-box"],
+      .agy-shell.agy-pet-chat-docked .surface-composer {
+        height: 0 !important;
+        min-height: 0 !important;
+        max-height: 0 !important;
+        overflow: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+      }
       .agy-shell [data-agy-greeting] {
         font-size: 0 !important;
         line-height: 0 !important;
@@ -3907,6 +4655,7 @@
       teardownBootOverlay();
     }
     syncEmptyGreeting(st);
+    syncComposerHost(st);
     syncTitleBarOverlay(st);
     scheduleTitleBarSync(st);
   }
@@ -3975,8 +4724,12 @@
       el.removeAttribute('data-agy-greeting');
       delete el.dataset.agyGreetingOrig;
     });
+    document.querySelectorAll('[data-agy-composer-host]').forEach((el) => {
+      el.removeAttribute('data-agy-composer-host');
+    });
     const shell = document.querySelector('.agy-shell');
     if (shell) {
+      shell.classList.remove('agy-pet-chat-docked');
       delete shell.dataset.agyHoleActive;
       shell.style.removeProperty('--agy-hole-clip');
       shell.style.removeProperty('--agy-l-glass-bg');
@@ -4005,13 +4758,13 @@
     STORAGE_TASK_VOICE_ENABLED, STORAGE_TASK_VOICE_VOL, STORAGE_CUSTOM_GREETINGS,
     STORAGE_USER_AVATAR, STORAGE_AGENT_AVATAR, STORAGE_GLASS_BLUR,
     STORAGE_AVATAR_SIZE, STORAGE_AVATAR_RADIUS, STORAGE_BOOT_INTRO,
-    STORAGE_SKETCH_REVEAL, STORAGE_TAWA_GREETING, STORAGE_PET_ENABLED,
+    STORAGE_SKETCH_REVEAL, STORAGE_TAWA_GREETING, STORAGE_PET_ENABLED, STORAGE_PET_CHAT_DOCK,
     CHECK_SVG,
     escapeHtml: escHtml, canonicalMediaKey, isSameMediaUrl, deriveMediaName,
     getMediaLibrary, upsertSavedMedia, removeSavedMediaFromStore,
     normalizeGreetingLines, getState, resolveMediaUrl, sanitizeCssUrl,
     resolveDynamicPack, syncDynamicFxLayer, mountBetterPet, syncBetterPet, removeBetterPet,
-    findActiveShell, clearRevealRaf, clearBootTimers, stopBootAudio,
+    syncComposerHost, findActiveShell, clearRevealRaf, clearBootTimers, stopBootAudio,
     teardownBootOverlay, scheduleRevealWhenReady, applyTheme,
     syncEmptyGreeting, playOneShotTaskAudio, playRandomTaskVoice,
     mountBootSequence, triggerSketchBloomReveal
@@ -4088,6 +4841,15 @@
       petBtn.style.background = on ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.04)';
       petBtn.innerHTML = on ? '🐾 Pet' : '🐾 Tắt Pet';
     }
+    const petChatDockBtn = document.getElementById('agy-pet-chat-dock-btn');
+    if (petChatDockBtn) {
+      const on = st.petChatDocked !== false;
+      petChatDockBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      petChatDockBtn.style.borderColor = on ? accent : 'rgba(255, 255, 255, 0.12)';
+      petChatDockBtn.style.color = on ? '#f4f4f5' : '#71717a';
+      petChatDockBtn.style.background = on ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.04)';
+      petChatDockBtn.innerHTML = on ? '💬 Pet Chat' : '💬 Chat gốc';
+    }
   }
 
   function openCustomThemeModal(initialFile) {
@@ -4127,6 +4889,9 @@
               </button>
               <button id="agy-pet-toggle-btn" type="button" title="Bật/tắt Pixel Companion Pet" style="display: inline-flex; align-items: center; gap: 4px; padding: 5px 9px; border-radius: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); color: #f4f4f5; cursor: pointer; font-size: 11.5px; white-space: nowrap; transition: all 0.15s ease;">
                 🐾 Pet
+              </button>
+              <button id="agy-pet-chat-dock-btn" type="button" title="Ẩn thanh chat gốc ở giữa để dùng Pet Chat mở rộng không gian" style="display: inline-flex; align-items: center; gap: 4px; padding: 5px 9px; border-radius: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); color: #f4f4f5; cursor: pointer; font-size: 11.5px; white-space: nowrap; transition: all 0.15s ease;">
+                💬 Pet Chat
               </button>
               <button id="agy-intro-preview-btn" type="button" title="Xem thử hiệu ứng Intro của theme hiện tại" style="display: inline-flex; align-items: center; gap: 4px; padding: 5px 9px; border-radius: 8px; background: rgba(56, 189, 248, 0.16); border: 1px solid rgba(56, 189, 248, 0.35); color: #e0f2fe; cursor: pointer; font-size: 11.5px; font-weight: 600; white-space: nowrap; transition: all 0.15s ease;">
                 ▶ Thử Intro
@@ -4197,6 +4962,17 @@
           const next = cur.petEnabled === false;
           const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
           applyTheme({ petEnabled: next });
+          syncExtraToggleBtns(th.primary);
+          playClickSound(th);
+        });
+      }
+      const petChatDockBtn = backdrop.querySelector('#agy-pet-chat-dock-btn');
+      if (petChatDockBtn) {
+        petChatDockBtn.addEventListener('click', () => {
+          const cur = getState();
+          const next = cur.petChatDocked === false;
+          const th = THEMES[cur.themeName] || THEMES[getDefaultThemeKey()] || {};
+          applyTheme({ petChatDocked: next });
           syncExtraToggleBtns(th.primary);
           playClickSound(th);
         });
@@ -4606,8 +5382,8 @@
                 : '';
               const cardUi = cardPack.uiDesign || { cardRadiusPx: 12, borderStyle: 'solid', fontVibe: 'sans' };
               const cardRadius = Number.isFinite(cardUi.cardRadiusPx) ? cardUi.cardRadiusPx : 12;
-              const cardBorderStyle = cardUi.borderStyle === 'double' ? 'double' : (cardUi.borderStyle === 'dashed' ? 'dashed' : 'solid');
-              const cardBorderWidth = cardUi.borderStyle === 'double' ? '3px' : (isSelected ? '1.5px' : '1px');
+              const cardBorderStyle = cardUi.borderStyle === 'dashed' ? 'dashed' : 'solid';
+              const cardBorderWidth = isSelected ? '1.5px' : '1px';
               const cardBorderColor = isSelected ? '#f4f4f5' : (cardUi.borderStyle === 'glow-frame' ? (th.primary || 'rgba(255,255,255,0.28)') : 'rgba(255, 255, 255, 0.14)');
               const cardClip = cardUi.borderStyle === 'chamfered'
                 ? 'clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px); border-radius: 0;'
@@ -4991,7 +5767,7 @@
             throw new Error('Config must be a JSON object');
           }
           const allowed = {};
-          const keys = ['themeName', 'bubbleName', 'inputStyle', 'dimming', 'wpEnabled', 'customWp', 'userAvatar', 'agentAvatar', 'glassBlur', 'avatarSize', 'avatarRadius', 'themeMode', 'soundMuted', 'soundVolume', 'voiceEnabled', 'introEnabled'];
+          const keys = ['themeName', 'bubbleName', 'inputStyle', 'dimming', 'wpEnabled', 'customWp', 'userAvatar', 'agentAvatar', 'glassBlur', 'avatarSize', 'avatarRadius', 'themeMode', 'soundMuted', 'soundVolume', 'voiceEnabled', 'introEnabled', 'petEnabled', 'petChatDocked'];
           keys.forEach((k) => {
             if (parsed[k] !== undefined) allowed[k] = parsed[k];
           });
@@ -5021,6 +5797,7 @@
       localStorage.removeItem(STORAGE_SOUND_VOLUME);
       localStorage.removeItem(STORAGE_VOICE_ENABLED);
       localStorage.removeItem(STORAGE_INTRO_ENABLED);
+      localStorage.removeItem(STORAGE_PET_CHAT_DOCK);
       const resetDefKey = getDefaultThemeKey();
       applyTheme({
         themeName: resetDefKey,
@@ -5036,7 +5813,9 @@
         avatarRadius: 50,
         themeMode: 'dynamic',
         voiceEnabled: true,
-        introEnabled: true
+        introEnabled: true,
+        petEnabled: true,
+        petChatDocked: true
       });
       const defTh = THEMES[resetDefKey] || {};
       syncThemeModeToggleBtn('dynamic', defTh.primary);
@@ -6491,13 +7270,13 @@
     STORAGE_TASK_VOICE_ENABLED, STORAGE_TASK_VOICE_VOL, STORAGE_CUSTOM_GREETINGS,
     STORAGE_USER_AVATAR, STORAGE_AGENT_AVATAR, STORAGE_GLASS_BLUR,
     STORAGE_AVATAR_SIZE, STORAGE_AVATAR_RADIUS, STORAGE_BOOT_INTRO,
-    STORAGE_SKETCH_REVEAL, STORAGE_TAWA_GREETING, STORAGE_PET_ENABLED,
+    STORAGE_SKETCH_REVEAL, STORAGE_TAWA_GREETING, STORAGE_PET_ENABLED, STORAGE_PET_CHAT_DOCK,
     CHECK_SVG,
     escapeHtml: escHtml, canonicalMediaKey, isSameMediaUrl, deriveMediaName,
     getMediaLibrary, upsertSavedMedia, removeSavedMediaFromStore,
     normalizeGreetingLines, getState, resolveMediaUrl, sanitizeCssUrl,
     resolveDynamicPack, syncDynamicFxLayer, mountBetterPet, syncBetterPet, removeBetterPet,
-    findActiveShell, clearRevealRaf, clearBootTimers, stopBootAudio,
+    syncComposerHost, findActiveShell, clearRevealRaf, clearBootTimers, stopBootAudio,
     teardownBootOverlay, scheduleRevealWhenReady, applyTheme,
     syncEmptyGreeting, playOneShotTaskAudio, playRandomTaskVoice,
     mountBootSequence, triggerSketchBloomReveal
@@ -6510,6 +7289,7 @@
     hookSidebarScroll();
     hookShellMetrics();
     syncEmptyGreeting();
+    syncComposerHost();
     syncTaskCompletionVoice();
     syncTelemetryState();
   }
