@@ -4139,12 +4139,6 @@
         box-shadow: none !important;
         overflow: hidden !important;
       }
-      .agy-shell[data-agy-topbar-collapsed="1"] [data-main-content-header] {
-        padding-right: 142px !important;
-      }
-      .agy-shell[data-agy-topbar-collapsed="1"] [data-agy-right-col="1"] > :first-child {
-        padding-right: 142px !important;
-      }
       .agy-shell [data-testid="title-menu-bar-item"] {
         border-radius: 6px !important;
         border: none !important;
