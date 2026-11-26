@@ -262,6 +262,92 @@ function fetchJson(url) {
 }
 
 const sessions = new Map();
+const pluginSessions = new Map();
+
+function buildPluginGlassExpr() {
+    const cfg = readConfig();
+    const isLight = Boolean(cfg && cfg.themeName && /light|paper|sakura|snow|ivory|day/i.test(String(cfg.themeName)));
+    const accent = (cfg && cfg.customThemes && cfg.themeName && cfg.customThemes[cfg.themeName]?.primary) || '#ff6b35';
+    const css = `
+      html, body, #root, #app, main, .app, .board, [class*="container"], [class*="shell"] {
+        background: transparent !important;
+        background-color: transparent !important;
+      }
+      :is(.card, .panel, .surface, [class*="card"], [class*="panel"], [class*="box"], [class*="row"]):not(button) {
+        background: ${isLight ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.04)'} !important;
+        border-color: ${isLight ? 'rgba(15, 23, 42, 0.12)' : 'rgba(255, 255, 255, 0.10)'} !important;
+        backdrop-filter: none !important;
+      }
+      ::-webkit-scrollbar { width: 5px; height: 5px; }
+      ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent !important; }
+      ::-webkit-scrollbar-thumb { background: ${accent}66 !important; border-radius: 9999px; }
+    `;
+    return `(() => {
+      try {
+        let s = document.getElementById('agy-plugin-glass-style');
+        if (!s) {
+          s = document.createElement('style');
+          s.id = 'agy-plugin-glass-style';
+          (document.head || document.documentElement).appendChild(s);
+        }
+        s.textContent = ${JSON.stringify(css)};
+      } catch (_) {}
+    })();`;
+}
+
+function createPluginSession(target) {
+    let ws;
+    try {
+        ws = new WebSocket(target.webSocketDebuggerUrl);
+    } catch (_) {
+        return;
+    }
+    const pSession = { id: target.id, ws, evalGlass: null };
+    pluginSessions.set(target.id, pSession);
+
+    let nextId = 1;
+    const send = (method, params = {}) => new Promise((resolve) => {
+        if (ws.readyState !== 1) return resolve(null);
+        const id = nextId++;
+        const onMsg = (ev) => {
+            try {
+                const d = JSON.parse(String(ev.data));
+                if (d.id === id) { ws.removeEventListener('message', onMsg); resolve(d.result); }
+            } catch (_) {}
+        };
+        ws.addEventListener('message', onMsg);
+        ws.send(JSON.stringify({ id, method, params }));
+        setTimeout(() => { ws.removeEventListener('message', onMsg); resolve(null); }, 4000);
+    });
+
+    pSession.evalGlass = async () => {
+        const expr = buildPluginGlassExpr();
+        await send('Runtime.evaluate', { expression: expr, awaitPromise: false });
+    };
+
+    ws.addEventListener('message', async (ev) => {
+        try {
+            const msg = JSON.parse(String(ev.data));
+            if (msg.method === 'Page.loadEventFired' || msg.method === 'Page.domContentEventFired') {
+                await pSession.evalGlass();
+            }
+        } catch (_) {}
+    });
+
+    ws.addEventListener('open', async () => {
+        await send('Page.enable');
+        await send('Runtime.enable');
+        const expr = buildPluginGlassExpr();
+        await send('Page.addScriptToEvaluateOnNewDocument', { source: expr });
+        await send('Runtime.evaluate', { expression: expr, awaitPromise: false });
+    });
+
+    const cleanup = () => {
+        if (pluginSessions.get(target.id) === pSession) pluginSessions.delete(target.id);
+    };
+    ws.addEventListener('close', cleanup);
+    ws.addEventListener('error', cleanup);
+}
 let lastPort = null;
 let reloadTimer = null;
 
@@ -371,6 +457,9 @@ function createSession(target) {
                         }
                         other.reinject();
                     }
+                }
+                for (const ps of pluginSessions.values()) {
+                    ps.evalGlass && ps.evalGlass();
                 }
             } catch (err) {
                 log(`Config binding error: ${err.message}`);
@@ -549,6 +638,22 @@ async function scanPages() {
     for (const page of pages) {
         if (!sessions.has(page.id)) {
             createSession(page);
+        }
+    }
+
+    const pluginFrames = targets.filter((t) =>
+        t && t.type === 'iframe' && t.webSocketDebuggerUrl && String(t.url || '').startsWith('plugin://')
+    );
+    const livePluginIds = new Set(pluginFrames.map((f) => f.id));
+    for (const [id, ps] of pluginSessions.entries()) {
+        if (!livePluginIds.has(id)) {
+            try { ps.ws.close(); } catch (_) {}
+            pluginSessions.delete(id);
+        }
+    }
+    for (const pf of pluginFrames) {
+        if (!pluginSessions.has(pf.id)) {
+            createPluginSession(pf);
         }
     }
     } finally {

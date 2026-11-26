@@ -3946,11 +3946,13 @@
       }
       ` : ''}
       body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-body="true"]:not([data-has-browser-hole="true"]):not(:has([data-browser-hole]:not([data-browser-hole="false"]))) {
-        background: ${mainTheme.aiCardBg || `rgba(${overlayRgb}, 0.72)`} !important;
         ${isLight ? `color: ${uiInk} !important;` : ''}
         backdrop-filter: none !important;
-        border-left: 1px solid ${cleanSoftHairline} !important;
-        box-shadow: none !important;
+      }
+      .agy-shell [data-side-panel-body] :is(iframe, webview) {
+        background: transparent !important;
+        background-color: transparent !important;
+        border-radius: 15px !important;
       }
       body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-body="true"]:not([data-has-browser-hole="true"]):not(:has([data-browser-hole]:not([data-browser-hole="false"]))) pre {
         background: ${preCodeBg} !important;
