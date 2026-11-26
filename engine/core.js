@@ -4615,7 +4615,27 @@
         box-shadow: none !important;
         outline: none !important;
         overflow: visible !important;
+        max-height: none !important;
+        height: auto !important;
         font-weight: 450 !important;
+      }
+      .agy-shell .agy-user-bubble *,
+      .agy-user-bubble * {
+        max-height: none !important;
+        overflow: visible !important;
+      }
+      .agy-shell .agy-user-bubble ::-webkit-scrollbar,
+      .agy-shell .surface-composer ::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+      }
+      .agy-shell .surface-composer :is([data-lexical-editor="true"], [contenteditable="true"], textarea) {
+        height: auto !important;
+        max-height: min(46vh, 360px) !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        scrollbar-width: none !important;
       }
       .agy-user-bubble * {
         color: ${bubbleTheme.textColor} !important;
