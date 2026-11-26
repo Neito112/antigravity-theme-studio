@@ -15,7 +15,7 @@ Bộ công cụ tùy biến toàn diện giao diện **Antigravity Desktop** v�
 ### 1. Inline YouTube Music Player (`#agy-yt-bar`)
 Nghe nhạc YouTube trực tiếp ngay bên trong Antigravity không cần mở tab trình duyệt ngoài:
 - **Tìm kiếm & phát nhạc tại chỗ:** Gõ tên bài hát / thể loại (`edm`, `nhạc không lời`, `lofi`, tên bài cụ thể...) ngay trên thanh mini player dưới đáy workspace -> daemon tìm kiếm (`agyYtSearch`) và giải mã audio stream tốc độ cao (`agyYtResolve`) qua YouTube bridge cục bộ.
-- **Điều khiển đầy đủ:** Phát / Tạm dừng, Chuyển bài trước/sau trong danh sách kết quả tìm kiếm, hiển thị tên bài + thời lượng (`mm:ss / mm:ss`), và cột sóng **Equalizer động** đổi màu theo `--primary` / `--secondary` của theme đang bật.
+- **Điều khiển đầy đủ:** Phát / Tạm dừng, Chuyển bài trước/sau, **Load lại danh sách nhạc (`#agy-yt-reload-btn`)**, hiển thị tên bài + thời lượng (`mm:ss / mm:ss`), và cột sóng **Equalizer động** đổi màu theo `--primary` / `--secondary` của theme đang bật.
 
 ### 2. Tự Động Đồng Bộ Icon Mặc Định Antigravity Theo Theme
 Mỗi khi đổi theme, toàn bộ nhận diện gốc của Antigravity tự động chuyển sang biểu tượng và bảng màu của theme đó (`syncDynamicAppIcon` + `agyUpdateAppIcon`):

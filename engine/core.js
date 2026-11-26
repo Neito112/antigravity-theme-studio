@@ -6187,6 +6187,12 @@
       #agy-yt-bar .agy-yt-btn:active {
         transform: scale(0.92);
       }
+      @keyframes agyYtSpin {
+        to { transform: rotate(360deg); }
+      }
+      #agy-yt-bar .agy-yt-btn[data-loading="1"] svg {
+        animation: agyYtSpin 0.75s linear infinite;
+      }
       #agy-yt-bar .agy-yt-btn--primary {
         border-color: color-mix(in srgb, var(--agy-yt-accent, #38bdf8) 55%, rgba(255, 255, 255, 0.2));
         background: color-mix(in srgb, var(--agy-yt-accent, #38bdf8) 18%, rgba(255, 255, 255, 0.06));
@@ -6424,7 +6430,7 @@
     const bg = isLight ? 'rgba(248, 250, 252, 0.90)' : 'rgba(12, 16, 26, 0.88)';
     const ink = isLight ? '#0f172a' : '#f8fafc';
 
-    const YT_BAR_VERSION = 'yt-v4';
+    const YT_BAR_VERSION = 'yt-v5';
     let bar = document.getElementById('agy-yt-bar');
     let dropdown = document.getElementById('agy-yt-dropdown');
     if (bar && window.__AGY_YT_CTRL__ && window.__AGY_YT_CTRL__.version === YT_BAR_VERSION) {
@@ -6452,6 +6458,7 @@
     const ICON_PLAY = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>';
     const ICON_PAUSE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
     const ICON_NEXT = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>';
+    const ICON_RELOAD = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
 
     bar = document.createElement('div');
     bar.id = 'agy-yt-bar';
@@ -6471,6 +6478,7 @@
       <button type="button" class="agy-yt-btn agy-yt-expand-only" data-yt-act="prev" title="Bài trước">${ICON_PREV}</button>
       <button type="button" class="agy-yt-btn agy-yt-btn--primary" data-yt-act="play" title="Phát / Tạm dừng">${ICON_PLAY}</button>
       <button type="button" class="agy-yt-btn agy-yt-expand-only" data-yt-act="next" title="Bài tiếp">${ICON_NEXT}</button>
+      <button type="button" id="agy-yt-reload-btn" class="agy-yt-btn agy-yt-expand-only" data-yt-act="reload" title="Load lại danh sách nhạc">${ICON_RELOAD}</button>
       <span class="agy-yt-wave" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></span>
       <div class="agy-yt-meta" data-yt-act="toggle-list" style="cursor:pointer;" title="Bấm để xem danh sách vừa tìm">
         <span class="agy-yt-title">Chưa phát nhạc</span>
@@ -6488,10 +6496,16 @@
 
     const inputEl = bar.querySelector('.agy-yt-search');
     const playBtn = bar.querySelector('[data-yt-act="play"]');
+    const reloadBtn = bar.querySelector('[data-yt-act="reload"]');
     const titleEl = bar.querySelector('.agy-yt-title');
     const timeEl = bar.querySelector('.agy-yt-time');
     const progEl = bar.querySelector('.agy-yt-progress');
     const progFillEl = bar.querySelector('.agy-yt-progress-fill');
+
+    const STORAGE_YT_LAST_QUERY = 'agy_yt_last_query_v1';
+    let lastQuery = '';
+    try { lastQuery = localStorage.getItem(STORAGE_YT_LAST_QUERY) || ''; } catch (_) {}
+    if (lastQuery && inputEl && !inputEl.value) inputEl.value = lastQuery;
 
     const audio = new Audio();
     audio.preload = 'auto';
@@ -6648,11 +6662,15 @@
       }
     };
 
-    const searchAndShowList = async (q) => {
-      const query = String(q || '').trim();
+    const searchAndShowList = async (q, opts = {}) => {
+      const query = String(q || lastQuery || 'lofi chill').trim();
       if (!query) return;
+      lastQuery = query;
+      try { localStorage.setItem(STORAGE_YT_LAST_QUERY, query); } catch (_) {}
+      if (inputEl && !inputEl.value.trim()) inputEl.value = query;
       const prevTitle = titleEl.textContent;
-      titleEl.textContent = 'Đang tìm...';
+      if (reloadBtn) reloadBtn.dataset.loading = '1';
+      if (!activeVideoId || opts.forceStatus) titleEl.textContent = 'Đang tải danh sách...';
       try {
         const data = await callYtSearchBridge(query);
         if (!data || !data.ok || !Array.isArray(data.results) || data.results.length === 0) {
@@ -6660,11 +6678,21 @@
           dropdown.hidden = true;
           return;
         }
-        queue = data.results;
+        let nextList = data.results.slice();
+        if (opts.shuffleIfSame && queue.length && nextList.length > 1) {
+          const sameIds = queue.length === nextList.length && queue.every((t, i) => t.videoId === nextList[i].videoId);
+          if (sameIds) {
+            nextList = nextList.slice().sort(() => Math.random() - 0.5);
+          }
+        }
+        queue = nextList;
+        currentIndex = activeVideoId ? queue.findIndex((t) => t.videoId === activeVideoId) : -1;
         titleEl.textContent = activeVideoId ? prevTitle : `Tìm thấy ${queue.length} bài — chọn để phát`;
         renderDropdown();
       } catch (_) {
-        titleEl.textContent = 'Lỗi kết nối YouTube';
+        titleEl.textContent = activeVideoId ? prevTitle : 'Lỗi kết nối YouTube';
+      } finally {
+        if (reloadBtn) reloadBtn.dataset.loading = '0';
       }
     };
 
@@ -6805,6 +6833,9 @@
         if (queue.length) playTrackAt(currentIndex - 1);
       } else if (act === 'next') {
         if (queue.length) playTrackAt(currentIndex + 1);
+      } else if (act === 'reload') {
+        const q = (inputEl && inputEl.value.trim()) || lastQuery || (titleEl && activeVideoId ? titleEl.textContent.trim() : '') || 'lofi chill';
+        searchAndShowList(q, { shuffleIfSame: true });
       }
     });
 
