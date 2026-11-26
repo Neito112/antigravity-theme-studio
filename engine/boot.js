@@ -662,11 +662,12 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
       #agy-boot-overlay .agy-eq-bars span:nth-child(3) { animation-delay: 0.4s; }
       @keyframes agyEqPulse { from { height: 3px; opacity: 0.45; } to { height: 11px; opacity: 1; } }
     `;
-    document.head.appendChild(bootStyle);
+    (document.head || document.documentElement).appendChild(bootStyle);
+    const bootMount = document.body || document.documentElement;
 
     const flashCurtain = document.createElement('div');
     flashCurtain.id = 'agy-flash-curtain';
-    document.body.appendChild(flashCurtain);
+    bootMount.appendChild(flashCurtain);
 
     const overlay = document.createElement('section');
     overlay.id = 'agy-boot-overlay';
@@ -825,7 +826,7 @@ window.__AGY_LAZY_BOOT__ = function(ctx, forceReplay = false) {
         </div>
       </footer>
     `;
-    document.body.appendChild(overlay);
+    (document.body || document.documentElement).appendChild(overlay);
 
     overlay.querySelectorAll('.agy-brand-logo-img').forEach((imgEl) => {
       imgEl.addEventListener('error', () => {

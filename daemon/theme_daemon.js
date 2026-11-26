@@ -61,7 +61,7 @@ function isPrelaunchInFlight() {
 }
 
 function buildPrebootCurtainSource(cfg) {
-    if (!cfg || cfg.bootIntro === false || cfg.themeMode === 'static' || prelaunchRecentlyDone() || isPrelaunchInFlight()) {
+    if (!cfg || cfg.bootIntro === false || cfg.themeMode === 'static') {
         return '';
     }
     return `(() => {
@@ -414,6 +414,7 @@ function createSession(target) {
             const curtainSrc = buildPrebootCurtainSource(cfg);
             if (curtainSrc) {
                 await send('Page.addScriptToEvaluateOnNewDocument', { source: curtainSrc });
+                await send('Runtime.evaluate', { expression: curtainSrc, awaitPromise: false });
             }
 
             const src = buildInjectedSource();
@@ -1092,6 +1093,12 @@ process.on('exit', removePidLock);
 log(`Theme daemon started (PID ${process.pid}, platform=${process.platform}, portFile=${resolvePortFile()}).`);
 startMediaServer();
 watchPayload();
-scanPages();
-setInterval(scanPages, 350);
+async function scheduleScanLoop() {
+    try {
+        await scanPages();
+    } catch (_) {}
+    const delayMs = sessions.size === 0 ? 100 : 400;
+    setTimeout(scheduleScanLoop, delayMs);
+}
+scheduleScanLoop();
 startAutoUpdater();

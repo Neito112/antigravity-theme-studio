@@ -142,65 +142,14 @@ if (-not $ResolvedExe) {
 }
 
 $Status = Ensure-ThemeDaemon -BaseUrl $MediaBase
-$ExistingAgy = Get-Process -Name 'Antigravity' -ErrorAction SilentlyContinue
 $LaunchArgs = @('--remote-debugging-port=0')
 if ($PassThruArgs) {
     $FilteredArgs = $PassThruArgs | Where-Object { $_ -and ($_ -notmatch '^--remote-debugging-port(?:=|$)') }
     if ($FilteredArgs) { $LaunchArgs += $FilteredArgs }
 }
 
-$BrowserExe = if (-not $NoPrelaunch -and -not $ExistingAgy) { Find-ChromiumAppBrowser } else { $null }
-$ShouldPrelaunch = (-not $NoPrelaunch) -and (-not $ExistingAgy) -and $Status -and $BrowserExe -and ($Status.bootIntro -ne $false) -and ($Status.themeMode -ne 'static')
-
-if (-not $ShouldPrelaunch) {
-    Start-Process -FilePath $ResolvedExe -ArgumentList $LaunchArgs
-    [void](Focus-AntigravityWindow)
-    exit 0
-}
-
-$BaselineDoneAt = [int64]($Status.prelaunchDoneAt)
-$PrelaunchUrl = "$MediaBase/prelaunch_boot.html"
-$ProfileDir = Join-Path $env:LOCALAPPDATA 'AntigravityCustomTheme\prelaunch-profile'
-New-Item -ItemType Directory -Path $ProfileDir -Force | Out-Null
-
-$BrowserArgs = @(
-    "--app=$PrelaunchUrl",
-    '--start-fullscreen',
-    '--new-window',
-    '--no-first-run',
-    '--no-default-browser-check',
-    '--autoplay-policy=no-user-gesture-required',
-    "--user-data-dir=$ProfileDir"
-)
-$BrowserProc = Start-Process -FilePath $BrowserExe -ArgumentList $BrowserArgs -PassThru
-
-Start-Process -FilePath $ResolvedExe -ArgumentList $LaunchArgs -WindowStyle Minimized
-
-$Deadline = [DateTime]::UtcNow.AddSeconds(120)
-while ([DateTime]::UtcNow -lt $Deadline) {
-    Start-Sleep -Milliseconds 150
-    $CurStatus = Get-PrelaunchStatus -BaseUrl $MediaBase
-    if ($CurStatus -and ([int64]$CurStatus.prelaunchDoneAt -gt $BaselineDoneAt)) {
-        break
-    }
-    if ($BrowserProc -and $BrowserProc.HasExited) {
-        try {
-            Invoke-RestMethod -Uri "$MediaBase/prelaunch_done" -Method Post -ContentType 'application/json' -Body '{}' -TimeoutSec 2 | Out-Null
-        } catch {}
-        break
-    }
-}
-
+# Single-task launch: daemon is already running via wscript/OS startup before Antigravity opens,
+# and theme_daemon.js overlays the Boot Intro directly on top of Antigravity's own startup layer.
+Start-Process -FilePath $ResolvedExe -ArgumentList $LaunchArgs
 [void](Focus-AntigravityWindow)
-
-if ($BrowserProc -and (-not $BrowserProc.HasExited)) {
-    try {
-        [void]$BrowserProc.CloseMainWindow()
-        Start-Sleep -Milliseconds 250
-        if (-not $BrowserProc.HasExited) {
-            Stop-Process -Id $BrowserProc.Id -Force -ErrorAction SilentlyContinue
-        }
-    } catch {}
-}
-
 exit 0

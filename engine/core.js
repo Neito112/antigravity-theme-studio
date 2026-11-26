@@ -3062,6 +3062,10 @@
       hudWidget: ui.hudWidget || {},
       voiceWelcome: pack.voiceWelcome || mainTheme.voiceWelcome || ''
     };
+    if (typeof window.__AGY_LAZY_BOOT__ === 'function') {
+      window.__AGY_LAZY_BOOT__(bootCtx, forceReplay);
+      return;
+    }
     loadLazyModule('boot')
       .then((fn) => { if (typeof fn === 'function') fn(bootCtx, forceReplay); })
       .catch(() => {
@@ -5593,7 +5597,7 @@
     const st0 = getStateSafe();
     if (st0.themeMode === 'dynamic') {
       if (st0.bootIntro && !window.__AGY_BOOT_PLAYED__) {
-        setTimeout(() => mountBootSequence(false), 120);
+        mountBootSequence(false);
       } else if (st0.introEnabled && !window.__AGY_INTRO_SHOWN_ONCE__) {
         window.__AGY_INTRO_SHOWN_ONCE__ = true;
         const th0 = THEMES[st0.themeName] || THEMES[getDefaultThemeKey()] || {};
