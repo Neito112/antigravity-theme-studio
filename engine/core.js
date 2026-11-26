@@ -1769,16 +1769,16 @@
     };
 
     const refreshAfterToggle = () => {
+      window.__AGY_COLLAPSE_PAUSE_UNTIL__ = Date.now() + 240;
       syncLayoutCollapsers();
-      if (typeof syncShellMetrics === 'function') syncShellMetrics();
-      syncScrollControls();
-      if (window.__AGY_BETTER_PET_CTRL__ && typeof window.__AGY_BETTER_PET_CTRL__.syncComposerAnchor === 'function') {
-        window.__AGY_BETTER_PET_CTRL__.syncComposerAnchor();
-      }
       setTimeout(() => {
+        window.__AGY_COLLAPSE_PAUSE_UNTIL__ = 0;
         if (typeof syncShellMetrics === 'function') syncShellMetrics();
         syncScrollControls();
-      }, 300);
+        if (window.__AGY_BETTER_PET_CTRL__ && typeof window.__AGY_BETTER_PET_CTRL__.syncComposerAnchor === 'function') {
+          window.__AGY_BETTER_PET_CTRL__.syncComposerAnchor();
+        }
+      }, 240);
     };
 
     if (leftCol) {
@@ -3449,19 +3449,20 @@
 
       let leftColumnCss = `
         ${sidebarNavSel} {
-          margin: ${stCur.wpEnabled ? '6px' : '0'} !important;
-          width: ${stCur.wpEnabled ? 'calc(100% - 12px)' : '100%'} !important;
-          height: ${stCur.wpEnabled ? 'calc(100% - 12px)' : '100%'} !important;
-          border-radius: ${stCur.wpEnabled ? lcRadius : 0}px !important;
-          border: 1px solid ${lcBorder} !important;
-          box-shadow: ${glassRimShadow} !important;
+          margin: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          border-radius: 0 !important;
+          border: none !important;
+          border-right: 1px solid rgba(255, 255, 255, 0.10) !important;
+          box-shadow: none !important;
           overflow: hidden !important;
           backdrop-filter: none !important;
           position: relative !important;
           z-index: 5 !important;
           -webkit-app-region: no-drag !important;
           pointer-events: auto !important;
-          background: ${stCur.wpEnabled ? `rgba(${overlayRgb}, ${lightMode ? '0.68' : Math.min(0.66, Math.max(0.46, textScrimAlpha * 0.92)).toFixed(2)})` : subtleBg} !important;
+          background: ${stCur.wpEnabled ? `rgba(${overlayRgb}, ${lightMode ? '0.68' : Math.min(0.56, Math.max(0.40, textScrimAlpha * 0.85)).toFixed(2)})` : subtleBg} !important;
           background-image: none !important;
         }
         .agy-shell [data-testid="conversation-list-sidebar"],
@@ -3603,11 +3604,12 @@
           box-shadow: none !important;
         }
         body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-open="true"] {
-          margin: ${stCur.wpEnabled ? '6px' : '0'} !important;
-          width: ${stCur.wpEnabled ? 'calc(100% - 12px)' : '100%'} !important;
-          height: ${stCur.wpEnabled ? 'calc(100% - 12px)' : '100%'} !important;
-          border-radius: ${stCur.wpEnabled ? csRadius : 0}px !important;
-          border: 1px solid ${rightHairline} !important;
+          margin: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          border-radius: 0 !important;
+          border: none !important;
+          border-left: 1px solid rgba(255, 255, 255, 0.10) !important;
           box-shadow: none !important;
           overflow: hidden !important;
           background: ${rightBg} !important;
@@ -3784,16 +3786,16 @@
         color: ${uiInk} !important;
         text-shadow: ${aiTextShadow} !important;
         backdrop-filter: none !important;
-        border: 1px solid ${glassRimBorder} !important;
+        border: 1px solid rgba(255, 255, 255, 0.10) !important;
         border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
         padding: 12px 16px !important;
-        box-shadow: ${glassRimShadow} !important;
+        box-shadow: none !important;
         box-sizing: border-box !important;
-        overflow: hidden !important;
+        contain: layout style;
       }
       .agy-shell [data-testid="agent-response"]:hover {
-        border: 1px solid ${glassRimBorder} !important;
-        box-shadow: ${glassRimShadow} !important;
+        border: 1px solid rgba(255, 255, 255, 0.14) !important;
+        box-shadow: none !important;
         transform: none !important;
       }
       .agy-shell [data-testid="agent-response"] :is(p, li, ul, ol, h1, h2, h3, h4, h5, h6, strong, b, em, td, th, blockquote) {
@@ -4001,10 +4003,9 @@
       }
       .agy-shell [data-testid="title-menu-bar"],
       .agy-shell [data-main-content-header] {
-        background-color: ${st.wpEnabled ? `rgba(${overlayRgb}, ${isLight ? '0.68' : '0.48'})` : mainTheme.headerBg} !important;
-        ${useUnifiedGlass ? `background-image: var(--agy-l-glass-bg, none) !important; background-size: 100vw 100vh !important; background-position: ${bgPosition} !important; background-attachment: fixed !important; background-repeat: no-repeat !important;` : ''}
-        border-bottom: 1px solid ${glassRimBorder} !important;
-        box-shadow: inset 0 1px 0 ${glassInnerSheen} !important;
+        background-color: ${st.wpEnabled ? `rgba(${overlayRgb}, ${isLight ? '0.68' : '0.44'})` : mainTheme.headerBg} !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+        box-shadow: none !important;
         backdrop-filter: none !important;
       }
       .agy-shell [class*="@container/titlebar"] {
@@ -4270,17 +4271,12 @@
         box-shadow: none !important;
       }
       body:not([data-has-browser-hole="true"]) .agy-shell [data-side-panel-open] {
-        background: ${st.wpEnabled ? `rgba(${overlayRgb}, ${isLight ? '0.68' : Math.min(0.66, Math.max(0.48, textScrimAlpha * 0.92)).toFixed(2)})` : smokedSurface} !important;
-        border: 1px solid ${glassRimBorder} !important;
-        border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
-        box-shadow: ${glassRimShadow} !important;
+        background: ${st.wpEnabled ? `rgba(${overlayRgb}, ${isLight ? '0.68' : Math.min(0.56, Math.max(0.42, textScrimAlpha * 0.85)).toFixed(2)})` : smokedSurface} !important;
+        border: none !important;
+        border-left: 1px solid rgba(255, 255, 255, 0.10) !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
         backdrop-filter: none !important;
-      }
-      .agy-shell [data-agy-right-col="1"] > div,
-      .agy-shell [data-testid="overview-panel"] {
-        border: 1px solid ${glassRimBorder} !important;
-        border-radius: var(--agy-card-radius, ${cardRadiusPx}px) !important;
-        box-shadow: ${glassRimShadow} !important;
       }
       .agy-shell :is([data-side-panel-sash], [data-testid="side-panel-sash"]) {
         background: ${cleanSoftHairline} !important;
@@ -8078,6 +8074,7 @@
   }
 
   function scheduleTick(mutations) {
+    if (window.__AGY_COLLAPSE_PAUSE_UNTIL__ && Date.now() < window.__AGY_COLLAPSE_PAUSE_UNTIL__) return;
     if (Array.isArray(mutations) && mutations.length > 0) {
       let hasAppMutation = false;
       for (let i = 0; i < mutations.length; i++) {
