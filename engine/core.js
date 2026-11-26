@@ -2085,6 +2085,7 @@
     const shell = document.querySelector('.agy-shell');
     if (shell) {
       delete shell.dataset.agyPetChatOpen;
+      shell.classList.remove('agy-pet-active');
       shell.style.removeProperty('--agy-pet-comp-left');
       shell.style.removeProperty('--agy-pet-comp-top');
       shell.style.removeProperty('--agy-pet-comp-w');
@@ -2634,6 +2635,9 @@
     document.body.appendChild(menu);
     rebuild();
     syncComposerAnchor();
+    /* Marquer le shell comme pet-active pour masquer le sticker .surface-composer::before */
+    const shellForPet = findActiveShell() || document.querySelector('.agy-shell');
+    if (shellForPet) shellForPet.classList.add('agy-pet-active');
 
     const ctrl = {
       updateTheme,
@@ -5247,6 +5251,14 @@
       .agy-shell [data-side-panel-open] .surface-composer::before,
       .agy-shell [data-side-panel-open] .surface-composer::after {
         display: none !important;
+      }
+      /* Khi pet đang hiển thị: ẩn sticker trên surface-composer để tránh trùng pet */
+      .agy-shell.agy-pet-chat-docked .surface-composer::before,
+      .agy-shell.agy-pet-chat-docked .surface-composer::after,
+      .agy-shell.agy-pet-active .surface-composer::before,
+      .agy-shell.agy-pet-active .surface-composer::after {
+        display: none !important;
+        content: none !important;
       }
       /* Full-Width Workspace Unlock (no layout-thrashing max-width transition) */
       .agy-shell [data-testid="conversation-view"] .mx-auto.w-full {
