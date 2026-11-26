@@ -1812,12 +1812,12 @@
       const btn = ensureCollapseBtn(
         'agy-collapse-left-btn',
         'Cuộn gọn / Mở cột trái',
-        '<span class="agy-roll-grip" aria-hidden="true"><span></span><span></span><span></span></span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>',
+        '<span class="agy-roll-grip" aria-hidden="true"><span></span><span></span><span></span></span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>',
         () => runRollToggle('left', STORAGE_COLLAPSE_LEFT)
       );
       btn.dataset.collapsed = leftCollapsed ? 'true' : 'false';
       btn.title = leftCollapsed ? 'Mở cuộn Sidebar trái' : 'Cuộn gọn Sidebar trái';
-      btn.style.left = leftCollapsed ? '6px' : `${Math.max(6, leftW - 11)}px`;
+      btn.style.left = leftCollapsed ? '6px' : `${Math.max(6, leftW - 4)}px`;
       btn.style.display = 'inline-flex';
     } else {
       const btn = document.getElementById('agy-collapse-left-btn');
@@ -1831,12 +1831,12 @@
     if (rightCol && hasRightOpen) {
       const rightRect = rightCollapsed ? null : rightCol.getBoundingClientRect();
       const rightEdge = (!rightCollapsed && rightRect && rightRect.width > 12)
-        ? Math.max(6, Math.round(window.innerWidth - rightRect.left - 11))
+        ? Math.max(6, Math.round(window.innerWidth - rightRect.left - 4))
         : 6;
       const btn = ensureCollapseBtn(
         'agy-collapse-right-btn',
         'Cuộn gọn / Mở cột phải',
-        '<span class="agy-roll-grip" aria-hidden="true"><span></span><span></span><span></span></span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
+        '<span class="agy-roll-grip" aria-hidden="true"><span></span><span></span><span></span></span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
         () => runRollToggle('right', STORAGE_COLLAPSE_RIGHT)
       );
       btn.dataset.collapsed = rightCollapsed ? 'true' : 'false';
@@ -2232,7 +2232,9 @@
       const pillBottom = y + pillHeightOffset;
       const compEl = getRealComposer();
       const wrapEl = compEl ? (compEl.closest('[data-agy-composer-wrap="1"]') || compEl) : null;
-      const neededBelow = Math.max(195, (wrapEl && wrapEl.scrollHeight > 95 ? Math.min(280, wrapEl.scrollHeight + 18) : 195));
+      const ytBarEl = document.getElementById('agy-yt-bar');
+      const ytReserved = (ytBarEl && ytBarEl.dataset.collapsed !== '1') ? 52 : 12;
+      const neededBelow = Math.max(195, (wrapEl && wrapEl.scrollHeight > 95 ? Math.min(280, wrapEl.scrollHeight + 18) : 195)) + ytReserved;
       const top = Math.min(Math.max(8, Math.round(pillBottom + 16)), Math.max(8, vh - neededBelow));
 
       shell.dataset.agyPetChatOpen = '1';
@@ -5220,13 +5222,21 @@
       .agy-shell [data-side-panel-open] .surface-composer::after {
         display: none !important;
       }
-      /* Khi pet đang hiển thị: ẩn sticker trên surface-composer để tránh trùng pet */
+      /* Khi pet đang hiển thị: ẩn sticker và bỏ margin-top thừa trên surface-composer */
+      .agy-shell.agy-pet-chat-docked .surface-composer,
+      .agy-shell.agy-pet-active .surface-composer {
+        margin-top: 0 !important;
+      }
       .agy-shell.agy-pet-chat-docked .surface-composer::before,
       .agy-shell.agy-pet-chat-docked .surface-composer::after,
       .agy-shell.agy-pet-active .surface-composer::before,
       .agy-shell.agy-pet-active .surface-composer::after {
         display: none !important;
         content: none !important;
+      }
+      /* Khi dùng khung chat gốc ở dưới: chừa chỗ cho thanh nhạc YouTube */
+      .agy-shell:not(.agy-pet-chat-docked) [data-agy-composer-wrap="1"] {
+        padding-bottom: 52px !important;
       }
       /* Full-Width Workspace Unlock (no layout-thrashing max-width transition) */
       .agy-shell [data-testid="conversation-view"] .mx-auto.w-full {
@@ -5287,6 +5297,8 @@
       }
       .agy-shell [data-main-content-header] {
         box-sizing: border-box !important;
+        width: auto !important;
+        max-width: calc(100% - 12px) !important;
         margin: 8px 6px 4px 6px !important;
         border-radius: 14px !important;
         border: 1px solid ${glassRimBorder} !important;
@@ -5378,8 +5390,8 @@
       #agy-collapse-right-btn {
         top: 50%;
         flex-direction: column;
-        width: 22px;
-        height: 60px;
+        width: 16px;
+        height: 48px;
         transform: translateY(-50%);
       }
       #agy-collapse-left-btn:active,
