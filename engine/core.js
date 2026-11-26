@@ -5674,9 +5674,10 @@
     const bg = isLight ? 'rgba(248, 250, 252, 0.90)' : 'rgba(12, 16, 26, 0.88)';
     const ink = isLight ? '#0f172a' : '#f8fafc';
 
+    const YT_BAR_VERSION = 'yt-v3';
     let bar = document.getElementById('agy-yt-bar');
     let dropdown = document.getElementById('agy-yt-dropdown');
-    if (bar && window.__AGY_YT_CTRL__) {
+    if (bar && window.__AGY_YT_CTRL__ && window.__AGY_YT_CTRL__.version === YT_BAR_VERSION) {
       bar.style.setProperty('--agy-yt-accent', primary);
       bar.style.setProperty('--agy-yt-bg', bg);
       bar.style.setProperty('--agy-yt-ink', ink);
@@ -5871,7 +5872,12 @@
           }
         });
       } else {
-        startIframeFallback(track.videoId);
+        audio.src = `${mediaBase}/api/yt-stream?v=${encodeURIComponent(track.videoId)}`;
+        audio.play().catch(() => {
+          if (activeVideoId === track.videoId && playbackMode === 'audio') {
+            startIframeFallback(track.videoId);
+          }
+        });
       }
     };
 
@@ -6036,6 +6042,7 @@
     document.body.appendChild(dropdown);
     document.body.appendChild(bar);
     window.__AGY_YT_CTRL__ = {
+      version: YT_BAR_VERSION,
       destroy: () => {
         window.removeEventListener('message', onYtMessage);
         document.removeEventListener('pointerdown', onDocPointerDown);
