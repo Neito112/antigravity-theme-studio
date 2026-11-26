@@ -1537,7 +1537,7 @@
       wm.dataset.agyBrandKey = brandKey;
       const wmSvg = `<svg viewBox="${escHtml(svgSpec.viewBox)}" width="220" height="220" fill="none" xmlns="http://www.w3.org/2000/svg" style="color:${escHtml(primary)};--agy-c1:${escHtml(primary)};--agy-c2:${escHtml(secondary)};"><defs><linearGradient id="agyWatermarkGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${escHtml(primary)}"/><stop offset="100%" stop-color="${escHtml(secondary)}"/></linearGradient></defs>${svgSpec.inner}</svg>`;
       if (brandLogoUrl) {
-        wm.innerHTML = `<img src="${escHtml(brandLogoUrl)}" alt="" style="width:200px;height:200px;object-fit:contain;display:block;pointer-events:none;filter:drop-shadow(0 0 18px ${escHtml(primary)});" />`;
+        wm.innerHTML = `<img src="${escHtml(brandLogoUrl)}" alt="" style="width:200px;height:200px;object-fit:contain;display:block;pointer-events:none;" />`;
         const wmImg = wm.querySelector('img');
         if (wmImg) {
           wmImg.addEventListener('error', () => {
@@ -3392,7 +3392,7 @@
     const isLightTheme = Boolean(mainTheme.isLight);
     const glassRimBorder = isLightTheme ? 'rgba(255, 255, 255, 0.56)' : 'rgba(255, 255, 255, 0.16)';
     const glassInnerSheen = isLightTheme ? 'rgba(255, 255, 255, 0.68)' : 'rgba(255, 255, 255, 0.20)';
-    const glassRimShadow = `inset 0 1px 0 ${glassInnerSheen}, inset 0 -1px 0 rgba(255, 255, 255, 0.05), 0 8px 26px rgba(0, 0, 0, ${isLightTheme ? '0.12' : '0.36'})`;
+    const glassRimShadow = `inset 0 1px 0 ${glassInnerSheen}, 0 2px 8px rgba(0, 0, 0, ${isLightTheme ? '0.10' : '0.24'})`;
     const cleanComposerBg = isLightTheme
       ? 'rgba(255, 255, 255, 0.84)'
       : `rgba(${overlayRgb}, ${st.inputStyle === 'glass' ? '0.56' : Math.max(0.68, textScrimAlpha).toFixed(2)})`;
@@ -4067,11 +4067,10 @@
         height: 22px !important;
         pointer-events: none !important;
         color: ${pSync} !important;
-        transition: ${isDynamicMode ? 'transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), filter 0.22s ease' : 'none'} !important;
+        transition: ${isDynamicMode ? 'transform 0.2s ease' : 'none'} !important;
       }
       .agy-shell [data-testid="app-icon-new-conversation-button"]:hover #agy-custom-brand-logo {
-        transform: ${isDynamicMode ? 'rotate(18deg) scale(1.12)' : 'none'} !important;
-        filter: ${isDynamicMode ? `drop-shadow(0 0 8px ${pSync})` : 'none'} !important;
+        transform: ${isDynamicMode ? 'scale(1.08)' : 'none'} !important;
       }
       .agy-shell [data-testid="brand"] svg {
         display: none !important;
@@ -4743,9 +4742,7 @@
         transform: translate3d(-50%, -50%, 0);
         z-index: 0 !important;
         pointer-events: none !important;
-        opacity: 0.05;
-        will-change: transform, opacity;
-        animation: agyWatermarkFloat 14s ease-in-out infinite;
+        opacity: 0.045;
       }
       #agy-scroll-controls {
         position: fixed;
@@ -5202,28 +5199,22 @@
       .agy-shell:is([data-agy-left-collapsed="1"], [data-agy-right-collapsed="1"]) [data-testid="conversation-view"] .mx-auto.w-full {
         max-width: calc(100% - 20px) !important;
       }
-      /* Smooth Roll-Up Accordion Columns & Top Menu Bar (rolls directly into handles, zero wasted space) */
-      .agy-shell [data-agy-left-col="1"] {
-        transform-origin: left center !important;
-        clip-path: inset(0 0 0 0);
-        transition: width 0.34s cubic-bezier(0.22, 1, 0.36, 1), min-width 0.34s cubic-bezier(0.22, 1, 0.36, 1), max-width 0.34s cubic-bezier(0.22, 1, 0.36, 1), flex-basis 0.34s cubic-bezier(0.22, 1, 0.36, 1), clip-path 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s ease, transform 0.34s cubic-bezier(0.22, 1, 0.36, 1) !important;
-      }
+      /* Smooth Lightweight Collapsible Columns & Top Menu Bar (no clip-path/reflow thrash) */
+      .agy-shell [data-agy-left-col="1"],
       .agy-shell [data-agy-right-col="1"] {
-        transform-origin: right center !important;
-        clip-path: inset(0 0 0 0);
-        transition: width 0.34s cubic-bezier(0.22, 1, 0.36, 1), min-width 0.34s cubic-bezier(0.22, 1, 0.36, 1), max-width 0.34s cubic-bezier(0.22, 1, 0.36, 1), flex-basis 0.34s cubic-bezier(0.22, 1, 0.36, 1), clip-path 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s ease, transform 0.34s cubic-bezier(0.22, 1, 0.36, 1) !important;
+        contain: layout style;
+        transition: width 0.2s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.15s ease !important;
       }
       .agy-shell [data-agy-top-menubar="1"] {
-        transform-origin: top center !important;
-        clip-path: inset(0 0 0 0);
-        transition: height 0.3s cubic-bezier(0.22, 1, 0.36, 1), min-height 0.3s cubic-bezier(0.22, 1, 0.36, 1), max-height 0.3s cubic-bezier(0.22, 1, 0.36, 1), clip-path 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1) !important;
+        contain: layout style;
+        transition: height 0.18s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.14s ease !important;
       }
       .agy-shell [data-agy-left-col="1"] + [data-split-sash="true"] {
-        transition: width 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease !important;
+        transition: width 0.2s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.14s ease !important;
       }
       .agy-shell [data-main-content-header] {
         box-sizing: border-box !important;
-        transition: padding-left 0.34s cubic-bezier(0.22, 1, 0.36, 1) !important;
+        transition: padding-left 0.2s cubic-bezier(0.22, 1, 0.36, 1) !important;
       }
       .agy-shell[data-agy-left-collapsed="1"] [data-main-content-header] {
         padding-left: var(--agy-topleft-pad, 178px) !important;
@@ -5236,8 +5227,6 @@
         margin: 0 !important;
         padding: 0 !important;
         opacity: 0 !important;
-        clip-path: inset(0 100% 0 0);
-        transform: scaleX(0.06) translateX(-16px) !important;
         pointer-events: none !important;
         overflow: hidden !important;
       }
@@ -5254,8 +5243,6 @@
         margin: 0 !important;
         padding: 0 !important;
         opacity: 0 !important;
-        clip-path: inset(0 0 0 100%);
-        transform: scaleX(0.06) translateX(16px) !important;
         pointer-events: none !important;
         overflow: hidden !important;
       }
@@ -5272,8 +5259,6 @@
         padding: 0 !important;
         border: 0 !important;
         opacity: 0 !important;
-        clip-path: inset(0 0 100% 0);
-        transform: scaleY(0.05) translateY(-10px) !important;
         pointer-events: none !important;
         overflow: hidden !important;
       }
@@ -5292,15 +5277,14 @@
         user-select: none;
         -webkit-app-region: no-drag;
         backdrop-filter: none !important;
-        opacity: 0.94;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24), 0 6px 18px rgba(0, 0, 0, 0.44), 0 0 10px ${gSync};
-        transition: left 0.34s cubic-bezier(0.22, 1, 0.36, 1), right 0.34s cubic-bezier(0.22, 1, 0.36, 1), top 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease, color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+        opacity: 0.92;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 2px 8px rgba(0, 0, 0, 0.34);
+        transition: opacity 0.14s ease, color 0.14s ease, border-color 0.14s ease;
       }
       .agy-collapse-edge-btn:hover {
         opacity: 1;
         color: var(--agy-btn-accent, #38bdf8);
         border-color: var(--agy-btn-accent, #38bdf8);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 16px ${gSync};
       }
       .agy-roll-grip {
         display: inline-flex;
@@ -8093,12 +8077,27 @@
     syncTelemetryState();
   }
 
-  function scheduleTick() {
-    if (window.__AGY_TICK_RAF__) return;
-    window.__AGY_TICK_RAF__ = requestAnimationFrame(() => {
-      window.__AGY_TICK_RAF__ = 0;
-      tick();
-    });
+  function scheduleTick(mutations) {
+    if (Array.isArray(mutations) && mutations.length > 0) {
+      let hasAppMutation = false;
+      for (let i = 0; i < mutations.length; i++) {
+        const tgt = mutations[i] && mutations[i].target;
+        const el = tgt && tgt.nodeType === 1 ? tgt : (tgt ? tgt.parentElement : null);
+        if (!el || !el.closest || !el.closest('#agy-better-pet, #agy-scroll-controls, #agy-dynamic-fx-layer, #agy-custom-theme-modal-backdrop, #agy-boot-overlay, #agy-bg-emblem-watermark')) {
+          hasAppMutation = true;
+          break;
+        }
+      }
+      if (!hasAppMutation) return;
+    }
+    if (window.__AGY_TICK_TIMER__ || window.__AGY_TICK_RAF__) return;
+    window.__AGY_TICK_TIMER__ = setTimeout(() => {
+      window.__AGY_TICK_TIMER__ = 0;
+      window.__AGY_TICK_RAF__ = requestAnimationFrame(() => {
+        window.__AGY_TICK_RAF__ = 0;
+        tick();
+      });
+    }, 140);
   }
 
   clearTitleBarTimers();
@@ -8109,6 +8108,10 @@
   if (window.__AGY_VIDEO_WATCHDOG__) {
     clearInterval(window.__AGY_VIDEO_WATCHDOG__);
     window.__AGY_VIDEO_WATCHDOG__ = null;
+  }
+  if (window.__AGY_TICK_TIMER__) {
+    clearTimeout(window.__AGY_TICK_TIMER__);
+    window.__AGY_TICK_TIMER__ = 0;
   }
   if (window.__AGY_TICK_RAF__) {
     cancelAnimationFrame(window.__AGY_TICK_RAF__);
