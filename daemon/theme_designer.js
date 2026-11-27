@@ -466,9 +466,50 @@ function probeImageDimensions(filePath) {
     return null;
 }
 
+function hexToRgbTuple(hex, fallback = [148, 163, 184]) {
+    if (typeof hex !== 'string') return fallback;
+    const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
+    if (!m) return fallback;
+    const h = m[1].length === 3
+        ? m[1].split('').map((c) => c + c).join('')
+        : m[1];
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+
+function buildSurfaceTokens(primaryHex, secondaryHex, overlayRgb) {
+    const ov = overlayRgb || '6, 10, 16';
+    const [pR, pG, pB] = hexToRgbTuple(primaryHex, [148, 163, 184]);
+    const [sR, sG, sB] = hexToRgbTuple(secondaryHex, [203, 213, 225]);
+    return {
+        glow: `rgba(${pR}, ${pG}, ${pB}, 0.26)`,
+        secondaryGlow: `rgba(${sR}, ${sG}, ${sB}, 0.18)`,
+        bg: `linear-gradient(145deg, rgba(${ov}, 0.92) 0%, rgba(5, 8, 15, 0.96) 100%)`,
+        frameBg: `linear-gradient(135deg, rgba(${pR}, ${pG}, ${pB}, 0.74) 0%, rgba(${sR}, ${sG}, ${sB}, 0.50) 50%, rgba(${pR}, ${pG}, ${pB}, 0.66) 100%)`,
+        borderColor: `rgba(${pR}, ${pG}, ${pB}, 0.34)`,
+        innerBorder: `1px solid rgba(${pR}, ${pG}, ${pB}, 0.18)`,
+        overlayRgb: ov,
+        sidebarBg: `rgba(${ov}, 0.66)`,
+        sidebarHoverBg: `rgba(${pR}, ${pG}, ${pB}, 0.16)`,
+        aiCardBg: `rgba(${ov}, 0.90)`,
+        aiCardBorder: `rgba(${pR}, ${pG}, ${pB}, 0.18)`,
+        headerBg: `rgba(${ov}, 0.66)`,
+        headerBorder: `rgba(${pR}, ${pG}, ${pB}, 0.12)`,
+        btnBg: `rgba(${ov}, 0.78)`,
+        inputGlassBg: `rgba(${ov}, 0.84)`,
+        inputCardBg: `linear-gradient(145deg, rgba(${ov}, 0.92) 0%, rgba(5, 8, 15, 0.96) 100%)`,
+        modalBg: `rgba(${ov}, 0.97)`,
+        modalHeaderBg: `rgba(${ov}, 0.92)`,
+        cardBg: `rgba(${ov}, 0.84)`,
+        cardSelectedBg: `rgba(${pR}, ${pG}, ${pB}, 0.22)`,
+        pillBg: `rgba(${ov}, 0.86)`,
+        pillHoverBg: `rgba(${pR}, ${pG}, ${pB}, 0.16)`,
+        pillBorder: `rgba(${pR}, ${pG}, ${pB}, 0.24)`
+    };
+}
+
 // Local palette fallback: Pillow-only, no agy / no network. Returns hex
-// primary/secondary + dark overlay triplet, or null when Pillow is missing.
-// Transparent pixels are composited over dark glass (10,14,24); grayscale
+// primary/secondary + deep tinted obsidian overlay triplet, or null when Pillow is missing.
+// Transparent pixels are composited over dark glass (5,8,15); grayscale
 // images get a saturation-boosted accent instead of flat grey.
 function extractPaletteViaPillow(filePath) {
     const py = findPython();
@@ -484,41 +525,85 @@ function extractPaletteViaPillow(filePath) {
         'buckets = {}',
         'for r, g, b, a in px:',
         '    if a < 128:',
-        '        ar += 10; ag += 14; ab += 24; continue',
+        '        ar += 5; ag += 8; ab += 15; continue',
         '    ar += r; ag += g; ab += b',
         '    h, s, v = colorsys.rgb_to_hsv(r/255, g/255, b/255)',
-        '    if s < 0.22 or v < 0.3: continue',
+        '    if s < 0.28 or v < 0.38: continue',
         '    k = int(h * 24) % 24',
         '    w = s * v * v',
         '    e = buckets.setdefault(k, [0, 0, 0, 0])',
         '    e[0] += w; e[1] += r*w; e[2] += g*w; e[3] += b*w',
         'avg = [round(ar/n), round(ag/n), round(ab/n)]',
         'ranked = sorted(buckets.items(), key=lambda kv: -kv[1][0])',
+        'DARK_BG = (6, 9, 18)',
+        'def rel_lum(rgb):',
+        '    def ch(c):',
+        '        x = max(0.0, min(1.0, c / 255.0))',
+        '        return x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4',
+        '    return 0.2126 * ch(rgb[0]) + 0.7152 * ch(rgb[1]) + 0.0722 * ch(rgb[2])',
+        'def contrast_ratio(c1, c2):',
+        '    l1, l2 = rel_lum(c1), rel_lum(c2)',
+        '    return (max(l1, l2) + 0.05) / (min(l1, l2) + 0.05)',
         'def hx(rgb): return "#%02x%02x%02x" % tuple(int(max(0, min(255, round(c)))) for c in rgb)',
-        'def tune(rgb, smin, vmin, vmax):',
+        'def tune_contrast(rgb, smin, smax, vmin, vmax, min_cr):',
         '    h, s, v = colorsys.rgb_to_hsv(rgb[0]/255, rgb[1]/255, rgb[2]/255)',
-        '    s = max(s, smin); v = min(vmax, max(v, vmin))',
+        '    s = min(smax, max(s, smin))',
+        '    v = min(vmax, max(v, vmin))',
+        '    for _ in range(28):',
+        '        r, g, b = colorsys.hsv_to_rgb(h, s, v)',
+        '        cand = [round(r*255), round(g*255), round(b*255)]',
+        '        if contrast_ratio(cand, DARK_BG) >= min_cr: return cand',
+        '        if v < 0.98: v = min(0.98, v + 0.04)',
+        '        elif s > 0.36: s = max(0.36, s - 0.05)',
+        '        else: break',
         '    r, g, b = colorsys.hsv_to_rgb(h, s, v)',
         '    return [round(r*255), round(g*255), round(b*255)]',
+        'def hue_deg(rgb): return colorsys.rgb_to_hsv(rgb[0]/255, rgb[1]/255, rgb[2]/255)[0] * 360.0',
+        'def hue_dist(h1, h2):',
+        '    d = abs(h1 - h2) % 360.0',
+        '    return min(d, 360.0 - d)',
         'if ranked:',
         '    w, r, g, b = ranked[0][1]',
-        '    prim = tune([r/w, g/w, b/w], 0.45, 0.75, 0.98)',
+        '    prim = tune_contrast([r/w, g/w, b/w], 0.58, 0.92, 0.84, 0.98, 5.2)',
+        '    ph = hue_deg(prim)',
         '    sec = None',
+        '    best_dist = 999.0',
         '    for k, (w2, r2, g2, b2) in ranked[1:]:',
-        '        d = abs(k - ranked[0][0]); d = min(d, 24-d)',
-        '        if d >= 3: sec = tune([r2/w2, g2/w2, b2/w2], 0.35, 0.70, 0.96); break',
+        '        raw_c = [r2/w2, g2/w2, b2/w2]',
+        '        hd = hue_dist(ph, hue_deg(raw_c))',
+        '        if hd < best_dist: best_dist = hd',
+        '        if 20.0 <= hd <= 75.0:',
+        '            cand = tune_contrast(raw_c, 0.55, 0.88, 0.84, 0.98, 4.4)',
+        '            if contrast_ratio(cand, DARK_BG) >= 4.4:',
+        '                sec = cand; break',
         '    if sec is None:',
         '        h, s, v = colorsys.rgb_to_hsv(prim[0]/255, prim[1]/255, prim[2]/255)',
-        '        r, g, b = colorsys.hsv_to_rgb((h+35/360) % 1, s*0.8, v)',
-        '        sec = [round(r*255), round(g*255), round(b*255)]',
+        '        if best_dist > 85.0 or len(ranked) <= 1:',
+        '            r, g, b = colorsys.hsv_to_rgb((h + 34.0/360.0) % 1.0, min(0.88, max(0.55, s * 0.9)), max(0.84, v))',
+        '            sec = tune_contrast([r*255, g*255, b*255], 0.55, 0.88, 0.84, 0.98, 4.4)',
+        '        else:',
+        '            sec = [226, 232, 240]',
         'else:',
         '    h, s, v = colorsys.rgb_to_hsv(avg[0]/255, avg[1]/255, avg[2]/255)',
-        '    if s < 0.08: h = 210/360  # near-grey has no real hue; use slate blue, not red',
-        '    r, g, b = colorsys.hsv_to_rgb(h, max(s, 0.45), min(0.98, max(v, 0.75)))',
-        '    prim = [round(r*255), round(g*255), round(b*255)]',
-        '    r, g, b = colorsys.hsv_to_rgb((h+40/360) % 1, max(s, 0.35), min(0.96, max(v, 0.7)))',
-        '    sec = [round(r*255), round(g*255), round(b*255)]',
-        'ov = [max(4, min(22, round(c*0.1))) for c in avg]',
+        '    if s < 0.08:',
+        '        prim = [125, 211, 252]',
+        '        sec = [226, 232, 240]',
+        '    else:',
+        '        r, g, b = colorsys.hsv_to_rgb(h, 0.68, 0.90)',
+        '        prim = tune_contrast([r*255, g*255, b*255], 0.58, 0.92, 0.84, 0.98, 5.2)',
+        '        r2, g2, b2 = colorsys.hsv_to_rgb((h + 34.0/360.0) % 1.0, 0.62, 0.88)',
+        '        sec = tune_contrast([r2*255, g2*255, b2*255], 0.55, 0.88, 0.84, 0.98, 4.4)',
+        'tint_src = [0.55 * avg[i] + 0.45 * prim[i] for i in range(3)]',
+        'tmax = max(1.0, max(tint_src))',
+        'tint = [c * (42.0 / tmax) for c in tint_src]',
+        'base = [5.0, 8.0, 15.0]',
+        'ov = [max(3, min(18, round(0.82 * base[i] + 0.18 * tint[i]))) for i in range(3)]',
+        'spread = max(ov) - min(ov)',
+        'if spread > 9:',
+        '    mean = sum(ov) / 3.0',
+        '    ov = [max(3, min(18, round(mean + (c - mean) * (9.0 / spread)))) for c in ov]',
+        'while (max(ov) + min(ov)) > 20:',
+        '    ov = [max(3, c - 1) if c > 3 else 3 for c in ov]',
         'print(json.dumps({"primary": hx(prim), "secondary": hx(sec), "overlayRgb": ", ".join(str(c) for c in ov)}))'
     ].join('\n');
     const res = spawnSync(py, ['-c', script, filePath], { windowsHide: true, encoding: 'utf8' });
@@ -531,46 +616,25 @@ function extractPaletteViaPillow(filePath) {
 }
 
 function buildLocalTheme(pal) {
-    const p = pal || { primary: '#94a3b8', secondary: '#cbd5e1', overlayRgb: '7, 13, 22' };
-    const ov = p.overlayRgb || '7, 13, 22';
+    const p = pal || { primary: '#7dd3fc', secondary: '#e2e8f0', overlayRgb: '6, 10, 16' };
+    const ov = p.overlayRgb || '6, 10, 16';
+    const surfaces = buildSurfaceTokens(p.primary, p.secondary, ov);
     const theme = {
         name: 'Auto Palette',
         concept: 'Auto Palette • Local fallback, no AI',
         primary: p.primary,
         secondary: p.secondary,
-        glow: 'rgba(148, 163, 184, 0.28)',
-        secondaryGlow: 'rgba(203, 213, 225, 0.22)',
-        bg: `linear-gradient(145deg, rgba(${ov}, 0.92) 0%, rgba(6, 10, 18, 0.96) 100%)`,
-        frameBg: `linear-gradient(135deg, ${p.primary} 0%, ${p.secondary} 100%)`,
+        ...surfaces,
         textColor: '#f8fafc',
-        borderColor: 'rgba(255, 255, 255, 0.24)',
-        innerBorder: '1px solid rgba(255, 255, 255, 0.14)',
         clearBackdrop: true,
-        overlayRgb: ov,
         bgPosition: 'center center',
-        sidebarBg: `rgba(${ov}, 0.66)`,
         sidebarBlur: '3px',
-        sidebarHoverBg: 'rgba(255, 255, 255, 0.14)',
         sidebarEnhanceText: true,
-        aiCardBg: `rgba(${ov}, 0.90)`,
-        aiCardBorder: 'rgba(255, 255, 255, 0.18)',
-        headerBg: `rgba(${ov}, 0.66)`,
         headerBlur: '3px',
-        headerBorder: 'rgba(255, 255, 255, 0.14)',
         unifiedGlass: true,
-        btnBg: `rgba(${ov}, 0.78)`,
-        inputGlassBg: `rgba(${ov}, 0.84)`,
-        inputCardBg: `linear-gradient(145deg, rgba(${ov}, 0.92) 0%, rgba(5, 9, 16, 0.96) 100%)`,
-        modalBg: 'rgba(10, 14, 24, 0.97)',
-        modalHeaderBg: `rgba(${ov}, 0.94)`,
-        cardBg: `rgba(${ov}, 0.88)`,
-        cardSelectedBg: 'rgba(255, 255, 255, 0.14)',
         uiTextColor: '#f8fafc',
         uiMutedColor: '#cbd5e1',
-        pillBg: `rgba(${ov}, 0.86)`,
-        pillHoverBg: 'rgba(255, 255, 255, 0.16)',
         pillTextColor: '#f8fafc',
-        pillBorder: 'rgba(255, 255, 255, 0.22)',
         isLight: false
     };
     theme.dynamicPack = normalizeDynamicPack(theme);
@@ -665,11 +729,12 @@ function buildPrompt(absImagePath, { srcW, srcH, needsAiPaint, userPrompt, exist
         '',
         'Design one complete, cohesive theme preset for this artwork, with the same quality and care as the hand-made reference preset below:',
         '- ALWAYS USE DARK SMOKED GLASS (`"isLight": false`) for ALL wallpapers (even bright, daytime, pastel, or colorful images — just like "Luminous Grotto") because Antigravity runs in Dark Mode with dark-mode code tokens and dark-mode UI.',
-        '- Extract the real dominant and accent colors of THIS image for `primary`, `secondary`, `glow`, `secondaryGlow`, and deep darkened glass tints:',
-        '  * `overlayRgb`: deep darkened hue harmonized from the image (each R, G, B channel <= 28, relative luminance < 0.08, e.g. `"6, 16, 22"`).',
-        '  * `aiCardBg`: dark tinted glass with alpha >= 0.88 (e.g. `"rgba(7, 15, 24, 0.90)"`).',
-        '  * `sidebarBg` and `headerBg`: dark tinted glass with alpha >= 0.64 (e.g. `"rgba(7, 15, 24, 0.66)"`).',
-        '  * `inputGlassBg`: dark tinted glass with alpha >= 0.82; `pillBg`: dark tinted glass with alpha >= 0.84; `modalBg`: alpha >= 0.96.',
+        '- Extract clean, high-contrast, hue-harmonious dominant and accent colors from THIS image for `primary` and `secondary`, plus deep tinted obsidian glass surfaces:',
+        '  * `overlayRgb`: deep tinted obsidian harmonized from the image — each R, G, B channel MUST be within `3..18`, max channel spread `max(R,G,B) - min(R,G,B) <= 9`, and relative luminance `<= 0.04` (e.g. `"6, 10, 16"`). NEVER output flat neutral gray (`22, 22, 22`) or muddy brown/olive (`20, 12, 6`).',
+        '  * `primary` & `secondary`: luminous, clean accents with WCAG contrast `>= 5.0:1` against dark glass `#060912`. Pick `secondary` within `20°..75°` analogous hue of `primary` (or crisp `#e2e8f0` highlight) — NEVER pair far-apart hues (`> 85°`) that create muddy gray gradient midpoints, and NEVER use muddy brown, olive, or low-contrast dark red.',
+        '  * `frameBg`: 3-stop translucent rim gradient (`0.45–0.76` alpha) from `primary` and `secondary`, e.g. `"linear-gradient(135deg, rgba(pR, pG, pB, 0.74) 0%, rgba(sR, sG, sB, 0.50) 50%, rgba(pR, pG, pB, 0.66) 100%)"` — NEVER 100% opaque.',
+        '  * `glow`, `secondaryGlow`, `borderColor`, `innerBorder`, `aiCardBorder`, `headerBorder`: derive cleanly from `primary`/`secondary` with subtle translucent alphas (`glow` ~`0.26`, `secondaryGlow` ~`0.18`, `borderColor` ~`0.34`, `innerBorder`/`aiCardBorder` ~`0.18`, `headerBorder` ~`0.12`).',
+        '  * Surface tokens strictly from `overlayRgb`: `sidebarBg` & `headerBg` = `rgba(ov, 0.66)`, `btnBg` = `rgba(ov, 0.78)`, `inputGlassBg` & `cardBg` = `rgba(ov, 0.84)`, `pillBg` = `rgba(ov, 0.86)`, `aiCardBg` = `rgba(ov, 0.90)`, `modalHeaderBg` = `rgba(ov, 0.92)`, `modalBg` = `rgba(ov, 0.97)`, `bg` & `inputCardBg` = `linear-gradient(145deg, rgba(ov, 0.92) 0%, rgba(5, 8, 15, 0.96) 100%)`.',
         '  * `uiTextColor`: `"#f8fafc"`, `uiMutedColor`: `"#cbd5e1"`, `textColor`: `"#f8fafc"`, `pillTextColor`: `"#f8fafc"`, `sidebarEnhanceText`: `true`.',
         '- The final wallpaper is 4K 16:9 (3840x2160) fitted cleanly to the workspace window; set bgPosition to "center center".',
         '- Design TWO bespoke SVG ornaments themed on what is actually in the image (subject, motifs, mood), using the palette colors: cornerSvgMarkup (viewBox 0 0 44 44, a corner flourish in the top-left, 1-3 elements) and stickerSvgMarkup (viewBox 0 0 128 38, a small decorative strip that sits above the chat composer). Raw inline SVG markup only: <svg xmlns="http://www.w3.org/2000/svg" ...>. No <script>, no event handlers, no external references, no <image>, no <foreignObject>. Use unique gradient ids.',
@@ -1209,29 +1274,19 @@ function applyUserHintsToLocalTheme(theme, userPrompt) {
     if (!raw) return theme;
     const p = raw.toLowerCase();
     const colorMap = [
-        [/\b(tím|purple|violet|lavender|neon\s*tím|cyberpunk)\b/i, '#a855f7', '#22d3ee', '12, 8, 22'],
-        [/\b(hồng|pink|magenta|rose|sakura)\b/i, '#f472b6', '#a855f7', '18, 8, 16'],
-        [/\b(xanh dương|blue|sapphire|ocean|thủy)\b/i, '#38bdf8', '#818cf8', '7, 13, 24'],
-        [/\b(ngọc|cyan|teal|aqua|miku|băng)\b/i, '#2dd4bf', '#38bdf8', '6, 16, 20'],
-        [/\b(vàng|gold|amber|nắng|warm|ấm)\b/i, '#fbbf24', '#fb923c', '18, 13, 8'],
-        [/\b(đỏ|red|crimson|kaiju|lửa)\b/i, '#fb7185', '#f97316', '20, 8, 10'],
-        [/\b(xanh lá|emerald|green|forest|grotto)\b/i, '#34d399', '#2dd4bf', '7, 18, 14'],
+        [/\b(tím|purple|violet|lavender|neon\s*tím|cyberpunk)\b/i, '#a855f7', '#22d3ee', '10, 7, 16'],
+        [/\b(hồng|pink|magenta|rose|sakura)\b/i, '#f472b6', '#a855f7', '15, 7, 14'],
+        [/\b(xanh dương|blue|sapphire|ocean|thủy)\b/i, '#38bdf8', '#818cf8', '6, 10, 15'],
+        [/\b(ngọc|cyan|teal|aqua|miku|băng)\b/i, '#2dd4bf', '#38bdf8', '6, 13, 15'],
+        [/\b(vàng|gold|amber|nắng|warm|ấm)\b/i, '#fbbf24', '#fb923c', '14, 11, 6'],
+        [/\b(đỏ|red|crimson|kaiju|lửa)\b/i, '#fb7185', '#f97316', '15, 7, 9'],
+        [/\b(xanh lá|emerald|green|forest|grotto)\b/i, '#34d399', '#2dd4bf', '6, 14, 11'],
     ];
     for (const [re, pri, sec, rgb] of colorMap) {
         if (re.test(p)) {
             theme.primary = pri;
             theme.secondary = sec;
-            theme.overlayRgb = rgb;
-            const [r, g, b] = rgb.split(',').map((n) => parseInt(n.trim(), 10));
-            theme.sidebarBg = `rgba(${r}, ${g}, ${b}, 0.66)`;
-            theme.headerBg = `rgba(${r}, ${g}, ${b}, 0.66)`;
-            theme.aiCardBg = `rgba(${r}, ${g}, ${b}, 0.90)`;
-            theme.inputGlassBg = `rgba(${r}, ${g}, ${b}, 0.84)`;
-            theme.inputCardBg = `rgba(${r}, ${g}, ${b}, 0.90)`;
-            theme.pillBg = `rgba(${r}, ${g}, ${b}, 0.86)`;
-            theme.borderColor = `${pri}55`;
-            theme.headerBorder = `${pri}44`;
-            theme.aiCardBorder = `${pri}40`;
+            Object.assign(theme, buildSurfaceTokens(pri, sec, rgb));
             break;
         }
     }

@@ -8743,6 +8743,49 @@
   const toHex = (c) => '#' + c.map(hex2).join('');
   const rgba = (c, a) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a})`;
 
+  function hueDiff(h1, h2) {
+    const d = Math.abs(h1 - h2) % 360;
+    return Math.min(d, 360 - d);
+  }
+
+  function clampOverlayRgb(r, g, b, minCh = 3, maxCh = 18, maxSpread = 9) {
+    let ch = [r, g, b].map((x) => Math.max(minCh, Math.min(maxCh, Math.round(x))));
+    const mx = Math.max(...ch), mn = Math.min(...ch);
+    if (mx - mn > maxSpread) {
+      const mean = (ch[0] + ch[1] + ch[2]) / 3;
+      const k = maxSpread / (mx - mn);
+      ch = ch.map((x) => Math.max(minCh, Math.min(maxCh, Math.round(mean + (x - mean) * k))));
+    }
+    return ch;
+  }
+
+  function ensureAccentContrast(rgb, bgObj, minRatio) {
+    let [r, g, b] = rgb;
+    if (contrastRatio({ r, g, b }, bgObj) >= minRatio) return [r, g, b];
+    let [h, s, v] = rgbToHsv(r, g, b);
+    for (let step = 0; step < 12; step++) {
+      v = Math.min(0.98, v + 0.04);
+      [r, g, b] = hsvToRgb(h, s, v);
+      if (contrastRatio({ r, g, b }, bgObj) >= minRatio) return [r, g, b];
+      if (v >= 0.98) break;
+    }
+    for (let step = 0; step < 20; step++) {
+      s = Math.max(0.25, s - 0.04);
+      [r, g, b] = hsvToRgb(h, s, Math.max(v, 0.96));
+      if (contrastRatio({ r, g, b }, bgObj) >= minRatio) return [r, g, b];
+      if (s <= 0.25) break;
+    }
+    for (let t = 0.05; t <= 1.0; t += 0.05) {
+      const cand = [
+        Math.round(r + (255 - r) * t),
+        Math.round(g + (255 - g) * t),
+        Math.round(b + (255 - b) * t)
+      ];
+      if (contrastRatio({ r: cand[0], g: cand[1], b: cand[2] }, bgObj) >= minRatio) return cand;
+    }
+    return [r, g, b];
+  }
+
   function analyzePalette(img) {
     const S = 64;
     const cv = document.createElement('canvas');
@@ -8765,7 +8808,7 @@
       }
       ar += r; ag += g; ab += b; n++;
       const [h, s, v] = rgbToHsv(r, g, b);
-      if (s < 0.22 || v < 0.3) continue;
+      if (s < 0.28 || v < 0.38) continue;
       const w = s * v * v;
       const bk = buckets[Math.floor(h / (360 / B)) % B];
       bk.w += w; bk.r += r * w; bk.g += g * w; bk.b += b * w;
@@ -8783,11 +8826,21 @@
     if (sorted.length) {
       const p = sorted[0];
       primary = [Math.round(p.r / p.w), Math.round(p.g / p.w), Math.round(p.b / p.w)];
+      const [ph] = rgbToHsv(primary[0], primary[1], primary[2]);
       const q = sorted.find((bk) => {
-        const d = Math.abs(bk.i - p.i); return Math.min(d, B - d) >= 3;
+        const d = Math.abs(bk.i - p.i);
+        if (Math.min(d, B - d) < 2) return false;
+        const qr = Math.round(bk.r / bk.w), qg = Math.round(bk.g / bk.w), qb = Math.round(bk.b / bk.w);
+        const [qh] = rgbToHsv(qr, qg, qb);
+        const hd = hueDiff(ph, qh);
+        return hd >= 24 && hd <= 85;
       });
-      if (q) secondary = [Math.round(q.r / q.w), Math.round(q.g / q.w), Math.round(q.b / q.w)];
-      else { const [h, s, v] = rgbToHsv(primary[0], primary[1], primary[2]); secondary = hsvToRgb(h + 35, s * 0.8, v); }
+      if (q) {
+        secondary = [Math.round(q.r / q.w), Math.round(q.g / q.w), Math.round(q.b / q.w)];
+      } else {
+        const [, s, v] = rgbToHsv(primary[0], primary[1], primary[2]);
+        secondary = hsvToRgb(ph + 34, Math.max(0.42, Math.min(0.92, s * 0.88)), Math.min(0.96, Math.max(v, 0.78)));
+      }
     } else {
       // Grayscale / monochrome / pastel / near-white / near-black images:
       // no saturated hue bucket exists, so derive the accent from the
@@ -8796,12 +8849,23 @@
       // so use slate blue (210°) instead of an arbitrary reddish tint.
       const [ah0, as, av] = rgbToHsv(avg[0], avg[1], avg[2]);
       const ah = as < 0.08 ? 210 : ah0;
-      primary = hsvToRgb(ah, Math.max(as, 0.45), Math.min(0.98, Math.max(av, 0.75)));
-      secondary = hsvToRgb(ah + 40, Math.max(as, 0.35), Math.min(0.96, Math.max(av, 0.7)));
+      primary = hsvToRgb(ah, Math.max(as, 0.48), Math.min(0.98, Math.max(av, 0.78)));
+      secondary = hsvToRgb(ah + 34, Math.max(as, 0.38), Math.min(0.96, Math.max(av, 0.74)));
     }
-    primary = tune(primary, 0.45, 0.75, 0.98);
-    secondary = tune(secondary, 0.35, 0.70, 0.96);
-    const overlay = avg.map((x) => Math.max(4, Math.min(22, Math.round(x * 0.1))));
+    primary = tune(primary, 0.48, 0.78, 0.98);
+    secondary = tune(secondary, 0.38, 0.74, 0.96);
+    const [phFinal, psFinal, pvFinal] = rgbToHsv(primary[0], primary[1], primary[2]);
+    const [shFinal] = rgbToHsv(secondary[0], secondary[1], secondary[2]);
+    if (hueDiff(phFinal, shFinal) > 85) {
+      secondary = hsvToRgb(phFinal + 34, Math.max(0.38, Math.min(0.92, psFinal * 0.88)), Math.min(0.96, Math.max(pvFinal, 0.76)));
+    }
+    const baseDark = { r: 6, g: 9, b: 18, a: 1 };
+    primary = ensureAccentContrast(primary, baseDark, 5.2);
+    secondary = ensureAccentContrast(secondary, baseDark, 4.4);
+    const baseObsidian = [5, 8, 15];
+    const tint = avg.map((x) => Math.max(3, Math.min(22, x * 0.12)));
+    const blendedOv = baseObsidian.map((b, idx) => b * 0.82 + tint[idx] * 0.18);
+    const overlay = clampOverlayRgb(blendedOv[0], blendedOv[1], blendedOv[2], 3, 18, 9);
     return { avg, lum, isLight, primary, secondary, overlay, transparentRatio: transparent / Math.max(1, n) };
   }
 
@@ -8901,30 +8965,33 @@
     const L = false;
     const ovParts = String(t.overlayRgb || '').split(',').map((x) => parseInt(x.trim(), 10));
     const validOv = ovParts.length === 3 && ovParts.every((n) => Number.isFinite(n) && n >= 0 && n <= 255);
-    const ovColor = validOv ? { r: ovParts[0], g: ovParts[1], b: ovParts[2], a: 1 } : null;
-    if (!ovColor) {
-      t.overlayRgb = '7, 13, 22';
-    } else if (relLum(ovColor) > 0.06) {
-      const maxCh = Math.max(1, ovColor.r, ovColor.g, ovColor.b);
-      const scaled = [ovColor.r, ovColor.g, ovColor.b].map((ch) => Math.max(5, Math.min(20, Math.round((ch / maxCh) * 18))));
-      t.overlayRgb = scaled.join(', ');
+    if (!validOv) {
+      t.overlayRgb = '5, 8, 15';
+    } else {
+      t.overlayRgb = clampOverlayRgb(ovParts[0], ovParts[1], ovParts[2], 3, 20, 10).join(', ');
     }
     const ov = t.overlayRgb;
+    const darkGlass = { r: 8, g: 12, b: 20, a: 1 };
+    const pParsed = parseCssColor(t.primary) || (pal && pal.primary ? { r: pal.primary[0], g: pal.primary[1], b: pal.primary[2] } : { r: 56, g: 189, b: 248 });
+    const sParsed = parseCssColor(t.secondary) || (pal && pal.secondary ? { r: pal.secondary[0], g: pal.secondary[1], b: pal.secondary[2] } : { r: 226, g: 232, b: 240 });
+    t.primary = toHex(ensureAccentContrast([Math.round(pParsed.r), Math.round(pParsed.g), Math.round(pParsed.b)], darkGlass, 4.8));
+    t.secondary = toHex(ensureAccentContrast([Math.round(sParsed.r), Math.round(sParsed.g), Math.round(sParsed.b)], darkGlass, 4.2));
+
     t.aiCardBg = enforceSurfaceAlpha(t.aiCardBg, 0.88, L, `rgba(${ov}, 0.90)`);
     t.sidebarBg = enforceSurfaceAlpha(t.sidebarBg, 0.64, L, `rgba(${ov}, 0.66)`);
     t.headerBg = enforceSurfaceAlpha(t.headerBg, 0.64, L, `rgba(${ov}, 0.66)`);
     t.inputGlassBg = enforceSurfaceAlpha(t.inputGlassBg, 0.82, L, `rgba(${ov}, 0.84)`);
-    t.modalBg = enforceSurfaceAlpha(t.modalBg, 0.96, L, 'rgba(10, 14, 24, 0.97)');
-    t.cardBg = enforceSurfaceAlpha(t.cardBg, 0.88, L, 'rgba(14, 20, 34, 0.88)');
+    t.modalBg = enforceSurfaceAlpha(t.modalBg, 0.96, L, `rgba(${ov}, 0.97)`);
+    t.cardBg = enforceSurfaceAlpha(t.cardBg, 0.88, L, `rgba(${ov}, 0.90)`);
     t.pillBg = enforceSurfaceAlpha(t.pillBg, 0.84, L, `rgba(${ov}, 0.86)`);
 
     const icBase = extractFirstColor(t.inputCardBg);
     if (!icBase || relLum(icBase) > 0.08 || icBase.a < 0.88) {
-      t.inputCardBg = `linear-gradient(145deg, rgba(${ov}, 0.92) 0%, rgba(5, 9, 16, 0.96) 100%)`;
+      t.inputCardBg = `linear-gradient(145deg, rgba(${ov}, 0.92) 0%, rgba(${ov}, 0.96) 100%)`;
     }
     const bgBase = extractFirstColor(t.bg);
     if (!bgBase || relLum(bgBase) > 0.12 || bgBase.a < 0.88) {
-      t.bg = `linear-gradient(145deg, rgba(${ov}, 0.92) 0%, rgba(6, 10, 18, 0.96) 100%)`;
+      t.bg = `linear-gradient(145deg, rgba(${ov}, 0.92) 0%, rgba(${ov}, 0.96) 100%)`;
     }
 
     t.uiTextColor = ensureReadableInk(t.uiTextColor, t.aiCardBg, 9.0, L, '#f8fafc');
@@ -8953,22 +9020,22 @@
     const t = {
       concept,
       primary: primaryHex, secondary: secondaryHex,
-      glow: rgba(p, 0.28), secondaryGlow: rgba(s, 0.22),
-      bg: `linear-gradient(145deg, rgba(${Math.round(p[0] * 0.14 + 6)}, ${Math.round(p[1] * 0.14 + 8)}, ${Math.round(p[2] * 0.14 + 14)}, 0.92) 0%, rgba(6, 8, 14, 0.96) 100%)`,
-      frameBg: `linear-gradient(135deg, ${rgba(p, 0.74)} 0%, ${rgba(s, 0.52)} 50%, ${rgba(p, 0.62)} 100%)`,
+      glow: rgba(p, 0.26), secondaryGlow: rgba(s, 0.18),
+      bg: `linear-gradient(145deg, ${dark(0.92)} 0%, ${dark(0.96)} 100%)`,
+      frameBg: `linear-gradient(135deg, ${rgba(p, 0.74)} 0%, ${rgba(s, 0.50)} 50%, ${rgba(p, 0.66)} 100%)`,
       textColor: '#f8fafc',
       borderColor: rgba(p, 0.34), innerBorder: `1px solid ${rgba(p, 0.18)}`,
       clearBackdrop: true, overlayRgb: ov, bgPosition: 'center center',
       sidebarBg: dark(0.66), sidebarBlur: '3px', sidebarHoverBg: rgba(p, 0.16), sidebarEnhanceText: true,
-      aiCardBg: dark(0.90), aiCardBorder: rgba(p, 0.22),
-      headerBg: dark(0.66), headerBlur: '3px', headerBorder: rgba(p, 0.14),
+      aiCardBg: dark(0.90), aiCardBorder: rgba(p, 0.18),
+      headerBg: dark(0.66), headerBlur: '3px', headerBorder: rgba(p, 0.12),
       unifiedGlass: true,
-      btnBg: `rgba(${Math.round(p[0] * 0.12 + 8)}, ${Math.round(p[1] * 0.12 + 12)}, ${Math.round(p[2] * 0.12 + 22)}, 0.78)`,
+      btnBg: dark(0.78),
       inputGlassBg: dark(0.84),
-      inputCardBg: `linear-gradient(145deg, rgba(${Math.round(p[0] * 0.12 + 6)}, ${Math.round(p[1] * 0.12 + 9)}, ${Math.round(p[2] * 0.12 + 16)}, 0.92) 0%, rgba(5, 8, 14, 0.96) 100%)`,
-      modalBg: `rgba(${Math.round(p[0] * 0.08 + 5)}, ${Math.round(p[1] * 0.08 + 8)}, ${Math.round(p[2] * 0.08 + 14)}, 0.97)`,
-      modalHeaderBg: `rgba(${Math.round(p[0] * 0.10 + 7)}, ${Math.round(p[1] * 0.10 + 10)}, ${Math.round(p[2] * 0.10 + 18)}, 0.94)`,
-      cardBg: `rgba(${Math.round(p[0] * 0.10 + 8)}, ${Math.round(p[1] * 0.10 + 12)}, ${Math.round(p[2] * 0.10 + 20)}, 0.88)`,
+      inputCardBg: `linear-gradient(145deg, ${dark(0.92)} 0%, ${dark(0.96)} 100%)`,
+      modalBg: dark(0.97),
+      modalHeaderBg: dark(0.94),
+      cardBg: dark(0.90),
       cardSelectedBg: rgba(p, 0.24),
       uiTextColor: '#f8fafc', uiMutedColor: '#cbd5e1',
       pillBg: dark(0.86), pillHoverBg: rgba(p, 0.20),
@@ -9264,7 +9331,31 @@
     if (raw.brandLogoMeta && typeof raw.brandLogoMeta === 'object') t.brandLogoMeta = raw.brandLogoMeta;
     if (typeof raw.brandTitle === 'string' && raw.brandTitle.trim()) t.brandTitle = raw.brandTitle.trim().slice(0, 80);
     t.isAiDesigned = true;
-    return enforceReadableTheme(t, pal);
+    const out = enforceReadableTheme(t, pal);
+    const pCol = parseCssColor(out.primary);
+    const sCol = parseCssColor(out.secondary);
+    const pArr = pCol ? [Math.round(pCol.r), Math.round(pCol.g), Math.round(pCol.b)] : pal.primary;
+    const sArr = sCol ? [Math.round(sCol.r), Math.round(sCol.g), Math.round(sCol.b)] : pal.secondary;
+
+    const frameStr = String(out.frameBg || '');
+    const frameAlphas = [...frameStr.matchAll(/rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\s*\)/gi)].map((m) => Number(m[1]));
+    const hasHexInFrame = /#[0-9a-f]{3,8}\b/i.test(frameStr);
+    if (frameAlphas.length < 2 || hasHexInFrame || frameAlphas.some((a) => !Number.isFinite(a) || a > 0.85)) {
+      out.frameBg = `linear-gradient(135deg, ${rgba(pArr, 0.74)} 0%, ${rgba(sArr, 0.50)} 50%, ${rgba(pArr, 0.66)} 100%)`;
+    }
+    const glowCol = parseCssColor(out.glow);
+    if (!glowCol || glowCol.a > 0.40 || glowCol.a < 0.10 || relLum(glowCol) < 0.05) {
+      out.glow = rgba(pArr, 0.26);
+    }
+    const secGlowCol = parseCssColor(out.secondaryGlow);
+    if (!secGlowCol || secGlowCol.a > 0.35 || secGlowCol.a < 0.08 || relLum(secGlowCol) < 0.05) {
+      out.secondaryGlow = rgba(sArr, 0.18);
+    }
+    const brdCol = parseCssColor(out.borderColor);
+    if (!brdCol || brdCol.a > 0.50 || brdCol.a < 0.12) {
+      out.borderColor = rgba(pArr, 0.34);
+    }
+    return out;
   }
 
   async function createThemeFromImageFile(file, onStatus, opts = {}) {
