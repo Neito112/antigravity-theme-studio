@@ -117,19 +117,63 @@ if IS_WIN:
             _pid_name_cache[pid] = name
         return name
 
-    def is_antigravity_foreground(own_pid):
+    SHELL_TRANSIENT_CLASSES = {
+        'shell_traywnd',
+        'shell_secondarytraywnd',
+        'notifyiconoverflowwindow',
+        'tasklistthumbnailwnd',
+        'multitaskingviewframe',
+        'windows.ui.core.corewindow',
+    }
+
+    def get_hwnd_class(hwnd):
         try:
+            buf = ctypes.create_unicode_buffer(256)
+            user32.GetClassNameW(hwnd, buf, 256)
+            return buf.value.strip().lower()
+        except Exception:
+            return ''
+
+    def find_antigravity_main_hwnd():
+        found = [0]
+        EnumProc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.wintypes.HWND, ctypes.wintypes.LPARAM)
+
+        def _cb(hwnd, _lp):
+            if not user32.IsWindowVisible(hwnd):
+                return True
+            pid = ctypes.wintypes.DWORD(0)
+            user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+            if get_process_name_by_pid(pid.value) == 'antigravity.exe':
+                rect = ctypes.wintypes.RECT()
+                if user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+                    if (rect.right - rect.left) > 300 or user32.IsIconic(hwnd):
+                        found[0] = hwnd
+                        return False
+            return True
+
+        user32.EnumWindows(EnumProc(_cb), 0)
+        return found[0]
+
+    def check_overlay_should_show(own_pid, currently_visible):
+        try:
+            agy_hwnd = find_antigravity_main_hwnd()
+            if not agy_hwnd or user32.IsIconic(agy_hwnd) or not user32.IsWindowVisible(agy_hwnd):
+                return True
             fg = user32.GetForegroundWindow()
             if not fg:
-                return False
-            if user32.IsIconic(fg):
-                return False
+                return currently_visible
             pid = ctypes.wintypes.DWORD(0)
             user32.GetWindowThreadProcessId(fg, ctypes.byref(pid))
             if pid.value == own_pid:
-                return False
+                return True
             pname = get_process_name_by_pid(pid.value)
-            return pname == 'antigravity.exe'
+            if pname == 'antigravity.exe' and not user32.IsIconic(fg):
+                return False
+            cls = get_hwnd_class(fg)
+            if cls in SHELL_TRANSIENT_CLASSES:
+                # Taskbar / Start click while Antigravity is still visible behind it: keep hidden so no double-pet split
+                return currently_visible
+            return True
         except Exception:
             return False
 
@@ -476,6 +520,8 @@ class DesktopPetOverlay(QWidget):
         self._user_moved = False
         self._pos_x = None
         self._pos_y = None
+        self._last_synced_pet_pos = None
+        self._last_reported_vis = None
         self._drag_last_x = None
         self._drag_speed_until = 0.0
 
@@ -848,17 +894,30 @@ class DesktopPetOverlay(QWidget):
         if first_pm:
             self.pet_widget.set_frame_pixmap(first_pm)
 
+    def _get_pet_offset_in_window(self):
+        if self.layout():
+            self.layout().activate()
+        g = self.pet_widget.geometry()
+        return g.x(), g.y()
+
+    def _move_pet_to_screen_pos(self, sx, sy):
+        ox, oy = self._get_pet_offset_in_window()
+        target = self._clamp_pos(QPoint(int(sx) - ox, int(sy) - oy))
+        self.move(target)
+        self._pos_x, self._pos_y = target.x(), target.y()
+        self._sync_sticker_geometry()
+
     def _place_initial(self):
         saved = self.theme_state.get('desktopOverlayPos')
         screen = QGuiApplication.primaryScreen()
         geo = screen.availableGeometry() if screen else QRect(0, 0, 1920, 1040)
         self.adjustSize()
         if isinstance(saved, dict) and isinstance(saved.get('x'), (int, float)) and isinstance(saved.get('y'), (int, float)):
-            x = int(saved['x'])
-            y = int(saved['y'])
-        else:
-            x = geo.right() - self.width() - 28
-            y = geo.bottom() - self.height() - 24
+            self._last_synced_pet_pos = (int(saved['x']), int(saved['y']))
+            self._move_pet_to_screen_pos(saved['x'], saved['y'])
+            return
+        x = geo.right() - self.width() - 28
+        y = geo.bottom() - self.height() - 24
         clamped = self._clamp_pos(QPoint(x, y))
         self.move(clamped)
         self._pos_x, self._pos_y = clamped.x(), clamped.y()
@@ -894,8 +953,13 @@ class DesktopPetOverlay(QWidget):
         clamped = self._clamp_pos(pt)
         self.move(clamped)
         self._pos_x, self._pos_y = clamped.x(), clamped.y()
+        self._sync_sticker_geometry()
+        ox, oy = self._get_pet_offset_in_window()
+        pet_sx = clamped.x() + ox
+        pet_sy = clamped.y() + oy
+        self._last_synced_pet_pos = (pet_sx, pet_sy)
         self.poller.post_action('/api/overlay/set-config', {
-            'desktopOverlayPos': {'x': clamped.x(), 'y': clamped.y()}
+            'desktopOverlayPos': {'x': pet_sx, 'y': pet_sy}
         })
 
     def _toggle_chat(self):
@@ -1056,6 +1120,18 @@ class DesktopPetOverlay(QWidget):
         if data.get('colors') != prev_colors or data.get('wallpaperUrl') != prev_wp:
             self._apply_styles()
 
+        ov_pos = data.get('desktopOverlayPos')
+        if (
+            self._drag_last_x is None
+            and isinstance(ov_pos, dict)
+            and isinstance(ov_pos.get('x'), (int, float))
+            and isinstance(ov_pos.get('y'), (int, float))
+        ):
+            pos_tuple = (int(ov_pos['x']), int(ov_pos['y']))
+            if pos_tuple != self._last_synced_pet_pos:
+                self._last_synced_pet_pos = pos_tuple
+                self._move_pet_to_screen_pos(pos_tuple[0], pos_tuple[1])
+
         cur_state = str(data.get('agentState') or 'idle')
         cur_reply = str(data.get('latestReply') or '').strip()
         cur_seq = str(data.get('replySeq') or '')
@@ -1099,29 +1175,32 @@ class DesktopPetOverlay(QWidget):
             lbl = 'Idle'
         self.status_pill.setText(f'{pet_nm} · {lbl}')
 
+    def _set_overlay_visible(self, visible):
+        if visible:
+            if not self.isVisible():
+                self.show()
+                self.raise_()
+        else:
+            if self.isVisible():
+                self.hide()
+        if self._last_reported_vis is not visible:
+            self._last_reported_vis = visible
+            self.poller.post_action('/api/overlay/visibility', {'visible': visible})
+
     def _tick_visibility(self):
         mode = str(self.theme_state.get('desktopOverlayMode') or 'auto')
         enabled = self.theme_state.get('petEnabled', True) is not False
         if not enabled or mode == 'off':
-            if self.isVisible():
-                self.hide()
+            self._set_overlay_visible(False)
             return
 
         if mode == 'always':
-            if not self.isVisible():
-                self.show()
-                self.raise_()
+            self._set_overlay_visible(True)
             return
 
-        # Auto mode: show when Antigravity is minimized or another app is foreground
-        agy_fg = is_antigravity_foreground(self.own_pid)
-        if agy_fg and not self.isActiveWindow():
-            if self.isVisible():
-                self.hide()
-        else:
-            if not self.isVisible():
-                self.show()
-                self.raise_()
+        # Auto mode: show only when Antigravity is minimized or occluded by another non-taskbar window
+        should_show = check_overlay_should_show(self.own_pid, self.isVisible()) if IS_WIN else False
+        self._set_overlay_visible(should_show)
 
     def _tick_animation(self):
         if not self.isVisible() or not self._frames_cache:

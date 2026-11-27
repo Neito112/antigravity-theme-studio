@@ -2298,6 +2298,42 @@
     try {
       localStorage.setItem(STORAGE_PET_POS, JSON.stringify({ x: Math.round(nx), y: Math.round(ny) }));
     } catch (_) {}
+    syncInAppPetScreenPos(nx, ny);
+  }
+
+  function getWindowChromeTopOffset() {
+    return Math.max(0, (window.outerHeight || window.innerHeight) - window.innerHeight);
+  }
+
+  let _lastSyncedScreenPosKey = '';
+  function syncInAppPetScreenPos(nx, ny) {
+    try {
+      const sx = Math.round((window.screenX || 0) + nx);
+      const sy = Math.round((window.screenY || 0) + getWindowChromeTopOffset() + ny);
+      const key = `${sx},${sy}`;
+      if (key === _lastSyncedScreenPosKey) return;
+      _lastSyncedScreenPosKey = key;
+      if (typeof window.agySaveThemeConfig === 'function') {
+        window.agySaveThemeConfig(JSON.stringify({ desktopOverlayPos: { x: sx, y: sy } }));
+      }
+    } catch (_) {}
+  }
+
+  if (typeof window !== 'undefined' && !window.__AGY_SET_INAPP_PET_HIDDEN__) {
+    window.__AGY_OVERLAY_VISIBLE__ = false;
+    window.__AGY_SET_INAPP_PET_HIDDEN__ = (hidden) => {
+      window.__AGY_OVERLAY_VISIBLE__ = Boolean(hidden);
+      const petEl = document.getElementById('agy-better-pet');
+      if (petEl) petEl.style.display = hidden ? 'none' : '';
+      const rL = document.getElementById('agy-pet-comp-resize-l');
+      const rR = document.getElementById('agy-pet-comp-resize-r');
+      if (hidden) {
+        if (rL) rL.hidden = true;
+        if (rR) rR.hidden = true;
+      } else if (window.__AGY_BETTER_PET_CTRL__ && typeof window.__AGY_BETTER_PET_CTRL__.syncComposerAnchor === 'function') {
+        window.__AGY_BETTER_PET_CTRL__.syncComposerAnchor();
+      }
+    };
   }
 
   function mountBetterPet(theme) {
@@ -2877,7 +2913,9 @@
     window.addEventListener('resize', () => place(x, y, false), { passive: true, signal: sig });
 
     place(x, y, false);
+    syncInAppPetScreenPos(x, y);
     updateTheme(th);
+    if (window.__AGY_OVERLAY_VISIBLE__) pet.style.display = 'none';
     document.body.appendChild(pet);
     document.body.appendChild(resizeL);
     document.body.appendChild(resizeR);
@@ -2890,6 +2928,7 @@
 
     const ctrl = {
       updateTheme,
+      place,
       syncComposerAnchor,
       setChatOpen,
       syncState: () => {
@@ -3489,6 +3528,15 @@
             localStorage.setItem(STORAGE_PET_ENABLED, String(partial.petEnabled));
             const cur = getState();
             syncBetterPet(cur.themeMode !== 'static', THEMES[cur.themeName] || {}, partial.petEnabled);
+          }
+          if (partial.desktopOverlayPos && typeof partial.desktopOverlayPos.x === 'number' && typeof partial.desktopOverlayPos.y === 'number') {
+            const nx = Math.round(partial.desktopOverlayPos.x - (window.screenX || 0));
+            const ny = Math.round(partial.desktopOverlayPos.y - ((window.screenY || 0) + getWindowChromeTopOffset()));
+            localStorage.setItem(STORAGE_PET_POS, JSON.stringify({ x: nx, y: ny }));
+            _lastSyncedScreenPosKey = `${Math.round(partial.desktopOverlayPos.x)},${Math.round(partial.desktopOverlayPos.y)}`;
+            if (window.__AGY_BETTER_PET_CTRL__ && typeof window.__AGY_BETTER_PET_CTRL__.place === 'function') {
+              window.__AGY_BETTER_PET_CTRL__.place(nx, ny, false);
+            }
           }
         } catch (_) {}
       };

@@ -1423,6 +1423,7 @@ function sanitizeUploadFilename(rawName) {
 const OVERLAY_SCRIPT_PATH = path.join(__dirname, 'pet_overlay.py');
 const OVERLAY_PID_FILE = path.join(ROOT_DIR, 'overlay.pid');
 let overlayProc = null;
+let overlayVisible = false;
 let overlayLastProbeAt = 0;
 let overlayLastProbeData = { agentState: 'idle', latestReply: '', replySeq: '', pageTitle: 'Antigravity' };
 let overlaySpawnBlockedUntil = 0;
@@ -1961,6 +1962,22 @@ async function handleMediaRequest(req, res) {
     if (req.method === 'POST' && pathname === '/api/overlay/focus-app') {
         restoreAntigravityWindow();
         sendJson(res, 200, { ok: true });
+        return;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/overlay/visibility') {
+        try {
+            const raw = await readRequestBody(req, 16 * 1024);
+            const parsed = JSON.parse(raw.toString('utf8') || '{}');
+            overlayVisible = Boolean(parsed.visible);
+            const expr = `window.__AGY_SET_INAPP_PET_HIDDEN__ && window.__AGY_SET_INAPP_PET_HIDDEN__(${overlayVisible ? 'true' : 'false'});`;
+            for (const s of sessions.values()) {
+                s.evalExpr && s.evalExpr(expr);
+            }
+            sendJson(res, 200, { ok: true, overlayVisible });
+        } catch (err) {
+            sendJson(res, 400, { ok: false, error: err.message });
+        }
         return;
     }
 
