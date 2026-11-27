@@ -821,6 +821,89 @@ function createSession(target) {
 
 let missingCdpLogged = false;
 let scanInProgress = false;
+const patchedBootSplashIds = new Set();
+
+function resolveBootSplashMediaUrl(relOrAbs) {
+    if (!relOrAbs) return '';
+    const s = String(relOrAbs).trim();
+    if (!s) return '';
+    if (/^(https?:|data:|blob:)/i.test(s)) return s;
+    return `${MEDIA_BASE_URL}/${s.replace(/^\.\//, '').replace(/^\/+/, '')}`;
+}
+
+function buildNativeSplashReplacementExpr() {
+    const { cfg, themes } = readThemesCatalog();
+    if (cfg.bootIntro === false || cfg.themeMode === 'static') return '';
+    const themeName = cfg.themeName && themes[cfg.themeName]
+        ? cfg.themeName
+        : (themes['WLOP Cosmic'] ? 'WLOP Cosmic' : (Object.keys(themes)[0] || 'WLOP Cosmic'));
+    const th = themes[themeName] || {};
+    const pack = th.dynamicPack || {};
+    const workId = th.workIdentity || {};
+    const primary = th.primary || '#38bdf8';
+    const secondary = th.secondary || '#c084fc';
+    const wpUrl = resolveBootSplashMediaUrl(cfg.customWp || th.wallpaper || th.posterUrl || '');
+    const sigil = workId.sigilSvgInner || '<path d="M12 2.5L14.8 9.2L21.5 12L14.8 14.8L12 21.5L9.2 14.8L2.5 12L9.2 9.2Z" stroke="currentColor" stroke-width="1.6" fill="none"/><circle cx="12" cy="12" r="2" fill="currentColor"/>';
+    const title = String(pack.introTitle || workId.brandTitle || themeName || 'ANTIGRAVITY').toUpperCase();
+    const subtitle = String(pack.introSubtitle || workId.bootTagline || 'SYSTEM SYNCHRONIZED').toUpperCase();
+    const checks = Array.isArray(pack.introChecks) && pack.introChecks.length ? pack.introChecks.slice(0, 4) : ['VISUAL', 'GLASS', 'PET', 'SYNC'];
+    const bgCss = wpUrl ? `url("${wpUrl}") center/cover no-repeat` : 'radial-gradient(circle at 50% 40%, #0f172a 0%, #020307 100%)';
+
+    const splashHtml = `
+      <div id="agy-native-boot-hud" style="position:fixed;inset:0;z-index:999999;background:#020307;color:#f8fafc;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:ui-monospace,'Cascadia Code',Consolas,monospace;overflow:hidden;-webkit-app-region:drag;user-select:none;">
+        <div style="position:absolute;inset:0;background:${bgCss};opacity:0.38;filter:saturate(1.1);"></div>
+        <div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 45%, transparent 18%, rgba(2,3,7,0.88) 78%, #020307 100%);"></div>
+        <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;padding:24px;">
+          <div style="position:relative;width:96px;height:96px;display:flex;align-items:center;justify-content:center;border-radius:9999px;border:1.5px solid ${primary};box-shadow:0 0 28px ${primary}55, inset 0 0 18px ${secondary}33;background:rgba(6,10,18,0.72);">
+            <svg viewBox="0 0 24 24" width="46" height="46" style="color:${primary};filter:drop-shadow(0 0 10px ${primary});">${sigil}</svg>
+          </div>
+          <div style="font-size:20px;font-weight:700;letter-spacing:3.2px;color:#f8fafc;text-shadow:0 0 18px ${primary}66;">${title.replace(/</g, '&lt;')}</div>
+          <div style="font-size:11px;letter-spacing:2.4px;color:${secondary};opacity:0.92;">${subtitle.replace(/</g, '&lt;')}</div>
+          <div style="width:260px;height:3px;border-radius:9999px;background:rgba(255,255,255,0.10);overflow:hidden;margin-top:4px;">
+            <div style="width:65%;height:100%;border-radius:9999px;background:linear-gradient(90deg,${primary},${secondary});animation:agySplashBar 1.3s ease-in-out infinite alternate;"></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px;">
+            ${checks.map((c) => `<span style="font-size:10px;letter-spacing:1.2px;padding:3px 9px;border-radius:9999px;border:1px solid ${primary}44;background:rgba(8,12,22,0.72);color:#cbd5e1;">● ${String(c).replace(/</g, '&lt;')}</span>`).join('')}
+          </div>
+        </div>
+        <style>@keyframes agySplashBar{0%{transform:translateX(-20%);width:38%}100%{transform:translateX(75%);width:56%}}</style>
+      </div>
+    `;
+    return `(() => {
+      try {
+        if (document.getElementById('agy-native-boot-hud')) return 'already';
+        const txt = (document.documentElement.innerHTML || '');
+        const isSplash = txt.includes('logo-pulse') || txt.includes('M144.248') || txt.includes('#070708') || txt.includes('#131313');
+        if (!isSplash) return 'not-splash';
+        document.documentElement.style.background = '#020307';
+        document.body.style.margin = '0';
+        document.body.style.background = '#020307';
+        document.body.innerHTML = ${JSON.stringify(splashHtml)};
+        return 'patched';
+      } catch (e) { return String(e); }
+    })()`;
+}
+
+function patchBootSplashTarget(target) {
+    if (!target || !target.id || !target.webSocketDebuggerUrl) return;
+    if (patchedBootSplashIds.has(target.id)) return;
+    patchedBootSplashIds.add(target.id);
+    const expr = buildNativeSplashReplacementExpr();
+    if (!expr) return;
+    try {
+        const ws = new globalThis.WebSocket(target.webSocketDebuggerUrl);
+        ws.addEventListener('open', () => {
+            ws.send(JSON.stringify({
+                id: 1,
+                method: 'Runtime.evaluate',
+                params: { expression: expr, awaitPromise: false, returnByValue: true },
+            }));
+            setTimeout(() => { try { ws.close(); } catch (_) {} }, 250);
+        });
+        ws.addEventListener('error', () => { try { ws.close(); } catch (_) {} });
+    } catch (_) {}
+}
+
 async function scanPages() {
     if (scanInProgress) return;
     scanInProgress = true;
@@ -850,6 +933,17 @@ async function scanPages() {
         return;
     }
     if (!Array.isArray(targets)) return;
+
+    const splashTargets = targets.filter((t) =>
+        t && t.type === 'page' && t.webSocketDebuggerUrl && String(t.url || '').startsWith('data:text/html')
+    );
+    const liveSplashIds = new Set(splashTargets.map((t) => t.id));
+    for (const oldId of patchedBootSplashIds) {
+        if (!liveSplashIds.has(oldId)) patchedBootSplashIds.delete(oldId);
+    }
+    for (const sp of splashTargets) {
+        patchBootSplashTarget(sp);
+    }
 
     const pages = targets.filter((t) => {
         if (!t || t.type !== 'page' || !t.webSocketDebuggerUrl) return false;
@@ -2074,7 +2168,7 @@ async function scheduleScanLoop() {
     try {
         await scanPages();
     } catch (_) {}
-    const delayMs = sessions.size === 0 ? 100 : 400;
+    const delayMs = sessions.size === 0 ? 45 : 350;
     setTimeout(scheduleScanLoop, delayMs);
 }
 scheduleScanLoop();

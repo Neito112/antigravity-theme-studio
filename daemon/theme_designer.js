@@ -477,33 +477,38 @@ function hexToRgbTuple(hex, fallback = [148, 163, 184]) {
 }
 
 function buildSurfaceTokens(primaryHex, secondaryHex, overlayRgb) {
-    const ov = overlayRgb || '6, 10, 16';
+    const ov = overlayRgb || '7, 11, 20';
+    const ovNums = ov.split(',').map((x) => Math.max(0, Math.min(255, parseInt(x.trim(), 10) || 0)));
+    const [oR, oG, oB] = ovNums.length === 3 ? ovNums : [7, 11, 20];
     const [pR, pG, pB] = hexToRgbTuple(primaryHex, [148, 163, 184]);
     const [sR, sG, sB] = hexToRgbTuple(secondaryHex, [203, 213, 225]);
+    const ovDeep = `${Math.max(3, Math.round(oR * 0.65))}, ${Math.max(3, Math.round(oG * 0.65))}, ${Math.max(3, Math.round(oB * 0.65))}`;
+    const ovCard = `${Math.min(34, Math.round(oR * 0.92 + pR * 0.06))}, ${Math.min(34, Math.round(oG * 0.92 + pG * 0.06))}, ${Math.min(34, Math.round(oB * 0.92 + pB * 0.06))}`;
+    const ovBtn = `${Math.min(42, Math.round(oR * 0.88 + pR * 0.11))}, ${Math.min(42, Math.round(oG * 0.88 + pG * 0.11))}, ${Math.min(42, Math.round(oB * 0.88 + pB * 0.11))}`;
     return {
-        glow: `rgba(${pR}, ${pG}, ${pB}, 0.26)`,
-        secondaryGlow: `rgba(${sR}, ${sG}, ${sB}, 0.18)`,
-        bg: `linear-gradient(145deg, rgba(${ov}, 0.92) 0%, rgba(5, 8, 15, 0.96) 100%)`,
-        frameBg: `linear-gradient(135deg, rgba(${pR}, ${pG}, ${pB}, 0.74) 0%, rgba(${sR}, ${sG}, ${sB}, 0.50) 50%, rgba(${pR}, ${pG}, ${pB}, 0.66) 100%)`,
-        borderColor: `rgba(${pR}, ${pG}, ${pB}, 0.34)`,
-        innerBorder: `1px solid rgba(${pR}, ${pG}, ${pB}, 0.18)`,
+        glow: `rgba(${pR}, ${pG}, ${pB}, 0.28)`,
+        secondaryGlow: `rgba(${sR}, ${sG}, ${sB}, 0.20)`,
+        bg: `linear-gradient(145deg, rgba(${ov}, 0.92) 0%, rgba(${ovDeep}, 0.96) 100%)`,
+        frameBg: `linear-gradient(135deg, rgba(${pR}, ${pG}, ${pB}, 0.78) 0%, rgba(${sR}, ${sG}, ${sB}, 0.52) 50%, rgba(${pR}, ${pG}, ${pB}, 0.68) 100%)`,
+        borderColor: `rgba(${pR}, ${pG}, ${pB}, 0.36)`,
+        innerBorder: `1px solid rgba(${pR}, ${pG}, ${pB}, 0.20)`,
         overlayRgb: ov,
-        sidebarBg: `rgba(${ov}, 0.66)`,
-        sidebarHoverBg: `rgba(${pR}, ${pG}, ${pB}, 0.16)`,
-        aiCardBg: `rgba(${ov}, 0.90)`,
-        aiCardBorder: `rgba(${pR}, ${pG}, ${pB}, 0.18)`,
-        headerBg: `rgba(${ov}, 0.66)`,
-        headerBorder: `rgba(${pR}, ${pG}, ${pB}, 0.12)`,
-        btnBg: `rgba(${ov}, 0.78)`,
+        sidebarBg: `rgba(${ov}, 0.58)`,
+        sidebarHoverBg: `rgba(${pR}, ${pG}, ${pB}, 0.18)`,
+        aiCardBg: `rgba(${ovDeep}, 0.88)`,
+        aiCardBorder: `rgba(${sR}, ${sG}, ${sB}, 0.20)`,
+        headerBg: `rgba(${ov}, 0.58)`,
+        headerBorder: `rgba(${pR}, ${pG}, ${pB}, 0.16)`,
+        btnBg: `rgba(${ovBtn}, 0.76)`,
         inputGlassBg: `rgba(${ov}, 0.84)`,
-        inputCardBg: `linear-gradient(145deg, rgba(${ov}, 0.92) 0%, rgba(5, 8, 15, 0.96) 100%)`,
-        modalBg: `rgba(${ov}, 0.97)`,
+        inputCardBg: `linear-gradient(145deg, rgba(${ov}, 0.90) 0%, rgba(${ovDeep}, 0.96) 100%)`,
+        modalBg: `rgba(${ovDeep}, 0.97)`,
         modalHeaderBg: `rgba(${ov}, 0.92)`,
-        cardBg: `rgba(${ov}, 0.84)`,
-        cardSelectedBg: `rgba(${pR}, ${pG}, ${pB}, 0.22)`,
+        cardBg: `rgba(${ovCard}, 0.80)`,
+        cardSelectedBg: `rgba(${pR}, ${pG}, ${pB}, 0.26)`,
         pillBg: `rgba(${ov}, 0.86)`,
-        pillHoverBg: `rgba(${pR}, ${pG}, ${pB}, 0.16)`,
-        pillBorder: `rgba(${pR}, ${pG}, ${pB}, 0.24)`
+        pillHoverBg: `rgba(${pR}, ${pG}, ${pB}, 0.22)`,
+        pillBorder: `rgba(${pR}, ${pG}, ${pB}, 0.32)`
     };
 }
 
@@ -593,17 +598,13 @@ function extractPaletteViaPillow(filePath) {
         '        prim = tune_contrast([r*255, g*255, b*255], 0.58, 0.92, 0.84, 0.98, 5.2)',
         '        r2, g2, b2 = colorsys.hsv_to_rgb((h + 34.0/360.0) % 1.0, 0.62, 0.88)',
         '        sec = tune_contrast([r2*255, g2*255, b2*255], 0.55, 0.88, 0.84, 0.98, 4.4)',
-        'tint_src = [0.55 * avg[i] + 0.45 * prim[i] for i in range(3)]',
-        'tmax = max(1.0, max(tint_src))',
-        'tint = [c * (42.0 / tmax) for c in tint_src]',
-        'base = [5.0, 8.0, 15.0]',
-        'ov = [max(3, min(18, round(0.82 * base[i] + 0.18 * tint[i]))) for i in range(3)]',
+        'oh, os, _ = colorsys.rgb_to_hsv(prim[0]/255, prim[1]/255, prim[2]/255)',
+        'or_, og_, ob_ = colorsys.hsv_to_rgb(oh, min(0.56, max(0.28, os * 0.62)), 0.095)',
+        'ov = [max(5, min(24, round(c * 255))) for c in (or_, og_, ob_)]',
         'spread = max(ov) - min(ov)',
-        'if spread > 9:',
+        'if spread > 15:',
         '    mean = sum(ov) / 3.0',
-        '    ov = [max(3, min(18, round(mean + (c - mean) * (9.0 / spread)))) for c in ov]',
-        'while (max(ov) + min(ov)) > 20:',
-        '    ov = [max(3, c - 1) if c > 3 else 3 for c in ov]',
+        '    ov = [max(5, min(24, round(mean + (c - mean) * (15.0 / spread)))) for c in ov]',
         'print(json.dumps({"primary": hx(prim), "secondary": hx(sec), "overlayRgb": ", ".join(str(c) for c in ov)}))'
     ].join('\n');
     const res = spawnSync(py, ['-c', script, filePath], { windowsHide: true, encoding: 'utf8' });

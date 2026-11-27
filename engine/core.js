@@ -8862,10 +8862,9 @@
     const baseDark = { r: 6, g: 9, b: 18, a: 1 };
     primary = ensureAccentContrast(primary, baseDark, 5.2);
     secondary = ensureAccentContrast(secondary, baseDark, 4.4);
-    const baseObsidian = [5, 8, 15];
-    const tint = avg.map((x) => Math.max(3, Math.min(22, x * 0.12)));
-    const blendedOv = baseObsidian.map((b, idx) => b * 0.82 + tint[idx] * 0.18);
-    const overlay = clampOverlayRgb(blendedOv[0], blendedOv[1], blendedOv[2], 3, 18, 9);
+    const [ovH, ovS] = rgbToHsv(primary[0], primary[1], primary[2]);
+    const rawOv = hsvToRgb(ovH, Math.min(0.56, Math.max(0.28, ovS * 0.62)), 0.095);
+    const overlay = clampOverlayRgb(rawOv[0], rawOv[1], rawOv[2], 5, 24, 15);
     return { avg, lum, isLight, primary, secondary, overlay, transparentRatio: transparent / Math.max(1, n) };
   }
 
@@ -8966,9 +8965,9 @@
     const ovParts = String(t.overlayRgb || '').split(',').map((x) => parseInt(x.trim(), 10));
     const validOv = ovParts.length === 3 && ovParts.every((n) => Number.isFinite(n) && n >= 0 && n <= 255);
     if (!validOv) {
-      t.overlayRgb = '5, 8, 15';
+      t.overlayRgb = '7, 11, 20';
     } else {
-      t.overlayRgb = clampOverlayRgb(ovParts[0], ovParts[1], ovParts[2], 3, 20, 10).join(', ');
+      t.overlayRgb = clampOverlayRgb(ovParts[0], ovParts[1], ovParts[2], 4, 24, 16).join(', ');
     }
     const ov = t.overlayRgb;
     const darkGlass = { r: 8, g: 12, b: 20, a: 1 };
@@ -8977,12 +8976,12 @@
     t.primary = toHex(ensureAccentContrast([Math.round(pParsed.r), Math.round(pParsed.g), Math.round(pParsed.b)], darkGlass, 4.8));
     t.secondary = toHex(ensureAccentContrast([Math.round(sParsed.r), Math.round(sParsed.g), Math.round(sParsed.b)], darkGlass, 4.2));
 
-    t.aiCardBg = enforceSurfaceAlpha(t.aiCardBg, 0.88, L, `rgba(${ov}, 0.90)`);
-    t.sidebarBg = enforceSurfaceAlpha(t.sidebarBg, 0.64, L, `rgba(${ov}, 0.66)`);
-    t.headerBg = enforceSurfaceAlpha(t.headerBg, 0.64, L, `rgba(${ov}, 0.66)`);
+    t.aiCardBg = enforceSurfaceAlpha(t.aiCardBg, 0.86, L, `rgba(${ov}, 0.88)`);
+    t.sidebarBg = enforceSurfaceAlpha(t.sidebarBg, 0.56, L, `rgba(${ov}, 0.58)`);
+    t.headerBg = enforceSurfaceAlpha(t.headerBg, 0.56, L, `rgba(${ov}, 0.58)`);
     t.inputGlassBg = enforceSurfaceAlpha(t.inputGlassBg, 0.82, L, `rgba(${ov}, 0.84)`);
     t.modalBg = enforceSurfaceAlpha(t.modalBg, 0.96, L, `rgba(${ov}, 0.97)`);
-    t.cardBg = enforceSurfaceAlpha(t.cardBg, 0.88, L, `rgba(${ov}, 0.90)`);
+    t.cardBg = enforceSurfaceAlpha(t.cardBg, 0.78, L, `rgba(${ov}, 0.80)`);
     t.pillBg = enforceSurfaceAlpha(t.pillBg, 0.84, L, `rgba(${ov}, 0.86)`);
 
     const icBase = extractFirstColor(t.inputCardBg);
@@ -9006,6 +9005,9 @@
   function buildThemeFromPalette(pal, wallpaper, concept, nameHint = '') {
     const p = pal.primary, s = pal.secondary, o = pal.overlay;
     const ov = o.join(', ');
+    const ovDeep = o.map((c) => Math.max(3, Math.round(c * 0.65))).join(', ');
+    const ovCard = o.map((c, i) => Math.min(34, Math.round(c * 0.92 + p[i] * 0.06))).join(', ');
+    const ovBtn = o.map((c, i) => Math.min(42, Math.round(c * 0.88 + p[i] * 0.11))).join(', ');
     const dark = (a) => `rgba(${ov}, ${a})`;
     const primaryHex = toHex(p);
     const secondaryHex = toHex(s);
@@ -9020,26 +9022,26 @@
     const t = {
       concept,
       primary: primaryHex, secondary: secondaryHex,
-      glow: rgba(p, 0.26), secondaryGlow: rgba(s, 0.18),
-      bg: `linear-gradient(145deg, ${dark(0.92)} 0%, ${dark(0.96)} 100%)`,
-      frameBg: `linear-gradient(135deg, ${rgba(p, 0.74)} 0%, ${rgba(s, 0.50)} 50%, ${rgba(p, 0.66)} 100%)`,
+      glow: rgba(p, 0.28), secondaryGlow: rgba(s, 0.20),
+      bg: `linear-gradient(145deg, ${dark(0.92)} 0%, rgba(${ovDeep}, 0.96) 100%)`,
+      frameBg: `linear-gradient(135deg, ${rgba(p, 0.78)} 0%, ${rgba(s, 0.52)} 50%, ${rgba(p, 0.68)} 100%)`,
       textColor: '#f8fafc',
-      borderColor: rgba(p, 0.34), innerBorder: `1px solid ${rgba(p, 0.18)}`,
+      borderColor: rgba(p, 0.36), innerBorder: `1px solid ${rgba(p, 0.20)}`,
       clearBackdrop: true, overlayRgb: ov, bgPosition: 'center center',
-      sidebarBg: dark(0.66), sidebarBlur: '3px', sidebarHoverBg: rgba(p, 0.16), sidebarEnhanceText: true,
-      aiCardBg: dark(0.90), aiCardBorder: rgba(p, 0.18),
-      headerBg: dark(0.66), headerBlur: '3px', headerBorder: rgba(p, 0.12),
+      sidebarBg: dark(0.58), sidebarBlur: '3px', sidebarHoverBg: rgba(p, 0.18), sidebarEnhanceText: true,
+      aiCardBg: `rgba(${ovDeep}, 0.88)`, aiCardBorder: rgba(s, 0.20),
+      headerBg: dark(0.58), headerBlur: '3px', headerBorder: rgba(p, 0.16),
       unifiedGlass: true,
-      btnBg: dark(0.78),
+      btnBg: `rgba(${ovBtn}, 0.76)`,
       inputGlassBg: dark(0.84),
-      inputCardBg: `linear-gradient(145deg, ${dark(0.92)} 0%, ${dark(0.96)} 100%)`,
-      modalBg: dark(0.97),
-      modalHeaderBg: dark(0.94),
-      cardBg: dark(0.90),
-      cardSelectedBg: rgba(p, 0.24),
+      inputCardBg: `linear-gradient(145deg, ${dark(0.90)} 0%, rgba(${ovDeep}, 0.96) 100%)`,
+      modalBg: `rgba(${ovDeep}, 0.97)`,
+      modalHeaderBg: dark(0.92),
+      cardBg: `rgba(${ovCard}, 0.80)`,
+      cardSelectedBg: rgba(p, 0.26),
       uiTextColor: '#f8fafc', uiMutedColor: '#cbd5e1',
-      pillBg: dark(0.86), pillHoverBg: rgba(p, 0.20),
-      pillTextColor: '#f8fafc', pillBorder: rgba(p, 0.30),
+      pillBg: dark(0.86), pillHoverBg: rgba(p, 0.22),
+      pillTextColor: '#f8fafc', pillBorder: rgba(p, 0.32),
       wallpaper, isOrnament: true, ...makeOrnaments(p, s, o), stickerW: 96, stickerH: 30, stickerTop: -15, stickerRight: 14,
       isCustomImageTheme: true,
       workIdentity: {
